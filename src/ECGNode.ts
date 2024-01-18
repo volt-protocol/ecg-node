@@ -12,6 +12,7 @@ import { NodeConfig } from './model/NodeConfig';
 dotenv.config();
 
 async function main() {
+  process.title = 'ECG_NODE';
   console.log('[ECG-NODE] STARTED');
   if (!fs.existsSync(path.join(DATA_DIR, 'data'))) {
     fs.mkdirSync(path.join(DATA_DIR, 'data'), { recursive: true });
