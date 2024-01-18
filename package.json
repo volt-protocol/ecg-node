@@ -1,0 +1,39 @@
+{
+    "name": "ecg-node",
+    "version": "1.0.0",
+    "main": "ECGNode.ts",
+    "scripts": {
+        "start": "ts-node ./src/ECGNode.ts",
+        "build": "run-script-os",
+        "build:win32": "rimraf ./build& tsc& copy .\\ecg-node-config.json .\\build\\ecg-node-config.json& copy .\\package.json .\\build\\package.json",
+        "build:darwin:linux": "rimraf ./build && tsc && cp ./ecg-node-config.json ./build/ecg-node-config.json && cp ./package.json ./build/package.json",
+        "build:default": "rimraf ./build && tsc",
+        "lint": "eslint . --ext .ts",
+        "lintfix": "eslint . --ext .ts --fix",
+        "prettier-format": "prettier --config .prettierrc \"./src/**/*.ts\" --write",
+        "prettier-watch": "onchange \"src/**/*.ts\" -- prettier --write {{changed}}"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/node": "^18.19.3",
+        "@types/ws": "^8.5.10",
+        "@typescript-eslint/eslint-plugin": "^5.62.0",
+        "@typescript-eslint/parser": "^5.62.0",
+        "eslint": "^8.56.0",
+        "eslint-config-prettier": "^8.10.0",
+        "eslint-plugin-prettier": "^4.2.1",
+        "onchange": "^7.1.0",
+        "prettier": "^2.8.8",
+        "rimraf": "^4.4.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.3.3",
+        "run-script-os": "^1.1.6"
+    },
+    "dependencies": {
+        "axios": "^1.6.2",
+        "dotenv": "^16.3.1",
+        "ethers": "^6.9.1"
+    }
+}

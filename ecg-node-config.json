@@ -1,0 +1,19 @@
+{
+    "processors": {
+        "LOAN_CALLER": {
+            "enabled": true
+        },
+        "TERM_OFFBOARDER": {
+            "enabled": true
+        },
+        "NEW_TERMS_WATCHER": {
+            "enabled": true
+        },
+        "USER_SLASHER": {
+            "enabled": true
+        },
+        "AUCTION_BIDDER": {
+            "enabled": true
+        }
+    }
+}
