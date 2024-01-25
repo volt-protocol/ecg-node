@@ -4,6 +4,7 @@ export default interface LendingTerm {
   collateralSymbol: string;
   collateralDecimals: number;
   permitAllowed: boolean;
+  hardCap: string;
   interestRate: string;
   borrowRatio: string;
   availableDebt: string;

@@ -65,12 +65,14 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
   MAINNET: {
     deployBlock: 0,
     guildTokenAddress: '0x',
-    creditTokenAddress: '0x'
+    creditTokenAddress: '0x',
+    profitManagerAddress: '0x'
   },
   SEPOLIA: {
     deployBlock: 4835102,
     guildTokenAddress: '0xcc65D0FeAa7568b70453c26648e8A7bbEF7248B4',
-    creditTokenAddress: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f'
+    creditTokenAddress: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f',
+    profitManagerAddress: '0xD8c5748984d27Af2b1FC8235848B16C326e1F6de'
   }
 };
 
@@ -84,4 +86,7 @@ export function GetGuildTokenAddress() {
 
 export function GetCreditTokenAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].creditTokenAddress;
+}
+export function GetProfitManagerAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].profitManagerAddress;
 }

@@ -5,7 +5,6 @@ import path from 'path';
 import { APP_ENV, DATA_DIR } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
 import {
-  CreditToken__factory,
   GuildToken__factory,
   LendingTerm as LendingTermType,
   LendingTerm__factory,
@@ -13,7 +12,7 @@ import {
 } from '../contracts/types';
 import LendingTerm, { LendingTermStatus } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
-import { GetCreditTokenAddress, GetDeployBlock, GetGuildTokenAddress, getTokenByAddress } from '../config/Config';
+import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
 import { roundTo } from '../utils/Utils';
 
 export async function FetchECGData() {
@@ -38,20 +37,17 @@ export async function FetchECGData() {
 async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
   const gauges = await guildTokenContract.gauges();
-  const profitManagerAddress = await guildTokenContract.profitManager();
-  const profitManagerContract = ProfitManager__factory.connect(profitManagerAddress, web3Provider);
-  const minBorrow = await profitManagerContract.minBorrow();
-  const creditMultiplier = await profitManagerContract.creditMultiplier();
-  const creditTokenContract = CreditToken__factory.connect(GetCreditTokenAddress(), web3Provider);
-  const creditSupply = await creditTokenContract.totalSupply();
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promises: any[] = [];
+  promises.push(profitManagerContract.minBorrow());
+  promises.push(profitManagerContract.creditMultiplier());
   for (const lendingTermAddress of gauges) {
     console.log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
     const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
     promises.push(lendingTermContract.getParameters());
     promises.push(lendingTermContract.issuance());
-    promises.push(guildTokenContract.calculateGaugeAllocation(lendingTermAddress, creditSupply));
     promises.push(lendingTermContract['debtCeiling()']());
   }
 
@@ -62,20 +58,24 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
 
   const lendingTerms: LendingTerm[] = [];
   let cursor = 0;
+  const minBorrow: bigint = await promises[cursor++];
+  const creditMultiplier: bigint = await promises[cursor++];
   for (const lendingTermAddress of gauges) {
     // read promises in the same order as the multicall
     const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
     const issuance: bigint = await promises[cursor++];
-    const gaugeAllocation: bigint = await promises[cursor++];
     const debtCeiling: bigint = await promises[cursor++];
 
+    const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
+    const availableDebt = issuance > realCap ? 0n : realCap - issuance;
     lendingTerms.push({
       termAddress: lendingTermAddress,
       collateralAddress: termParameters.collateralToken,
       interestRate: termParameters.interestRate.toString(10),
       borrowRatio: termParameters.maxDebtPerCollateralToken.toString(10),
       currentDebt: issuance.toString(10),
-      availableDebt: termParameters.hardCap > debtCeiling ? debtCeiling.toString() : termParameters.hardCap.toString(),
+      hardCap: termParameters.hardCap.toString(),
+      availableDebt: availableDebt.toString(),
       openingFee: termParameters.openingFee.toString(10),
       minPartialRepayPercent: termParameters.minPartialRepayPercent.toString(10),
       maxDelayBetweenPartialRepay: termParameters.maxDelayBetweenPartialRepay.toString(10),
