@@ -12,7 +12,7 @@
         "lintfix": "eslint . --ext .ts --fix",
         "prettier:format": "prettier --config .prettierrc \"./src/**/*.ts\" --write",
         "prettier:watch": "onchange \"src/**/*.ts\" -- prettier --write {{changed}}",
-        "typechain": "typechain --target=ethers-v6 --out-dir ./src/contracts/types ./src/contracts/abi/*.abi"
+        "typechain": "typechain --target=ethers-v6 --out-dir ./src/contracts/types ./src/contracts/abi/*.json"
     },
     "keywords": [],
     "author": "",

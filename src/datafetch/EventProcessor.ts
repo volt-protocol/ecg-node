@@ -18,7 +18,7 @@ export async function StartEventProcessor() {
         await ProcessAsync(event);
       }
     } else {
-      console.log('EventProcessor: sleeping');
+      // console.log('EventProcessor: sleeping');
       await sleep(1000);
     }
   }
@@ -49,11 +49,13 @@ async function ProcessAsync(event: EventData) {
  * @returns
  */
 function mustUpdateProtocol(event: EventData): boolean {
-  switch (event.eventName.toLowerCase()) {
+  switch (event.sourceContract.toLowerCase()) {
     default:
-      return true;
-    case 'fake':
-      return false;
+      throw new Error(`Unknown contract: ${event.sourceContract}`);
+    case 'guildtoken':
+      return guildTokenMustUpdate(event);
+    case 'lendingterm':
+      return lendingTermMustUpdate(event);
   }
 }
 
@@ -61,4 +63,26 @@ function buildTxUrl(txhash: string): string {
   return `${EXPLORER_URI}/tx/${txhash}`;
 }
 
+function guildTokenMustUpdate(event: EventData): boolean {
+  switch (event.eventName.toLowerCase()) {
+    default:
+      console.log(`GuildToken ${event.eventName} is not important`);
+      return false;
+    case 'addgauge':
+    case 'incrementgaugeweight':
+      console.log(`GuildToken ${event.eventName} must force an update`);
+      return true;
+  }
+}
+
+function lendingTermMustUpdate(event: EventData): boolean {
+  switch (event.eventName.toLowerCase()) {
+    default:
+      console.log(`LendingTerm ${event.eventName} is not important`);
+      return false;
+    case 'loanopen':
+      console.log(`LendingTerm ${event.eventName} must force an update`);
+      return true;
+  }
+}
 // StartEventProcessor();

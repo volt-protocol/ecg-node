@@ -1,6 +1,21 @@
 import { ProtocolConstants } from '../model/ProtocolConstants';
 import { APP_ENV } from '../utils/Constants';
 
+export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
+  MAINNET: {
+    deployBlock: 0,
+    guildTokenAddress: '0x',
+    creditTokenAddress: '0x',
+    profitManagerAddress: '0x'
+  },
+  SEPOLIA: {
+    deployBlock: 4835102,
+    guildTokenAddress: '0xcc65D0FeAa7568b70453c26648e8A7bbEF7248B4',
+    creditTokenAddress: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f',
+    profitManagerAddress: '0xD8c5748984d27Af2b1FC8235848B16C326e1F6de'
+  }
+};
+
 export const TOKENS: TokenConfig[] = [
   {
     address: '0xe9248437489bC542c68aC90E178f6Ca3699C3F6b',
@@ -60,21 +75,6 @@ export function getTokenByAddress(address: string) {
 
   return token;
 }
-
-export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
-  MAINNET: {
-    deployBlock: 0,
-    guildTokenAddress: '0x',
-    creditTokenAddress: '0x',
-    profitManagerAddress: '0x'
-  },
-  SEPOLIA: {
-    deployBlock: 4835102,
-    guildTokenAddress: '0xcc65D0FeAa7568b70453c26648e8A7bbEF7248B4',
-    creditTokenAddress: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f',
-    profitManagerAddress: '0xD8c5748984d27Af2b1FC8235848B16C326e1F6de'
-  }
-};
 
 export function GetDeployBlock() {
   return PROTOCOL_CONSTANTS[APP_ENV].deployBlock;

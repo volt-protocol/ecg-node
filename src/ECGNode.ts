@@ -23,15 +23,15 @@ async function main() {
 
   await FetchECGData();
 
-  // set a timeout that fetches ecg data every 10 minutes
-  setTimeout(async () => await FetchECGData(), 600 * 1000);
+  // set a timeout that fetches ecg data every 30 minutes
+  setTimeout(async () => await FetchECGData(), 30 * 60 * 1000);
   StartEventListener();
   StartEventProcessor();
 
   // only start processors if running from node and not ts-node
   // if ts-node, it means we are debugging
   // to debug a processor, run the processor directly
-  console.log(path.basename(process.argv[0]));
+  // console.log(path.basename(process.argv[0]));
   if (path.basename(process.argv[0]) == 'node') {
     startProcessors(nodeConfig);
   }
