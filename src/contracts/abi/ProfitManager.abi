@@ -1,0 +1,840 @@
+[
+	{
+		"type": "constructor",
+		"inputs": [
+			{
+				"name": "_core",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "claimGaugeRewards",
+		"inputs": [
+			{
+				"name": "user",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "gauge",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "creditEarned",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "claimRewards",
+		"inputs": [
+			{
+				"name": "user",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "creditEarned",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "core",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract Core"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "credit",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "creditMultiplier",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "donateToSurplusBuffer",
+		"inputs": [
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "donateToTermSurplusBuffer",
+		"inputs": [
+			{
+				"name": "term",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "emergencyAction",
+		"inputs": [
+			{
+				"name": "calls",
+				"type": "tuple[]",
+				"internalType": "struct CoreRef.Call[]",
+				"components": [
+					{
+						"name": "target",
+						"type": "address",
+						"internalType": "address"
+					},
+					{
+						"name": "value",
+						"type": "uint256",
+						"internalType": "uint256"
+					},
+					{
+						"name": "callData",
+						"type": "bytes",
+						"internalType": "bytes"
+					}
+				]
+			}
+		],
+		"outputs": [
+			{
+				"name": "returnData",
+				"type": "bytes[]",
+				"internalType": "bytes[]"
+			}
+		],
+		"stateMutability": "payable"
+	},
+	{
+		"type": "function",
+		"name": "gaugeProfitIndex",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "gaugeWeightTolerance",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "getPendingRewards",
+		"inputs": [
+			{
+				"name": "user",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "gauges",
+				"type": "address[]",
+				"internalType": "address[]"
+			},
+			{
+				"name": "creditEarned",
+				"type": "uint256[]",
+				"internalType": "uint256[]"
+			},
+			{
+				"name": "totalCreditEarned",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "getProfitSharingConfig",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "surplusBufferSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "creditSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "guildSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherRecipient",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "guild",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "initializeReferences",
+		"inputs": [
+			{
+				"name": "_credit",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "_guild",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "_psm",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "minBorrow",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "notifyPnL",
+		"inputs": [
+			{
+				"name": "gauge",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "int256",
+				"internalType": "int256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "pause",
+		"inputs": [
+
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "paused",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool",
+				"internalType": "bool"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "psm",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "setCore",
+		"inputs": [
+			{
+				"name": "newCore",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "setGaugeWeightTolerance",
+		"inputs": [
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "setMinBorrow",
+		"inputs": [
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "setProfitSharingConfig",
+		"inputs": [
+			{
+				"name": "surplusBufferSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "creditSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "guildSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherSplit",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherRecipient",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "surplusBuffer",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "termSurplusBuffer",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "totalBorrowedCredit",
+		"inputs": [
+
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "unpause",
+		"inputs": [
+
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "userGaugeProfitIndex",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "withdrawFromSurplusBuffer",
+		"inputs": [
+			{
+				"name": "to",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "withdrawFromTermSurplusBuffer",
+		"inputs": [
+			{
+				"name": "term",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "to",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "event",
+		"name": "ClaimRewards",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "user",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "gauge",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "CoreUpdate",
+		"inputs": [
+			{
+				"name": "oldCore",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "newCore",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "CreditMultiplierUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "GaugePnL",
+		"inputs": [
+			{
+				"name": "gauge",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "pnl",
+				"type": "int256",
+				"indexed": false,
+				"internalType": "int256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "GaugeWeightToleranceUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "MinBorrowUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "Paused",
+		"inputs": [
+			{
+				"name": "account",
+				"type": "address",
+				"indexed": false,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "ProfitSharingConfigUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "surplusBufferSplit",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "creditSplit",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "guildSplit",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherSplit",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "otherRecipient",
+				"type": "address",
+				"indexed": false,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "SurplusBufferUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "TermSurplusBufferUpdate",
+		"inputs": [
+			{
+				"name": "when",
+				"type": "uint256",
+				"indexed": true,
+				"internalType": "uint256"
+			},
+			{
+				"name": "term",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "newValue",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "Unpaused",
+		"inputs": [
+			{
+				"name": "account",
+				"type": "address",
+				"indexed": false,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	}
+]

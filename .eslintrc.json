@@ -29,10 +29,8 @@
             "error",
             "single"
         ],
-        "semi": [
-            "error",
-            "always"
-        ],
+        "semi": "off",
+        "@typescript-eslint/semi": ["error"],
         "prettier/prettier": 2 // Means error
     }
 }

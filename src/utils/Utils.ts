@@ -8,3 +8,8 @@ export async function sleep(ms: number) {
     setTimeout(resolve, ms);
   });
 }
+
+export function roundTo(num: number, dec: number): number {
+  const pow = Math.pow(10, dec);
+  return Math.round((num + Number.EPSILON) * pow) / pow;
+}

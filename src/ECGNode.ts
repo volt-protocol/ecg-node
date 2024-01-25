@@ -6,28 +6,31 @@ import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME } from './utils/Constants';
 import { FetchECGData } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
-import * as dotenv from 'dotenv';
-import { exec, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function main() {
   process.title = 'ECG_NODE';
   console.log('[ECG-NODE] STARTED');
-  if (!fs.existsSync(path.join(DATA_DIR, 'data'))) {
-    fs.mkdirSync(path.join(DATA_DIR, 'data'), { recursive: true });
+  if (!fs.existsSync(path.join(DATA_DIR))) {
+    fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
 
   // load configuration from working dir
   const nodeConfig: NodeConfig = JSON.parse(fs.readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
 
   await FetchECGData();
+
+  // set a timeout that fetches ecg data every 10 minutes
+  setTimeout(async () => await FetchECGData(), 600 * 1000);
   StartEventListener();
   StartEventProcessor();
 
   // only start processors if running from node and not ts-node
   // if ts-node, it means we are debugging
-  // to debug processors, run the processor directly
+  // to debug a processor, run the processor directly
   console.log(path.basename(process.argv[0]));
   if (path.basename(process.argv[0]) == 'node') {
     startProcessors(nodeConfig);

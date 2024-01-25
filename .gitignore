@@ -112,3 +112,5 @@ nocommit/*
 
 # local data dir
 data/
+
+src/contracts/types
