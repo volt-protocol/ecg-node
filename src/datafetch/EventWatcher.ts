@@ -1,5 +1,4 @@
 import { ethers, Contract, Interface } from 'ethers';
-import WebSocket from 'ws';
 import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
