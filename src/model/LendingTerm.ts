@@ -21,3 +21,9 @@ export enum LendingTermStatus {
   LIVE = 'live',
   DEPRECATED = 'deprecated'
 }
+
+export interface LendingTermsFileStructure {
+  updated: number;
+  updatedHuman: string;
+  terms: LendingTerm[];
+}
