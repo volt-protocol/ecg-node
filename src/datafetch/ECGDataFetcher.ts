@@ -30,8 +30,9 @@ export async function FetchECGData() {
   console.log(`FetchECGData: fetching data since block ${startBlockToFetch}`);
   console.log(`FetchECGData: ${currentBlock - startBlockToFetch} blocks to fetch`);
   const terms = await fetchAndSaveTerms(web3Provider);
+  // const loans = await fetchAndSaveLoans(web3Provider, terms, startBlockToFetch);
 
-  console.log('FetchECGData: fetched');
+  console.log('FetchECGData: finished fetching');
 }
 
 async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
@@ -79,7 +80,6 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
       openingFee: termParameters.openingFee.toString(10),
       minPartialRepayPercent: termParameters.minPartialRepayPercent.toString(10),
       maxDelayBetweenPartialRepay: termParameters.maxDelayBetweenPartialRepay.toString(10),
-      // ltvBuffer: ltvBuffer,
       minBorrow: minBorrow.toString(10),
       status: LendingTermStatus.LIVE,
       label: '',
@@ -116,7 +116,15 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   }
 
   const lendingTermsPath = path.join(DATA_DIR, 'terms.json');
-  fs.writeFileSync(lendingTermsPath, JSON.stringify(lendingTerms, null, 2));
+  const fetchData = Date.now();
+  fs.writeFileSync(
+    lendingTermsPath,
+    JSON.stringify(
+      { updated: fetchData, updatedHuman: new Date(fetchData).toISOString(), terms: lendingTerms },
+      null,
+      2
+    )
+  );
 
   return lendingTerms;
 }
@@ -136,4 +144,7 @@ function getLastBlockFetched() {
     const syncData: SyncData = JSON.parse(fs.readFileSync(syncDataPath, 'utf-8'));
     return syncData.lastBlockFetched;
   }
+}
+async function fetchAndSaveLoans(web3Provider: JsonRpcProvider, terms: LendingTerm[], startBlockToFetch: number) {
+  throw new Error('Function not implemented.');
 }

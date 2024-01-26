@@ -3,39 +3,33 @@ import WebSocket from 'ws';
 import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
+import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import { GetGuildTokenAddress } from '../config/Config';
+import { GuildToken__factory } from '../contracts/types';
 dotenv.config();
 
-const WSS_URL: string | undefined = process.env.WSS_PROVIDER;
 const RPC_URL: string | undefined = process.env.RPC_URL;
 
-// let provider = new ethers.WebSocketProvider(createWebSocket());
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-// function createWebSocket() {
-//   if (!WSS_URL) {
-//     throw new Error('No WSS_URL found in env');
-//   }
-//   const ws = new WebSocket(WSS_URL);
-
-//   ws.on('close', () => {
-//     console.log('Disconnected. Reconnecting...');
-//     setTimeout(() => {
-//       provider = new ethers.WebSocketProvider(createWebSocket());
-//       StartEventListener();
-//     }, 1000);
-//   });
-
-//   ws.on('error', (error) => {
-//     console.log('WebSocket error: ', error);
-//   });
-
-//   return ws;
-// }
-
+let guildTokenContract: Contract | undefined = undefined;
+let termsContracts: Contract[] = [];
 export function StartEventListener() {
+  console.log('Starting/restarting events listener');
+  StartGuildTokenListener();
+  StartLendingTermListener();
+}
+
+setTimeout(StartEventListener, 30 * 60 * 1000); // restart listener every X minutes
+
+export function StartGuildTokenListener() {
+  if (guildTokenContract) {
+    guildTokenContract.removeAllListeners();
+  }
+
   console.log('Started the event listener');
-  const guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
+  guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
+  console.log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
 
   const iface = new Interface(GuildTokenAbi);
 
@@ -50,6 +44,10 @@ export function StartEventListener() {
       return;
     }
 
+    if (parsed.name.toLowerCase() == 'addgauge') {
+      StartLendingTermListener();
+    }
+
     EventQueue.push({
       txHash: event.log.transactionHash,
       eventName: parsed.name,
@@ -57,6 +55,46 @@ export function StartEventListener() {
       originArgs: parsed.args,
       sourceContract: 'GuildToken'
     });
+  });
+}
+
+export function StartLendingTermListener() {
+  // cleanup all listeners
+  for (const termContract of termsContracts) {
+    termContract.removeAllListeners();
+  }
+  termsContracts = [];
+  console.log('Started the event listener');
+  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
+
+  // get all lending terms (gauges) from the guild token to start a listener on each one
+  guildTokenContract.gauges().then((terms) => {
+    for (const lendingTermAddress of terms) {
+      const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
+      termsContracts.push(termContract);
+      console.log(`Starting listener on term ${lendingTermAddress}`);
+      const iface = new Interface(LendingTermAbi);
+
+      termContract.removeAllListeners();
+
+      termContract.on('*', (event) => {
+        // The `event.log` has the entire EventLog
+        const parsed = iface.parseLog(event.log);
+
+        if (!parsed) {
+          console.log('Could not parse event', { event });
+          return;
+        }
+
+        EventQueue.push({
+          txHash: event.log.transactionHash,
+          eventName: parsed.name,
+          block: event.log.blockNumber,
+          originArgs: parsed.args,
+          sourceContract: 'LendingTerm'
+        });
+      });
+    }
   });
 }
 
