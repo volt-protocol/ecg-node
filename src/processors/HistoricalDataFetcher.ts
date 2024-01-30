@@ -33,7 +33,7 @@ async function HistoricalDataFetcher() {
     const currentBlock = await web3Provider.getBlockNumber();
     console.log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
-    const historicalDataDir = path.join(DATA_DIR, 'historical');
+    const historicalDataDir = path.join(DATA_DIR, 'history');
 
     if (!fs.existsSync(historicalDataDir)) {
       fs.mkdirSync(historicalDataDir, { recursive: true });

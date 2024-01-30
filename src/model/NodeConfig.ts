@@ -8,6 +8,7 @@ export interface Processors {
   NEW_TERMS_WATCHER: ProcessorConfig;
   USER_SLASHER: ProcessorConfig;
   AUCTION_BIDDER: ProcessorConfig;
+  HISTORICAL_DATA_FETCHER: ProcessorConfig;
 }
 
 export interface ProcessorConfig {
