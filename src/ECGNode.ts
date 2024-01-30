@@ -40,7 +40,7 @@ async function main() {
  * @returns false if started by 'node'
  */
 function isDebug() {
-  console.log(process.argv);
+  // console.log(process.argv);
   const starterProcess = path.basename(process.argv[0]).split('.')[0];
   console.log({ starterProcess });
   const isDebug = starterProcess != 'node';
