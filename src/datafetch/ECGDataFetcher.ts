@@ -17,7 +17,7 @@ import { norm } from '../utils/TokenUtils';
 import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
 import { roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
-import { FetchAllEventsAndExtractStringArray } from '../utils/EventHelper';
+import { FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
 
 export async function FetchECGData() {
   const rpcURL = process.env.RPC_URL;

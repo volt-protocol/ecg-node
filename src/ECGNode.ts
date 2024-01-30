@@ -1,5 +1,3 @@
-// import './datafetch/EventWatcher'; // this launch the event watcher
-// import './datafetch/EventProcessor'; // this launch the event processor
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME } from './utils/Constants';

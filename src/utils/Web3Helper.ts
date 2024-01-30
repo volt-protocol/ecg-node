@@ -1,5 +1,14 @@
-import { BaseContract, ContractEventName, EventLog } from 'ethers';
+import { BaseContract, ContractEventName, EventLog, ethers } from 'ethers';
 import { sleep } from './Utils';
+
+export async function GetBlock(web3Provider: ethers.JsonRpcProvider, blockNumber: number) {
+  const block = await web3Provider.getBlock(blockNumber);
+  if (!block) {
+    throw new Error(`Could not get block data for block ${blockNumber}`);
+  } else {
+    return block;
+  }
+}
 
 export async function FetchAllEventsAndExtractStringArray(
   contract: BaseContract,
