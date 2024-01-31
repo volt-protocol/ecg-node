@@ -9,34 +9,34 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     profitManagerAddress: '0x'
   },
   SEPOLIA: {
-    deployBlock: 4835102,
-    guildTokenAddress: '0xcc65D0FeAa7568b70453c26648e8A7bbEF7248B4',
-    creditTokenAddress: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f',
-    profitManagerAddress: '0xD8c5748984d27Af2b1FC8235848B16C326e1F6de'
+    deployBlock: 5191505,
+    guildTokenAddress: '0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f',
+    creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
+    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0'
   }
 };
 
 export const TOKENS: TokenConfig[] = [
   {
-    address: '0xe9248437489bC542c68aC90E178f6Ca3699C3F6b',
+    address: '0x7b8b4418990e4Daf35F5c7f0165DC487b1963641',
     symbol: 'USDC',
     decimals: 6,
     permitAllowed: true
   },
   {
-    address: '0xCfFBA3A25c3cC99A05443163C63209972bfFd1C1',
+    address: '0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60',
     symbol: 'WBTC',
     decimals: 8,
     permitAllowed: true
   },
   {
-    address: '0xeeF0AB67262046d5bED00CE9C447e08D92b8dA61',
+    address: '0x9F07498d9f4903B10dB57a3Bd1D91b6B64AEd61e',
     symbol: 'sDAI',
     decimals: 18,
     permitAllowed: true
   },
   {
-    address: '0x33b79F707C137AD8b70FA27d63847254CF4cF80f',
+    address: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
     symbol: 'gUSDC',
     decimals: 18,
     permitAllowed: true
