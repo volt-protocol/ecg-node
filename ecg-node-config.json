@@ -4,7 +4,15 @@
             "enabled": false
         },
         "TERM_OFFBOARDER": {
-            "enabled": false
+            "enabled": false,
+            "tokens": {
+                "WBTC": {
+                    "overcollateralization": 1.2
+                },
+                "sDAI": {
+                    "overcollateralization": 1.035
+                }
+            }
         },
         "NEW_TERMS_WATCHER": {
             "enabled": false

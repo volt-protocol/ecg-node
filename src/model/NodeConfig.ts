@@ -4,7 +4,7 @@ export interface NodeConfig {
 
 export interface Processors {
   LOAN_CALLER: ProcessorConfig;
-  TERM_OFFBOARDER: ProcessorConfig;
+  TERM_OFFBOARDER: TermOffboarderConfig;
   NEW_TERMS_WATCHER: ProcessorConfig;
   USER_SLASHER: ProcessorConfig;
   AUCTION_BIDDER: ProcessorConfig;
@@ -13,4 +13,12 @@ export interface Processors {
 
 export interface ProcessorConfig {
   enabled: boolean;
+}
+
+export interface TermOffboarderConfig extends ProcessorConfig {
+  tokens: { [tokenSymbol: string]: TermOffboarderConfigToken };
+}
+
+export interface TermOffboarderConfigToken {
+  overcollateralization: number;
 }

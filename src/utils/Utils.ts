@@ -1,4 +1,6 @@
-import { ethers } from 'ethers';
+import { readFileSync } from 'fs';
+import { NodeConfig } from '../model/NodeConfig';
+import { ECG_NODE_CONFIG_FULL_FILENAME } from './Constants';
 
 /**
  * sleep
@@ -52,4 +54,9 @@ export async function retry<T extends (...arg0: any[]) => any>(
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
   }
+}
+
+export function GetNodeConfig() {
+  const nodeConfig: NodeConfig = JSON.parse(readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
+  return nodeConfig;
 }

@@ -1,12 +1,13 @@
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME } from './utils/Constants';
+import { DATA_DIR } from './utils/Constants';
 import { FetchECGData } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
 import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
 import * as dotenv from 'dotenv';
+import { GetNodeConfig } from './utils/Utils';
 dotenv.config();
 
 async function main() {
@@ -17,7 +18,7 @@ async function main() {
   }
 
   // load configuration from working dir
-  const nodeConfig: NodeConfig = JSON.parse(fs.readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
+  const nodeConfig = GetNodeConfig();
 
   await FetchECGData();
 
