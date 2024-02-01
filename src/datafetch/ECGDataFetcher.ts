@@ -12,7 +12,7 @@ import {
 } from '../contracts/types';
 
 import { LendingTerm as LendingTermNamespace } from '../contracts/types/LendingTerm';
-import LendingTerm, { LendingTermStatus } from '../model/LendingTerm';
+import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
 import { roundTo } from '../utils/Utils';
@@ -121,14 +121,13 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
 
   const lendingTermsPath = path.join(DATA_DIR, 'terms.json');
   const fetchData = Date.now();
-  fs.writeFileSync(
-    lendingTermsPath,
-    JSON.stringify(
-      { updated: fetchData, updatedHuman: new Date(fetchData).toISOString(), terms: lendingTerms },
-      null,
-      2
-    )
-  );
+  const termFileData: LendingTermsFileStructure = {
+    updated: fetchData,
+    updatedHuman: new Date(fetchData).toISOString(),
+    terms: lendingTerms
+  };
+
+  fs.writeFileSync(lendingTermsPath, JSON.stringify(termFileData, null, 2));
 
   return lendingTerms;
 }
