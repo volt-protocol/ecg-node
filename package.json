@@ -4,6 +4,7 @@
     "main": "ECGNode.ts",
     "scripts": {
         "start": "ts-node ./src/ECGNode.ts",
+        "start:api": "ts-node ./src/api/Api.ts",
         "build": "run-script-os",
         "build:win32": "rimraf ./build& tsc& copy .\\ecg-node-config.json .\\build\\ecg-node-config.json& copy .\\package.json .\\build\\package.json",
         "build:darwin:linux": "rimraf ./build && tsc && cp ./ecg-node-config.json ./build/ecg-node-config.json && cp ./package.json ./build/package.json",
@@ -19,7 +20,11 @@
     "license": "ISC",
     "devDependencies": {
         "@typechain/ethers-v6": "^0.5.1",
+        "@types/compression": "^1.7.5",
+        "@types/cors": "^2.8.17",
         "@types/node": "^18.19.3",
+        "@types/swagger-jsdoc": "^6.0.4",
+        "@types/swagger-ui-express": "^4.1.6",
         "@types/ws": "^8.5.10",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@typescript-eslint/parser": "^5.62.0",
@@ -36,8 +41,14 @@
     },
     "dependencies": {
         "axios": "^1.6.2",
+        "compression": "^1.7.4",
+        "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "ethers": "^6.9.1",
-        "ethers-multicall-provider": "^6.0.2"
+        "ethers-multicall-provider": "^6.0.2",
+        "express": "^4.18.2",
+        "helmet": "^7.1.0",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.0"
     }
 }

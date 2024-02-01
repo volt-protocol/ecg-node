@@ -1,18 +1,21 @@
 {
     "processors": {
         "LOAN_CALLER": {
-            "enabled": true
+            "enabled": false
         },
         "TERM_OFFBOARDER": {
-            "enabled": true
+            "enabled": false
         },
         "NEW_TERMS_WATCHER": {
-            "enabled": true
+            "enabled": false
         },
         "USER_SLASHER": {
-            "enabled": true
+            "enabled": false
         },
         "AUCTION_BIDDER": {
+            "enabled": false
+        },
+        "HISTORICAL_DATA_FETCHER": {
             "enabled": true
         }
     }

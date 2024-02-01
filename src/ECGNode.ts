@@ -1,5 +1,3 @@
-// import './datafetch/EventWatcher'; // this launch the event watcher
-// import './datafetch/EventProcessor'; // this launch the event processor
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME } from './utils/Constants';
@@ -31,16 +29,45 @@ async function main() {
   // only start processors if running from node and not ts-node
   // if ts-node, it means we are debugging
   // to debug a processor, run the processor directly
-  // console.log(path.basename(process.argv[0]));
-  if (path.basename(process.argv[0]) == 'node') {
+  if (!isDebug()) {
     startProcessors(nodeConfig);
   }
 }
 
+/**
+ * Check if the process is started by node (and not ts-node)
+ * meaning it's started not in debug
+ * @returns false if started by 'node'
+ */
+function isDebug() {
+  // console.log(process.argv);
+  const starterProcess = path.basename(process.argv[0]).split('.')[0];
+  console.log({ starterProcess });
+  const isDebug = starterProcess != 'node';
+
+  return isDebug;
+}
+
 function startProcessors(nodeConfig: NodeConfig) {
-  if (nodeConfig.processors.LOAN_CALLER.enabled) {
-    startWithSpawn('LoanCaller');
+  if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
+    startWithSpawn('HistoricalDataFetcher');
   }
+
+  // if (nodeConfig.processors.LOAN_CALLER.enabled) {
+  //   startWithSpawn('LoanCaller');
+  // }
+  // if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
+  //   startWithSpawn('AuctionBidder');
+  // }
+  // if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
+  //   startWithSpawn('NewTermsWatcher');
+  // }
+  // if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
+  //   startWithSpawn('TermOffboarder');
+  // }
+  // if (nodeConfig.processors.USER_SLASHER.enabled) {
+  //   startWithSpawn('UserSlasher');
+  // }
 }
 
 function startWithSpawn(processorName: string) {
