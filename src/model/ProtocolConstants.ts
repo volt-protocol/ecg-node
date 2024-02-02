@@ -3,4 +3,5 @@ export interface ProtocolConstants {
   guildTokenAddress: string;
   creditTokenAddress: string;
   profitManagerAddress: string;
+  lendingTermOffboardingAddress: string;
 }

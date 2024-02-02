@@ -6,31 +6,36 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     deployBlock: 0,
     guildTokenAddress: '0x',
     creditTokenAddress: '0x',
-    profitManagerAddress: '0x'
+    profitManagerAddress: '0x',
+    lendingTermOffboardingAddress: '0x'
   },
   SEPOLIA: {
     deployBlock: 5191505,
     guildTokenAddress: '0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f',
     creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
-    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0'
+    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
+    lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405'
   }
 };
 
 export const TOKENS: TokenConfig[] = [
   {
     address: '0x7b8b4418990e4Daf35F5c7f0165DC487b1963641',
+    mainnetAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
     symbol: 'USDC',
     decimals: 6,
     permitAllowed: true
   },
   {
     address: '0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60',
+    mainnetAddress: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
     symbol: 'WBTC',
     decimals: 8,
     permitAllowed: true
   },
   {
     address: '0x9F07498d9f4903B10dB57a3Bd1D91b6B64AEd61e',
+    mainnetAddress: '0x83f20f44975d03b1b09e64809b757c47f942beea',
     symbol: 'sDAI',
     decimals: 18,
     permitAllowed: true
@@ -45,6 +50,9 @@ export const TOKENS: TokenConfig[] = [
 
 export interface TokenConfig {
   address: string;
+  // usefull to get price from true mainnet tokens
+  // only used is APP_ENV != mainnet
+  mainnetAddress?: string;
   symbol: string;
   decimals: number;
   permitAllowed: boolean;
@@ -87,6 +95,11 @@ export function GetGuildTokenAddress() {
 export function GetCreditTokenAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].creditTokenAddress;
 }
+
 export function GetProfitManagerAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].profitManagerAddress;
+}
+
+export function GetLendingTermOffboardingAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOffboardingAddress;
 }

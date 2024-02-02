@@ -1,4 +1,6 @@
-import { ethers } from 'ethers';
+import { readFileSync } from 'fs';
+import { NodeConfig } from '../model/NodeConfig';
+import { ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constants';
 
 /**
  * sleep
@@ -9,6 +11,10 @@ export async function sleep(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export function buildTxUrl(txhash: string): string {
+  return `${EXPLORER_URI}/tx/${txhash}`;
 }
 
 export async function WaitUntilScheduled(startDateMs: number, runEverySec: number) {
@@ -52,4 +58,9 @@ export async function retry<T extends (...arg0: any[]) => any>(
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
   }
+}
+
+export function GetNodeConfig() {
+  const nodeConfig: NodeConfig = JSON.parse(readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
+  return nodeConfig;
 }

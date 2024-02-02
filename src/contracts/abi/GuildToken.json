@@ -5,16 +5,6 @@
 				"internalType": "address",
 				"name": "_core",
 				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_profitManager",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_credit",
-				"type": "address"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -187,6 +177,25 @@
 			}
 		],
 		"name": "DelegateChanged",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "oldValue",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "newValue",
+				"type": "uint256"
+			}
+		],
+		"name": "DelegateLockupUpdate",
 		"type": "event"
 	},
 	{
@@ -648,30 +657,6 @@
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "gauge",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "quantity",
-				"type": "uint256"
-			}
-		],
-		"name": "calculateGaugeAllocation",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
 				"name": "",
 				"type": "address"
 			}
@@ -744,14 +729,23 @@
 	},
 	{
 		"inputs": [
-
+			{
+				"internalType": "address",
+				"name": "delegator",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "delegatee",
+				"type": "address"
+			}
 		],
-		"name": "core",
+		"name": "containsDelegate",
 		"outputs": [
 			{
-				"internalType": "contract Core",
+				"internalType": "bool",
 				"name": "",
-				"type": "address"
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -761,10 +755,10 @@
 		"inputs": [
 
 		],
-		"name": "credit",
+		"name": "core",
 		"outputs": [
 			{
-				"internalType": "address",
+				"internalType": "contract Core",
 				"name": "",
 				"type": "address"
 			}
@@ -923,6 +917,21 @@
 			}
 		],
 		"name": "delegateCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "delegateLockupPeriod",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -1403,6 +1412,25 @@
 				"type": "address"
 			}
 		],
+		"name": "lastDelegation",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
 		"name": "lastGaugeLoss",
 		"outputs": [
 			{
@@ -1708,21 +1736,6 @@
 	},
 	{
 		"inputs": [
-
-		],
-		"name": "profitManager",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
 			{
 				"internalType": "address",
 				"name": "gauge",
@@ -1785,6 +1798,21 @@
 			}
 		],
 		"name": "setCore",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newValue",
+				"type": "uint256"
+			}
+		],
+		"name": "setDelegateLockupPeriod",
 		"outputs": [
 
 		],
