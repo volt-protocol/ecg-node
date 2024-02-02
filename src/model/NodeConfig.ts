@@ -20,5 +20,5 @@ export interface TermOffboarderConfig extends ProcessorConfig {
 }
 
 export interface TermOffboarderConfigToken {
-  overcollateralization: number;
+  minOvercollateralization: number;
 }

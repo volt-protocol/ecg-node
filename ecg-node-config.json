@@ -4,13 +4,13 @@
             "enabled": false
         },
         "TERM_OFFBOARDER": {
-            "enabled": false,
+            "enabled": true,
             "tokens": {
                 "WBTC": {
-                    "overcollateralization": 1.2
+                    "minOvercollateralization": 1.2
                 },
                 "sDAI": {
-                    "overcollateralization": 1.035
+                    "minOvercollateralization": 1.035
                 }
             }
         },

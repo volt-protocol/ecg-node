@@ -1,15 +1,21 @@
 import axios from 'axios';
 import { sleep } from './Utils';
 
+const TG_BOT_ID: string | undefined = process.env.TG_BOT_ID;
+const TG_CHAT_ID: string | undefined = process.env.TG_CHAT_ID;
+
 let lastTGCall = Date.now();
 type TGBody = {
   chat_id: string;
   text: string;
   parse_mode?: string;
 };
-async function CallTelegram(msg: string, botid: string, chatid: string, isMarkdown = false) {
+async function CallTelegram(msg: string, isMarkdown = false) {
+  if (!TG_CHAT_ID || !TG_BOT_ID) {
+    return;
+  }
   const body: TGBody = {
-    chat_id: chatid,
+    chat_id: TG_CHAT_ID,
     text: msg
   };
 
@@ -17,7 +23,7 @@ async function CallTelegram(msg: string, botid: string, chatid: string, isMarkdo
     body.parse_mode = 'MarkdownV2';
   }
 
-  const url = `https://api.telegram.org/bot${botid}/sendMessage`;
+  const url = `https://api.telegram.org/bot${TG_BOT_ID}/sendMessage`;
   const config = {
     headers: {
       'Content-type': 'application/json',
@@ -55,6 +61,6 @@ async function CallTelegram(msg: string, botid: string, chatid: string, isMarkdo
   }
 }
 
-export async function SendTelegramMessage(chatId: string, botId: string, msg: string, isMarkdown = false) {
-  await CallTelegram(msg, botId, chatId, isMarkdown);
+export async function SendTelegramMessage(msg: string, isMarkdown = false) {
+  await CallTelegram(msg, isMarkdown);
 }

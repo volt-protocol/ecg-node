@@ -6,13 +6,15 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     deployBlock: 0,
     guildTokenAddress: '0x',
     creditTokenAddress: '0x',
-    profitManagerAddress: '0x'
+    profitManagerAddress: '0x',
+    lendingTermOffboardingAddress: '0x'
   },
   SEPOLIA: {
     deployBlock: 5191505,
     guildTokenAddress: '0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f',
     creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
-    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0'
+    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
+    lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405'
   }
 };
 
@@ -93,6 +95,11 @@ export function GetGuildTokenAddress() {
 export function GetCreditTokenAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].creditTokenAddress;
 }
+
 export function GetProfitManagerAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].profitManagerAddress;
+}
+
+export function GetLendingTermOffboardingAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOffboardingAddress;
 }

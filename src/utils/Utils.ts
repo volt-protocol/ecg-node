@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { NodeConfig } from '../model/NodeConfig';
-import { ECG_NODE_CONFIG_FULL_FILENAME } from './Constants';
+import { ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constants';
 
 /**
  * sleep
@@ -11,6 +11,10 @@ export async function sleep(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export function buildTxUrl(txhash: string): string {
+  return `${EXPLORER_URI}/tx/${txhash}`;
 }
 
 export async function WaitUntilScheduled(startDateMs: number, runEverySec: number) {
