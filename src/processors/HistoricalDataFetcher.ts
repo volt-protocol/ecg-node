@@ -4,9 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
-import { GetCreditTokenAddress, GetDeployBlock } from '../config/Config';
+import { GetCreditTokenAddress, GetDeployBlock, GetProfitManagerAddress } from '../config/Config';
 import { HistoricalData } from '../model/HistoricalData';
-import { CreditToken__factory } from '../contracts/types';
+import { CreditToken__factory, ProfitManager__factory } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
 import { GetBlock } from '../utils/Web3Helper';
@@ -40,6 +40,7 @@ async function HistoricalDataFetcher() {
     }
 
     await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
+    await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -79,6 +80,46 @@ async function fetchCreditTotalSupply(
       `fetchCreditTotalSupply: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total supply : ${fullHistoricalData.values[blockToFetch]}`
+    );
+  }
+
+  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+}
+
+async function fetchCreditTotalIssuance(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'credit-total-issuance.json');
+  let fullHistoricalData: HistoricalData = {
+    name: 'credit-total-issuance',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('No data to fetch');
+    return;
+  }
+
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    const totalIssuanceAtBlock = await profitManagerContract.totalIssuance({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+    fullHistoricalData.values[blockToFetch] = norm(totalIssuanceAtBlock);
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    console.log(
+      `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
     );
   }
 

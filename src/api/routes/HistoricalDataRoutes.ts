@@ -5,7 +5,7 @@ const router = express.Router();
 
 /**
  * @openapi
- * /api/history/creditsupply:
+ * /api/history/CreditSupply:
  *   get:
  *     tags:
  *      - history
@@ -27,9 +27,42 @@ const router = express.Router();
  *                  items:
  *                    type: number
  */
-router.get('/creditsupply', async (_: Request, res: Response) => {
+router.get('/CreditSupply', async (_: Request, res: Response) => {
   try {
     const history = await HistoricalDataController.GetCreditSupplyHistory();
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @openapi
+ * /api/history/CreditTotalIssuance:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Gets the total issuance history
+ *     responses:
+ *       200:
+ *         description: Gets the total issuance history
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ */
+router.get('/CreditTotalIssuance', async (_: Request, res: Response) => {
+  try {
+    const history = await HistoricalDataController.GetCreditTotalIssuance();
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

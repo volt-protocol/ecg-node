@@ -20,6 +20,22 @@ class HistoricalDataController {
       };
     }
   }
+
+  static async GetCreditTotalIssuance(): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(HISTORY_DIR, 'credit-total-issuance.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`CANNOT FIND ${historyFilename}`);
+    } else {
+      const fullHistory: HistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+      const times = Object.values(fullHistory.blockTimes);
+      const values = Object.values(fullHistory.values);
+
+      return {
+        timestamps: times,
+        values: values
+      };
+    }
+  }
 }
 
 export default HistoricalDataController;
