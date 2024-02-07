@@ -4,12 +4,19 @@ import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
-import { GetCreditTokenAddress, GetDeployBlock, GetProfitManagerAddress } from '../config/Config';
+import { GetCreditTokenAddress, GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress } from '../config/Config';
 import { HistoricalData } from '../model/HistoricalData';
-import { CreditToken__factory, ProfitManager__factory } from '../contracts/types';
+import {
+  CreditToken__factory,
+  GuildToken__factory,
+  LendingTerm,
+  LendingTerm__factory,
+  ProfitManager__factory
+} from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
 import { GetBlock } from '../utils/Web3Helper';
+import { MulticallWrapper } from 'ethers-multicall-provider';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -41,6 +48,7 @@ async function HistoricalDataFetcher() {
 
     await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
     await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
+    await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -65,7 +73,7 @@ async function fetchCreditTotalSupply(
   }
 
   if (startBlock > currentBlock) {
-    console.log('No data to fetch');
+    console.log('fetchCreditTotalSupply: data already up to date');
     return;
   }
 
@@ -105,7 +113,7 @@ async function fetchCreditTotalIssuance(
   }
 
   if (startBlock > currentBlock) {
-    console.log('No data to fetch');
+    console.log('fetchCreditTotalIssuance: data already up to date');
     return;
   }
 
@@ -120,6 +128,76 @@ async function fetchCreditTotalIssuance(
       `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
+    );
+  }
+
+  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+}
+
+async function fetchAverageInterestRate(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'average-interest-rate.json');
+  let fullHistoricalData: HistoricalData = {
+    name: 'average-interest-rate',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('fetchAverageInterestRate: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+    promises.push(profitManagerContract.totalIssuance({ blockTag: blockToFetch }));
+
+    for (const termAddress of liveTerms) {
+      const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
+      promises.push(termContract.getParameters({ blockTag: blockToFetch }));
+      promises.push(termContract.issuance({ blockTag: blockToFetch }));
+    }
+
+    const promiseResults = await Promise.all(promises);
+
+    let cursor = 0;
+    const totalIssuance = norm(promiseResults[cursor++] as bigint);
+    let avgInterestRate = 0;
+    if (totalIssuance != 0) {
+      for (const termAddress of liveTerms) {
+        const parameters = promiseResults[cursor++] as LendingTerm.LendingTermParamsStructOutput;
+        const issuance = norm(promiseResults[cursor++] as bigint);
+
+        avgInterestRate += (norm(parameters.interestRate) * issuance) / totalIssuance;
+      }
+
+      fullHistoricalData.values[blockToFetch] = avgInterestRate;
+    }
+
+    fullHistoricalData.values[blockToFetch] = avgInterestRate;
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `fetchAverageInterestRate: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) avg interest rate : ${fullHistoricalData.values[blockToFetch]}`
     );
   }
 
