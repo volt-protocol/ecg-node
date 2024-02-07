@@ -102,4 +102,37 @@ router.get('/AverageInterestRate', async (_: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/history/TVL:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Gets the TVL of the contract (sum of collateral in all terms)
+ *     responses:
+ *       200:
+ *         description: Gets the TVL of the contract (sum of collateral in all terms)
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ */
+router.get('/TVL', async (_: Request, res: Response) => {
+  try {
+    const history = await HistoricalDataController.GetTVL();
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

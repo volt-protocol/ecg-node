@@ -4,10 +4,17 @@ import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
-import { GetCreditTokenAddress, GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress } from '../config/Config';
+import {
+  GetCreditTokenAddress,
+  GetDeployBlock,
+  GetGuildTokenAddress,
+  GetProfitManagerAddress,
+  getTokenByAddress
+} from '../config/Config';
 import { HistoricalData } from '../model/HistoricalData';
 import {
   CreditToken__factory,
+  ERC20__factory,
   GuildToken__factory,
   LendingTerm,
   LendingTerm__factory,
@@ -17,6 +24,7 @@ import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
 import { GetBlock } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
+import { GetTokenPriceAtTimestamp } from '../utils/Price';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -49,6 +57,7 @@ async function HistoricalDataFetcher() {
     await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
     await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
     await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
+    await fetchTVL(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -198,6 +207,80 @@ async function fetchAverageInterestRate(
       `fetchAverageInterestRate: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) avg interest rate : ${fullHistoricalData.values[blockToFetch]}`
+    );
+  }
+
+  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+}
+
+async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'tvl.json');
+  let fullHistoricalData: HistoricalData = {
+    name: 'tvl',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('fetchTVL: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const collateralPromises = [];
+
+    for (const termAddress of liveTerms) {
+      const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
+      collateralPromises.push(termContract.collateralToken({ blockTag: blockToFetch }));
+    }
+
+    const collateralResults = await Promise.all(collateralPromises);
+
+    let cursor = 0;
+    const balanceOfPromises = [];
+    for (const termAddress of liveTerms) {
+      const termCollateral = collateralResults[cursor++];
+      const erc20Contract = ERC20__factory.connect(termCollateral, multicallProvider);
+      balanceOfPromises.push(erc20Contract.balanceOf(termAddress, { blockTag: blockToFetch }));
+    }
+
+    const balanceOfResults = await Promise.all(balanceOfPromises);
+
+    // here we have all the collaterals and the balances of each terms
+    // we need to fetch the collateral price (historical) of each tokens
+    cursor = 0;
+    let tvlInUsd = 0;
+    for (const collateralAddress of collateralResults) {
+      const tokenConf = getTokenByAddress(collateralAddress);
+      const balanceNorm = norm(balanceOfResults[cursor++], tokenConf.decimals);
+      const priceAtTimestamp = await GetTokenPriceAtTimestamp(
+        tokenConf.mainnetAddress || tokenConf.address,
+        blockData.timestamp
+      );
+      const termTvl = priceAtTimestamp * balanceNorm;
+      tvlInUsd += termTvl;
+    }
+
+    fullHistoricalData.values[blockToFetch] = tvlInUsd;
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `fetchTVL: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) TVL : ${
+        fullHistoricalData.values[blockToFetch]
+      }`
     );
   }
 
