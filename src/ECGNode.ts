@@ -53,22 +53,21 @@ function startProcessors(nodeConfig: NodeConfig) {
   if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
     startWithSpawn('HistoricalDataFetcher');
   }
-
-  // if (nodeConfig.processors.LOAN_CALLER.enabled) {
-  //   startWithSpawn('LoanCaller');
-  // }
-  // if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
-  //   startWithSpawn('AuctionBidder');
-  // }
-  // if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
-  //   startWithSpawn('NewTermsWatcher');
-  // }
-  // if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
-  //   startWithSpawn('TermOffboarder');
-  // }
-  // if (nodeConfig.processors.USER_SLASHER.enabled) {
-  //   startWithSpawn('UserSlasher');
-  // }
+  if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
+    startWithSpawn('TermOffboarder');
+  }
+  if (nodeConfig.processors.LOAN_CALLER.enabled) {
+    startWithSpawn('LoanCaller');
+  }
+  if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
+    startWithSpawn('AuctionBidder');
+  }
+  if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
+    startWithSpawn('NewTermsWatcher');
+  }
+  if (nodeConfig.processors.USER_SLASHER.enabled) {
+    startWithSpawn('UserSlasher');
+  }
 }
 
 function startWithSpawn(processorName: string) {

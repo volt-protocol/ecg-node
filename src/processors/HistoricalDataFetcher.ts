@@ -39,14 +39,14 @@ async function HistoricalDataFetcher() {
   while (true) {
     process.title = 'HISTORICAL_DATA_FETCHER';
     const startDate = Date.now();
-    console.log('HistoricalDataFetcher: starting');
+    console.log('HistoricalDataFetcher | starting');
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
     const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const currentBlock = await web3Provider.getBlockNumber();
-    console.log(`FetchECGData: fetching data up to block ${currentBlock}`);
+    console.log(`HistoricalDataFetcher | fetching data up to block ${currentBlock}`);
 
     const historicalDataDir = path.join(DATA_DIR, 'history');
 
@@ -82,7 +82,7 @@ async function fetchCreditTotalSupply(
   }
 
   if (startBlock > currentBlock) {
-    console.log('fetchCreditTotalSupply: data already up to date');
+    console.log('HistoricalDataFetcher |fetchCreditTotalSupply: data already up to date');
     return;
   }
 
@@ -94,7 +94,7 @@ async function fetchCreditTotalSupply(
     fullHistoricalData.values[blockToFetch] = norm(totalSupplyAtBlock);
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
     console.log(
-      `fetchCreditTotalSupply: [${blockToFetch}] (${new Date(
+      `HistoricalDataFetcher | fetchCreditTotalSupply: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total supply : ${fullHistoricalData.values[blockToFetch]}`
     );
@@ -122,7 +122,7 @@ async function fetchCreditTotalIssuance(
   }
 
   if (startBlock > currentBlock) {
-    console.log('fetchCreditTotalIssuance: data already up to date');
+    console.log('HistoricalDataFetcher | fetchCreditTotalIssuance: data already up to date');
     return;
   }
 
@@ -134,7 +134,7 @@ async function fetchCreditTotalIssuance(
     fullHistoricalData.values[blockToFetch] = norm(totalIssuanceAtBlock);
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
     console.log(
-      `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
+      `HistoricalDataFetcher | fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
     );
@@ -164,7 +164,7 @@ async function fetchAverageInterestRate(
   }
 
   if (startBlock > currentBlock) {
-    console.log('fetchAverageInterestRate: data already up to date');
+    console.log('HistoricalDataFetcher | fetchAverageInterestRate: data already up to date');
     return;
   }
 
@@ -204,7 +204,7 @@ async function fetchAverageInterestRate(
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
 
     console.log(
-      `fetchAverageInterestRate: [${blockToFetch}] (${new Date(
+      `HistoricalDataFetcher | fetchAverageInterestRate: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) avg interest rate : ${fullHistoricalData.values[blockToFetch]}`
     );
@@ -230,7 +230,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
   }
 
   if (startBlock > currentBlock) {
-    console.log('fetchTVL: data already up to date');
+    console.log('HistoricalDataFetcher | fetchTVL: data already up to date');
     return;
   }
 
@@ -278,9 +278,9 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
 
     console.log(
-      `fetchTVL: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) TVL : ${
-        fullHistoricalData.values[blockToFetch]
-      }`
+      `HistoricalDataFetcher | fetchTVL: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) TVL : ${fullHistoricalData.values[blockToFetch]}`
     );
   }
 

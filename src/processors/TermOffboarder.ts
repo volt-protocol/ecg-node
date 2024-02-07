@@ -56,7 +56,7 @@ async function TermOffboarder() {
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
-  const pegTokenRealPrice = 1; // TODO FETCH REAL PEG TOKEN PRICE await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
+  const pegTokenRealPrice = 1; // TODO FETCH REAL PEG TOKEN PRICE
   console.log(`TermOffboarder[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
   const normBorrowRatio = norm(term.borrowRatio);
   console.log(`TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} / ${collateralToken.symbol}`);
