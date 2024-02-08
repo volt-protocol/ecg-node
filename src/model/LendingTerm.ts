@@ -7,11 +7,12 @@ export default interface LendingTerm {
   hardCap: string;
   interestRate: string;
   borrowRatio: string;
+  maxDebtPerCollateralToken: string;
   availableDebt: string;
   currentDebt: string;
   openingFee: string;
   minPartialRepayPercent: string;
-  maxDelayBetweenPartialRepay: string;
+  maxDelayBetweenPartialRepay: number; // in seconds
   minBorrow: string;
   label: string; // WBTC-3%-16666.67
   status: LendingTermStatus;
