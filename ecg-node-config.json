@@ -1,7 +1,7 @@
 {
     "processors": {
         "LOAN_CALLER": {
-            "enabled": false
+            "enabled": true
         },
         "TERM_OFFBOARDER": {
             "enabled": true,

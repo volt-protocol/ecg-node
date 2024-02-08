@@ -3,6 +3,7 @@ import { buildTxUrl, sleep } from '../utils/Utils';
 import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { FetchECGData } from './ECGDataFetcher';
 
+let lastBlockFetched = 0;
 export async function StartEventProcessor() {
   console.log('Started the event processor');
 
@@ -23,7 +24,10 @@ export async function StartEventProcessor() {
 async function ProcessAsync(event: EventData) {
   console.log(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
   if (mustUpdateProtocol(event)) {
-    await FetchECGData();
+    if (lastBlockFetched < event.block) {
+      await FetchECGData();
+      lastBlockFetched = event.block;
+    }
 
     const msg =
       `[${event.sourceContract}] Emitted event: ${event.eventName}\n` +
@@ -69,6 +73,10 @@ function lendingTermMustUpdate(event: EventData): boolean {
       console.log(`LendingTerm ${event.eventName} is not important`);
       return false;
     case 'loanopen':
+    case 'loanaddcollateral':
+    case 'loanpartialrepay':
+    case 'loanclose':
+    case 'loancall':
       console.log(`LendingTerm ${event.eventName} must force an update`);
       return true;
   }

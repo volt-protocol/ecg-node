@@ -11,10 +11,12 @@ export interface Loan {
   closeTime: number; // unix timestamp ms
   debtWhenSeized: string;
   bidTime: number; // unix timestamp ms
+  lastPartialRepay: number; // unix timestamp ms
 }
 
 export enum LoanStatus {
   ACTIVE = 'active',
+  CALLED = 'called',
   CLOSED = 'closed'
 }
 

@@ -78,12 +78,13 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
       collateralAddress: termParameters.collateralToken,
       interestRate: termParameters.interestRate.toString(10),
       borrowRatio: termParameters.maxDebtPerCollateralToken.toString(10),
+      maxDebtPerCollateralToken: termParameters.maxDebtPerCollateralToken.toString(10),
       currentDebt: issuance.toString(10),
-      hardCap: termParameters.hardCap.toString(),
-      availableDebt: availableDebt.toString(),
+      hardCap: termParameters.hardCap.toString(10),
+      availableDebt: availableDebt.toString(10),
       openingFee: termParameters.openingFee.toString(10),
       minPartialRepayPercent: termParameters.minPartialRepayPercent.toString(10),
-      maxDelayBetweenPartialRepay: termParameters.maxDelayBetweenPartialRepay.toString(10),
+      maxDelayBetweenPartialRepay: Number(termParameters.maxDelayBetweenPartialRepay.toString(10)),
       minBorrow: minBorrow.toString(10),
       status: LendingTermStatus.LIVE,
       label: '',
@@ -253,8 +254,15 @@ async function fetchLoansInfo(
       debtWhenSeized: loanData.callDebt.toString(10),
       lendingTermAddress: loan.termAddress,
       status: Number(loanData.closeTime) == 0 ? LoanStatus.ACTIVE : LoanStatus.CLOSED,
-      originationTime: Number(loanData.borrowTime) * 1000
+      originationTime: Number(loanData.borrowTime) * 1000,
+      lastPartialRepay: Number(loanData.lastPartialRepay) * 1000
     });
+  }
+
+  for (const loan of allLoans.filter((_) => _.status == LoanStatus.ACTIVE)) {
+    if (loan.callTime > 0) {
+      loan.status = LoanStatus.CALLED;
+    }
   }
 
   return allLoans;
