@@ -5,6 +5,8 @@ import path from 'path';
 import { APP_ENV, DATA_DIR } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
 import {
+  AuctionHouse,
+  AuctionHouse__factory,
   GuildToken__factory,
   LendingTerm as LendingTermType,
   LendingTerm__factory,
@@ -18,6 +20,7 @@ import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getToken
 import { roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
+import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 
 export async function FetchECGData() {
   const rpcURL = process.env.RPC_URL;
@@ -34,6 +37,7 @@ export async function FetchECGData() {
   console.log('FetchECGData: fetching');
   const terms = await fetchAndSaveTerms(web3Provider);
   const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
+  const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
 
   fs.writeFileSync(path.join(DATA_DIR, 'sync.json'), JSON.stringify(syncData, null, 2));
   console.log('FetchECGData: finished fetching');
@@ -54,6 +58,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
     promises.push(lendingTermContract.getParameters());
     promises.push(lendingTermContract.issuance());
     promises.push(lendingTermContract['debtCeiling()']());
+    promises.push(lendingTermContract.auctionHouse());
   }
 
   // wait the promises
@@ -70,6 +75,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
     const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
     const issuance: bigint = await promises[cursor++];
     const debtCeiling: bigint = await promises[cursor++];
+    const auctionHouseAddress: string = await promises[cursor++];
 
     const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
     const availableDebt = issuance > realCap ? 0n : realCap - issuance;
@@ -90,7 +96,8 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
       label: '',
       collateralSymbol: '',
       collateralDecimals: 0,
-      permitAllowed: false
+      permitAllowed: false,
+      auctionHouseAddress: auctionHouseAddress
     });
   }
 
@@ -139,7 +146,8 @@ function getSyncData() {
     console.log(APP_ENV);
     // create the sync file
     const syncData: SyncData = {
-      termSync: []
+      termSync: [],
+      auctionSync: []
     };
     fs.writeFileSync(syncDataPath, JSON.stringify(syncData, null, 2));
 
@@ -266,4 +274,121 @@ async function fetchLoansInfo(
   }
 
   return allLoans;
+}
+
+async function fetchAndSaveAuctions(
+  web3Provider: JsonRpcProvider,
+  terms: LendingTerm[],
+  syncData: SyncData,
+  currentBlock: number
+) {
+  let alreadySavedAuctions: Auction[] = [];
+  const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
+  if (fs.existsSync(auctionsFilePath)) {
+    const auctionsFile: AuctionsFileStructure = JSON.parse(fs.readFileSync(auctionsFilePath, 'utf-8'));
+    alreadySavedAuctions = auctionsFile.auctions;
+  }
+
+  const updateAuctions: AuctionsFileStructure = {
+    auctions: [],
+    updated: Date.now(),
+    updatedHuman: new Date(Date.now()).toISOString()
+  };
+
+  const allNewLoandsIds: { auctionHouseAddress: string; loanId: string }[] = [];
+  const auctionsHouseAddresses = new Set<string>(terms.map((_) => _.auctionHouseAddress));
+  for (const auctionHouseAddress of auctionsHouseAddresses) {
+    // check if we already have a sync data about this term
+    const auctionSyncData = syncData.auctionSync?.find((_) => _.auctionHouseAddress == auctionHouseAddress);
+    let sinceBlock = GetDeployBlock();
+    if (auctionSyncData) {
+      sinceBlock = auctionSyncData.lastBlockFetched + 1;
+    }
+
+    const auctionHouseContract = AuctionHouse__factory.connect(auctionHouseAddress, web3Provider);
+
+    const newLoanIds = await FetchAllEventsAndExtractStringArray(
+      auctionHouseContract,
+      auctionHouseAddress,
+      'AuctionStart',
+      ['loanId'],
+      sinceBlock,
+      currentBlock
+    );
+
+    allNewLoandsIds.push(
+      ...newLoanIds.map((_) => {
+        return { auctionHouseAddress: auctionHouseAddress, loanId: _ };
+      })
+    );
+
+    // update term sync data
+    if (!auctionSyncData) {
+      if (!syncData.auctionSync) {
+        syncData.auctionSync = [];
+      }
+
+      syncData.auctionSync.push({
+        lastBlockFetched: currentBlock,
+        auctionHouseAddress: auctionHouseAddress
+      });
+    } else {
+      auctionSyncData.lastBlockFetched = currentBlock;
+    }
+  }
+
+  const allLoanIds = alreadySavedAuctions.map((_) => {
+    return { auctionHouseAddress: _.auctionHouseAddress, loanId: _.loanId };
+  });
+
+  for (const newLoanId of allNewLoandsIds) {
+    if (
+      !allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.auctionHouseAddress == newLoanId.auctionHouseAddress)
+    ) {
+      allLoanIds.push(newLoanId);
+    }
+  }
+
+  // fetch data for all auctions
+  const allUpdatedAuctions: Auction[] = await fetchAuctionsInfo(allLoanIds, web3Provider);
+  updateAuctions.auctions = allUpdatedAuctions;
+  const endDate = Date.now();
+  updateAuctions.updated = endDate;
+  updateAuctions.updatedHuman = new Date(endDate).toISOString();
+  fs.writeFileSync(auctionsFilePath, JSON.stringify(updateAuctions, null, 2));
+}
+
+async function fetchAuctionsInfo(
+  allLoanIds: { auctionHouseAddress: string; loanId: string }[],
+  web3Provider: JsonRpcProvider
+): Promise<Auction[]> {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+  const promises: Promise<AuctionHouse.AuctionStructOutput>[] = [];
+  for (const auctionData of allLoanIds) {
+    const auctionHouseContract = AuctionHouse__factory.connect(auctionData.auctionHouseAddress, multicallProvider);
+    promises.push(auctionHouseContract.getAuction(auctionData.loanId));
+  }
+
+  console.log(`sending getAuction() multicall for ${allLoanIds.length} loans`);
+  await Promise.all(promises);
+  console.log('end multicall');
+
+  let cursor = 0;
+  const allAuctions: Auction[] = [];
+  for (const loan of allLoanIds) {
+    const auctionData = await promises[cursor++];
+    allAuctions.push({
+      loanId: loan.loanId,
+      auctionHouseAddress: loan.auctionHouseAddress,
+      startTime: Number(auctionData.startTime) * 1000,
+      endTime: Number(auctionData.endTime) * 1000,
+      callCreditMultiplier: auctionData.callCreditMultiplier.toString(10),
+      callDebt: auctionData.callDebt.toString(10),
+      collateralAmount: auctionData.collateralAmount.toString(10),
+      lendingTermAddress: auctionData.lendingTerm,
+      status: Number(auctionData.endTime) > 0 ? AuctionStatus.CLOSED : AuctionStatus.ACTIVE
+    });
+  }
+
+  return allAuctions;
 }

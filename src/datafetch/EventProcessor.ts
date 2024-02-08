@@ -77,6 +77,7 @@ function lendingTermMustUpdate(event: EventData): boolean {
     case 'loanpartialrepay':
     case 'loanclose':
     case 'loancall':
+    case 'setauctionhouse':
       console.log(`LendingTerm ${event.eventName} must force an update`);
       return true;
   }

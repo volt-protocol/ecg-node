@@ -1,0 +1,430 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_core",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_midPoint",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_auctionDuration",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_startCollateralOffered",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "when",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "collateralToken",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "collateralSold",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "debtRecovered",
+				"type": "uint256"
+			}
+		],
+		"name": "AuctionEnd",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "when",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "collateralToken",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "collateralAmount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "callDebt",
+				"type": "uint256"
+			}
+		],
+		"name": "AuctionStart",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "oldCore",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newCore",
+				"type": "address"
+			}
+		],
+		"name": "CoreUpdate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Paused",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Unpaused",
+		"type": "event"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "auctionDuration",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			}
+		],
+		"name": "bid",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "core",
+		"outputs": [
+			{
+				"internalType": "contract Core",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "target",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "value",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes",
+						"name": "callData",
+						"type": "bytes"
+					}
+				],
+				"internalType": "struct CoreRef.Call[]",
+				"name": "calls",
+				"type": "tuple[]"
+			}
+		],
+		"name": "emergencyAction",
+		"outputs": [
+			{
+				"internalType": "bytes[]",
+				"name": "returnData",
+				"type": "bytes[]"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			}
+		],
+		"name": "forgive",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			}
+		],
+		"name": "getAuction",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint48",
+						"name": "startTime",
+						"type": "uint48"
+					},
+					{
+						"internalType": "uint48",
+						"name": "endTime",
+						"type": "uint48"
+					},
+					{
+						"internalType": "address",
+						"name": "lendingTerm",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "collateralAmount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callDebt",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "callCreditMultiplier",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct AuctionHouse.Auction",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			}
+		],
+		"name": "getBidDetail",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "collateralReceived",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "creditAsked",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "midPoint",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "nAuctionsInProgress",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "pause",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "paused",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newCore",
+				"type": "address"
+			}
+		],
+		"name": "setCore",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "loanId",
+				"type": "bytes32"
+			}
+		],
+		"name": "startAuction",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "startCollateralOffered",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "unpause",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

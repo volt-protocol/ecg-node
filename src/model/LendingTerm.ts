@@ -16,6 +16,7 @@ export default interface LendingTerm {
   minBorrow: string;
   label: string; // WBTC-3%-16666.67
   status: LendingTermStatus;
+  auctionHouseAddress: string;
 }
 
 export enum LendingTermStatus {
