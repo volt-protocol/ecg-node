@@ -48,6 +48,7 @@
         "ethers-multicall-provider": "^6.0.2",
         "express": "^4.18.2",
         "helmet": "^7.1.0",
+        "simple-statistics": "^7.8.3",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.0"
     }

@@ -1,5 +1,7 @@
 import { BaseContract, ContractEventName, EventLog, ethers } from 'ethers';
 import { sleep } from './Utils';
+import { average } from 'simple-statistics';
+import axios from 'axios';
 
 export async function GetBlock(web3Provider: ethers.JsonRpcProvider, blockNumber: number) {
   const block = await web3Provider.getBlock(blockNumber);
@@ -8,6 +10,69 @@ export async function GetBlock(web3Provider: ethers.JsonRpcProvider, blockNumber
   } else {
     return block;
   }
+}
+
+export async function GetAvgGasPrice(rpcUrl: string) {
+  const feeHistoryResponse = await axios.post(rpcUrl, {
+    jsonrpc: '2.0',
+    method: 'eth_feeHistory',
+    params: [10, 'latest', []],
+    id: 1
+  });
+
+  const results: string[] = feeHistoryResponse.data.result.baseFeePerGas;
+  return Math.round(average(results.map((_) => Number(_)))) + 3e9;
+}
+
+export async function SignPermit(
+  signer: ethers.Wallet,
+  chainId: number,
+  erc20Name: string,
+  contractAddress: string,
+  spenderAddress: string,
+  amount: string,
+  nonce: string,
+  deadline: number,
+  version = '1'
+) {
+  const types = {
+    Permit: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+      { name: 'value', type: 'uint256' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'deadline', type: 'uint256' }
+    ]
+  };
+
+  const domainData = {
+    name: erc20Name,
+    version: version ?? '1',
+    chainId: chainId,
+    verifyingContract: contractAddress
+  };
+
+  const message = {
+    owner: signer.address,
+    spender: spenderAddress,
+    value: amount,
+    nonce,
+    deadline
+  };
+
+  const signature = await signer.signTypedData(domainData, types, message);
+
+  const splitSign = ethers.Signature.from(signature);
+  // Append signature and related data to the final array
+  signedRiskDatas.push({
+    r: splitSign.r,
+    s: splitSign.s,
+    v: splitSign.v,
+    liquidationBonus: parameter.bonus,
+    riskData: typedData.value
+  });
+  const [r, s, v] = [slice(signature, 0, 32), slice(signature, 32, 64), slice(signature, 64, 65)];
+  return { r, s, v: hexToNumber(v), deadline: deadline };
 }
 
 export async function FetchAllEventsAndExtractStringArray(

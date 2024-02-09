@@ -7,7 +7,6 @@ import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../mo
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { LendingTerm__factory, ProfitManager__factory } from '../contracts/types';
 import { GetProfitManagerAddress } from '../config/Config';
-import { norm } from '../utils/TokenUtils';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year

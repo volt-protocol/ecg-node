@@ -21,7 +21,8 @@
             "enabled": false
         },
         "AUCTION_BIDDER": {
-            "enabled": false
+            "enabled": true,
+            "minProfitUsdc": 20
         },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true

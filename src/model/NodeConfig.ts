@@ -7,7 +7,7 @@ export interface Processors {
   TERM_OFFBOARDER: TermOffboarderConfig;
   NEW_TERMS_WATCHER: ProcessorConfig;
   USER_SLASHER: ProcessorConfig;
-  AUCTION_BIDDER: ProcessorConfig;
+  AUCTION_BIDDER: AuctionBidderConfig;
   HISTORICAL_DATA_FETCHER: ProcessorConfig;
 }
 
@@ -21,4 +21,8 @@ export interface TermOffboarderConfig extends ProcessorConfig {
 
 export interface TermOffboarderConfigToken {
   minOvercollateralization: number;
+}
+
+export interface AuctionBidderConfig extends ProcessorConfig {
+  minProfitUsdc: number;
 }
