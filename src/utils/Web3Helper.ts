@@ -24,7 +24,7 @@ export async function GetAvgGasPrice(rpcUrl: string) {
   return Math.round(average(results.map((_) => Number(_)))) + 3e9;
 }
 
-export async function SignPermit(
+/*export async function SignPermit(
   signer: ethers.Wallet,
   chainId: number,
   erc20Name: string,
@@ -73,7 +73,7 @@ export async function SignPermit(
   });
   const [r, s, v] = [slice(signature, 0, 32), slice(signature, 32, 64), slice(signature, 64, 65)];
   return { r, s, v: hexToNumber(v), deadline: deadline };
-}
+}*/
 
 export async function FetchAllEventsAndExtractStringArray(
   contract: BaseContract,

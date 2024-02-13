@@ -19,7 +19,7 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
     lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405',
     uniswapV2RouterAddress: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
-    gatewayAddress: '0x6b00c1ac7a1680dd5326bcd9dc735514419f7a33',
+    gatewayAddress: '0xca8eAdE75466e68FdC5C3c74A170aB97430A01b1',
     psmAddress: '0xc19d710f13a725fd67021e8c45bdedffe95202e3'
   }
 };

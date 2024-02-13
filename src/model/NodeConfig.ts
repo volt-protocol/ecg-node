@@ -25,4 +25,5 @@ export interface TermOffboarderConfigToken {
 
 export interface AuctionBidderConfig extends ProcessorConfig {
   minProfitUsdc: number;
+  enableForgive: boolean;
 }
