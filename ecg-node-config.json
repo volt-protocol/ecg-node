@@ -25,6 +25,17 @@
             "enableForgive": true,
             "minProfitUsdc": 20
         },
+        "TESTNET_MARKET_MAKER": {
+            "enabled": true,
+            "threshold": 0.005,
+            "uniswapPairs": [
+                {
+                    "path": ["USDC", "sDAI"],
+                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0",
+                    "targetRatio": 1.05
+                }
+            ]
+        },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true
         }

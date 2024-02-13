@@ -8,6 +8,7 @@ export interface Processors {
   NEW_TERMS_WATCHER: ProcessorConfig;
   USER_SLASHER: ProcessorConfig;
   AUCTION_BIDDER: AuctionBidderConfig;
+  TESTNET_MARKET_MAKER: TestnetMarketMakerConfig;
   HISTORICAL_DATA_FETCHER: ProcessorConfig;
 }
 
@@ -26,4 +27,15 @@ export interface TermOffboarderConfigToken {
 export interface AuctionBidderConfig extends ProcessorConfig {
   minProfitUsdc: number;
   enableForgive: boolean;
+}
+
+export interface TestnetMarketMakerConfig extends ProcessorConfig {
+  threshold: number;
+  uniswapPairs: MMUniswapPairConfig[];
+}
+
+export interface MMUniswapPairConfig {
+  path: string[];
+  poolAddress: string;
+  targetRatio: number;
 }
