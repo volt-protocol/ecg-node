@@ -6,7 +6,7 @@ export interface Processors {
   LOAN_CALLER: ProcessorConfig;
   TERM_OFFBOARDER: TermOffboarderConfig;
   NEW_TERMS_WATCHER: ProcessorConfig;
-  USER_SLASHER: ProcessorConfig;
+  USER_SLASHER: UserSlasherConfig;
   AUCTION_BIDDER: AuctionBidderConfig;
   TESTNET_MARKET_MAKER: TestnetMarketMakerConfig;
   HISTORICAL_DATA_FETCHER: ProcessorConfig;
@@ -18,6 +18,10 @@ export interface ProcessorConfig {
 
 export interface TermOffboarderConfig extends ProcessorConfig {
   tokens: { [tokenSymbol: string]: TermOffboarderConfigToken };
+}
+
+export interface UserSlasherConfig extends ProcessorConfig {
+  minSizeToSlash: number;
 }
 
 export interface TermOffboarderConfigToken {
