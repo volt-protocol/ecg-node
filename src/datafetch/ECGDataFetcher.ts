@@ -17,9 +17,9 @@ import { LendingTerm as LendingTermNamespace } from '../contracts/types/LendingT
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
-import { roundTo } from '../utils/Utils';
+import { JsonBigIntReplacer, JsonBigIntReviver, ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
-import { Gauge, GaugeUser, GaugesFileStructure } from '../model/Gauge';
+import { GaugesFileStructure } from '../model/Gauge';
 import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 
@@ -162,116 +162,78 @@ function getSyncData() {
     return syncData;
   }
 }
-async function fetchAndSaveGauges(
-  web3Provider: JsonRpcProvider,
-  syncData: SyncData,
-  currentBlock: number
-) {
+async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
   let sinceBlock = GetDeployBlock();
   if (syncData.gaugeSync) {
     sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;
+  } else {
+    // if no gaugeSync, delete gauges.json if any
+    if (fs.existsSync(path.join(DATA_DIR, 'gauges.json'))) {
+      fs.rmSync(path.join(DATA_DIR, 'gauges.json'));
+    }
   }
 
   // load existing gauges from file if it exists
   let gaugesFile: GaugesFileStructure = {
-    gauges: [],
+    gauges: {},
     updated: Date.now(),
     updatedHuman: new Date(Date.now()).toISOString()
   };
   const gaugesFilePath = path.join(DATA_DIR, 'gauges.json');
   if (fs.existsSync(gaugesFilePath)) {
-    gaugesFile = JSON.parse(fs.readFileSync(gaugesFilePath, 'utf-8'));
+    gaugesFile = ReadJSON(gaugesFilePath);
   }
 
   // fetch & handle data
   const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
-  // work with an objectified version of the array for easy updates
-  // { gaugeAddress: { address, weight, ... users: { userAddress: { address, weight, ... } } }
-  let _gauges : any = gaugesFile.gauges.reduce((acc: any, cur: any) => {
-    cur.weight = BigInt(cur.weight);
-    cur.users = cur.users.reduce((acc: any, cur: any) => {
-      cur.weight = BigInt(cur.weight);
-      acc[cur.address] = cur;
-      return acc;
-    }, {});
-    acc[cur.address] = cur;
-    return acc;
-  }, {});
+
   // IncrementGaugeWeight(user, gauge, weight)
-  (await FetchAllEvents(
-    guild,
-    'GuildToken',
-    'IncrementGaugeWeight',
-    sinceBlock,
-    currentBlock
-  )).forEach((event) => {
-    _gauges[event.args.gauge] = _gauges[event.args.gauge] || {
+  (await FetchAllEvents(guild, 'GuildToken', 'IncrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
       address: event.args.gauge,
       weight: 0n,
       lastLoss: 0,
       users: {}
     };
-    _gauges[event.args.gauge].weight += event.args.weight;
-    _gauges[event.args.gauge].users[event.args.user] = _gauges[event.args.gauge].users[event.args.user] || {
-      address: event.args.user,
-      weight: 0n,
-      lastLossApplied: 0
-    };
-    _gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
+    gaugesFile.gauges[event.args.gauge].weight += event.args.weight;
+
+    if (!gaugesFile.gauges[event.args.gauge].users[event.args.user]) {
+      gaugesFile.gauges[event.args.gauge].users[event.args.user] = {
+        address: event.args.user,
+        weight: 0n,
+        lastLossApplied: 0
+      };
+    }
+
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
+
     // note: this is not exactly correct, we should be fetching the event's timestamp,
     // but this would require additional RPC calls, and we know we'll only be checking
     // the user lastLossApplied against the gauge's lastLoss. GuildToken.incrementWeight
     // would revert if there is an unapplied loss, so we know the user's lastLossApplied
     // is at least the gauge's lastLoss when an IncrementGaugeWeight event is emitted.
-    _gauges[event.args.gauge].users[event.args.user].lastLossApplied = _gauges[event.args.gauge].lastLoss;
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied =
+      gaugesFile.gauges[event.args.gauge].lastLoss;
   });
   // DecrementGaugeWeight(user, gauge, weight)
-  (await FetchAllEvents(
-    guild,
-    'GuildToken',
-    'DecrementGaugeWeight',
-    sinceBlock,
-    currentBlock
-  )).forEach((event) => {
-    _gauges[event.args.gauge].weight -= event.args.weight;
-    _gauges[event.args.gauge].users[event.args.user].weight -= event.args.weight;
+  (await FetchAllEvents(guild, 'GuildToken', 'DecrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].weight -= event.args.weight;
+
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].weight -= event.args.weight;
   });
+
   // GaugeLoss(gauge, when)
-  (await FetchAllEvents(
-    guild,
-    'GuildToken',
-    'GaugeLoss',
-    sinceBlock,
-    currentBlock
-  )).forEach((event) => {
-    _gauges[event.args.gauge].lastLoss = Number(event.args.when);
+  (await FetchAllEvents(guild, 'GuildToken', 'GaugeLoss', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].lastLoss = Number(event.args.when);
   });
   // GaugeLossApply(gauge, who, weight, when)
-  (await FetchAllEvents(
-    guild,
-    'GuildToken',
-    'GaugeLossApply',
-    sinceBlock,
-    currentBlock
-  )).forEach((event) => {
-    _gauges[event.args.gauge].users[event.args.user].lastLossApplied = Number(event.args.when);
+  (await FetchAllEvents(guild, 'GuildToken', 'GaugeLossApply', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied = Number(event.args.when);
   });
 
-  // re-arrayify _gauges to save to file
-  for (var key in _gauges) {
-    _gauges[key].weight = _gauges[key].weight.toString(10);
-    for (var user in _gauges[key].users) {
-      _gauges[key].users[user].weight = _gauges[key].users[user].weight.toString(10);
-    }
-    _gauges[key].users = Object.values(_gauges[key].users);
-  }
-  _gauges = Object.values(_gauges);
-
-  // save updated data to file
-  gaugesFile.gauges = _gauges;
   gaugesFile.updated = Date.now();
   gaugesFile.updatedHuman = new Date().toISOString();
-  fs.writeFileSync(gaugesFilePath, JSON.stringify(gaugesFile, null, 2));
+  WriteJSON(gaugesFilePath, gaugesFile);
 
   // save sync data
   syncData.gaugeSync = syncData.gaugeSync || {
