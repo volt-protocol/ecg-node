@@ -1,12 +1,7 @@
 import path from 'path';
-import { GetNodeConfig, sleep } from '../utils/Utils';
-import {
-  GuildToken,
-  GuildToken__factory
-} from '../contracts/types';
-import {
-  GetGuildTokenAddress
-} from '../config/Config';
+import { GetNodeConfig, ReadJSON, sleep } from '../utils/Utils';
+import { GuildToken, GuildToken__factory } from '../contracts/types';
+import { GetGuildTokenAddress } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
 import { DATA_DIR } from '../utils/Constants';
@@ -36,15 +31,15 @@ async function UserSlasher() {
     const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), signer);
 
     const gaugesFilename = path.join(DATA_DIR, 'gauges.json');
-    const gaugesFileData: GaugesFileStructure = JSON.parse(readFileSync(gaugesFilename, 'utf-8'));
-    gaugesFileData.gauges.forEach(function(gauge) {
-      gauge.users.forEach(function(user) {
-        if (user.lastLossApplied < gauge.lastLoss && BigInt(user.weight) > BigInt(config.minSizeToSlash * 1e18)) {
+    const gaugesFileData: GaugesFileStructure = ReadJSON(gaugesFilename);
+    for (const [gaugeAddress, gauge] of Object.entries(gaugesFileData.gauges)) {
+      for (const [gaugeUserAddress, user] of Object.entries(gaugesFileData.gauges[gaugeAddress].users)) {
+        if (user.lastLossApplied < gauge.lastLoss && user.weight > BigInt(config.minSizeToSlash) * 1n ** 18n) {
           console.log('slash', gauge.address, user.address);
           // push a call to guildToken.applyGaugeLoss(gauge, user) in a multicall
         }
-      });
-    });
+      }
+    }
 
     // do & wait multicall of guildToken.applyGaugeLoss(gauge, user)
 

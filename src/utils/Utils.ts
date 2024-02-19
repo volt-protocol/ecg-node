@@ -84,6 +84,6 @@ export async function retry<T extends (...arg0: any[]) => any>(
 }
 
 export function GetNodeConfig() {
-  const nodeConfig: NodeConfig = JSON.parse(readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
+  const nodeConfig: NodeConfig = ReadJSON(ECG_NODE_CONFIG_FULL_FILENAME);
   return nodeConfig;
 }
