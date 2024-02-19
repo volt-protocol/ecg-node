@@ -41,7 +41,7 @@ export async function FetchECGData() {
   const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
   const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
 
-  fs.writeFileSync(path.join(DATA_DIR, 'sync.json'), JSON.stringify(syncData, null, 2));
+  WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
   console.log('FetchECGData: finished fetching');
 }
 
@@ -137,8 +137,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
     terms: lendingTerms
   };
 
-  fs.writeFileSync(lendingTermsPath, JSON.stringify(termFileData, null, 2));
-
+  WriteJSON(lendingTermsPath, termFileData);
   return lendingTerms;
 }
 
@@ -154,11 +153,12 @@ function getSyncData() {
       },
       auctionSync: []
     };
-    fs.writeFileSync(syncDataPath, JSON.stringify(syncData, null, 2));
+
+    WriteJSON(syncDataPath, syncData);
 
     return syncData;
   } else {
-    const syncData: SyncData = JSON.parse(fs.readFileSync(syncDataPath, 'utf-8'));
+    const syncData: SyncData = ReadJSON(syncDataPath);
     return syncData;
   }
 }
@@ -251,7 +251,7 @@ async function fetchAndSaveLoans(
   let alreadySavedLoans: Loan[] = [];
   const loansFilePath = path.join(DATA_DIR, 'loans.json');
   if (fs.existsSync(loansFilePath)) {
-    const loansFile: LoansFileStructure = JSON.parse(fs.readFileSync(loansFilePath, 'utf-8'));
+    const loansFile: LoansFileStructure = ReadJSON(loansFilePath);
     alreadySavedLoans = loansFile.loans;
   }
 
@@ -313,7 +313,7 @@ async function fetchAndSaveLoans(
   const endDate = Date.now();
   updateLoans.updated = endDate;
   updateLoans.updatedHuman = new Date(endDate).toISOString();
-  fs.writeFileSync(loansFilePath, JSON.stringify(updateLoans, null, 2));
+  WriteJSON(loansFilePath, updateLoans);
 }
 
 async function fetchLoansInfo(
@@ -370,7 +370,7 @@ async function fetchAndSaveAuctions(
   let alreadySavedAuctions: Auction[] = [];
   const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
   if (fs.existsSync(auctionsFilePath)) {
-    const auctionsFile: AuctionsFileStructure = JSON.parse(fs.readFileSync(auctionsFilePath, 'utf-8'));
+    const auctionsFile: AuctionsFileStructure = ReadJSON(auctionsFilePath);
     alreadySavedAuctions = auctionsFile.auctions;
   }
 
@@ -440,7 +440,7 @@ async function fetchAndSaveAuctions(
   const endDate = Date.now();
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();
-  fs.writeFileSync(auctionsFilePath, JSON.stringify(updateAuctions, null, 2));
+  WriteJSON(auctionsFilePath, updateAuctions);
 }
 
 async function fetchAuctionsInfo(
