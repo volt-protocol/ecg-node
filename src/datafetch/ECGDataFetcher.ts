@@ -17,9 +17,10 @@ import { LendingTerm as LendingTermNamespace } from '../contracts/types/LendingT
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
-import { roundTo } from '../utils/Utils';
+import { JsonBigIntReplacer, JsonBigIntReviver, ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
-import { FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
+import { GaugesFileStructure } from '../model/Gauge';
+import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 
 export async function FetchECGData() {
@@ -36,10 +37,11 @@ export async function FetchECGData() {
   const syncData: SyncData = getSyncData();
   console.log('FetchECGData: fetching');
   const terms = await fetchAndSaveTerms(web3Provider);
+  const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
   const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
   const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
 
-  fs.writeFileSync(path.join(DATA_DIR, 'sync.json'), JSON.stringify(syncData, null, 2));
+  WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
   console.log('FetchECGData: finished fetching');
 }
 
@@ -62,9 +64,9 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   }
 
   // wait the promises
-  console.log(`FetchECGData: sending ${promises.length} multicall`);
+  console.log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
   await Promise.all(promises);
-  console.log('FetchECGData: end multicall');
+  console.log('FetchECGData[Terms]: end multicall');
 
   const lendingTerms: LendingTerm[] = [];
   let cursor = 0;
@@ -135,28 +137,115 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
     terms: lendingTerms
   };
 
-  fs.writeFileSync(lendingTermsPath, JSON.stringify(termFileData, null, 2));
-
+  WriteJSON(lendingTermsPath, termFileData);
   return lendingTerms;
 }
 
 function getSyncData() {
   const syncDataPath = path.join(DATA_DIR, 'sync.json');
   if (!fs.existsSync(syncDataPath)) {
-    console.log(APP_ENV);
+    // console.log(APP_ENV);
     // create the sync file
     const syncData: SyncData = {
       termSync: [],
+      gaugeSync: {
+        lastBlockFetched: GetDeployBlock()
+      },
       auctionSync: []
     };
-    fs.writeFileSync(syncDataPath, JSON.stringify(syncData, null, 2));
+
+    WriteJSON(syncDataPath, syncData);
 
     return syncData;
   } else {
-    const syncData: SyncData = JSON.parse(fs.readFileSync(syncDataPath, 'utf-8'));
+    const syncData: SyncData = ReadJSON(syncDataPath);
     return syncData;
   }
 }
+async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
+  let sinceBlock = GetDeployBlock();
+  if (syncData.gaugeSync) {
+    sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;
+  } else {
+    // if no gaugeSync, delete gauges.json if any
+    if (fs.existsSync(path.join(DATA_DIR, 'gauges.json'))) {
+      fs.rmSync(path.join(DATA_DIR, 'gauges.json'));
+    }
+  }
+
+  console.log('FetchECGData[Gauges]: getting gauges infos');
+
+  // load existing gauges from file if it exists
+  let gaugesFile: GaugesFileStructure = {
+    gauges: {},
+    updated: Date.now(),
+    updatedHuman: new Date(Date.now()).toISOString()
+  };
+  const gaugesFilePath = path.join(DATA_DIR, 'gauges.json');
+  if (fs.existsSync(gaugesFilePath)) {
+    gaugesFile = ReadJSON(gaugesFilePath);
+  }
+
+  // fetch & handle data
+  const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
+
+  // IncrementGaugeWeight(user, gauge, weight)
+  (await FetchAllEvents(guild, 'GuildToken', 'IncrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
+      address: event.args.gauge,
+      weight: 0n,
+      lastLoss: 0,
+      users: {}
+    };
+    gaugesFile.gauges[event.args.gauge].weight += event.args.weight;
+
+    if (!gaugesFile.gauges[event.args.gauge].users[event.args.user]) {
+      gaugesFile.gauges[event.args.gauge].users[event.args.user] = {
+        address: event.args.user,
+        weight: 0n,
+        lastLossApplied: 0
+      };
+    }
+
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
+
+    // note: this is not exactly correct, we should be fetching the event's timestamp,
+    // but this would require additional RPC calls, and we know we'll only be checking
+    // the user lastLossApplied against the gauge's lastLoss. GuildToken.incrementWeight
+    // would revert if there is an unapplied loss, so we know the user's lastLossApplied
+    // is at least the gauge's lastLoss when an IncrementGaugeWeight event is emitted.
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied =
+      gaugesFile.gauges[event.args.gauge].lastLoss;
+  });
+  // DecrementGaugeWeight(user, gauge, weight)
+  (await FetchAllEvents(guild, 'GuildToken', 'DecrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].weight -= event.args.weight;
+
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].weight -= event.args.weight;
+  });
+
+  // GaugeLoss(gauge, when)
+  (await FetchAllEvents(guild, 'GuildToken', 'GaugeLoss', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].lastLoss = Number(event.args.when);
+  });
+  // GaugeLossApply(gauge, who, weight, when)
+  (await FetchAllEvents(guild, 'GuildToken', 'GaugeLossApply', sinceBlock, currentBlock)).forEach((event) => {
+    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied = Number(event.args.when);
+  });
+
+  gaugesFile.updated = Date.now();
+  gaugesFile.updatedHuman = new Date().toISOString();
+  WriteJSON(gaugesFilePath, gaugesFile);
+
+  // save sync data
+  syncData.gaugeSync = syncData.gaugeSync || {
+    lastBlockFetched: 0
+  };
+  syncData.gaugeSync.lastBlockFetched = currentBlock;
+
+  console.log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
+}
+
 async function fetchAndSaveLoans(
   web3Provider: JsonRpcProvider,
   terms: LendingTerm[],
@@ -166,7 +255,7 @@ async function fetchAndSaveLoans(
   let alreadySavedLoans: Loan[] = [];
   const loansFilePath = path.join(DATA_DIR, 'loans.json');
   if (fs.existsSync(loansFilePath)) {
-    const loansFile: LoansFileStructure = JSON.parse(fs.readFileSync(loansFilePath, 'utf-8'));
+    const loansFile: LoansFileStructure = ReadJSON(loansFilePath);
     alreadySavedLoans = loansFile.loans;
   }
 
@@ -228,7 +317,7 @@ async function fetchAndSaveLoans(
   const endDate = Date.now();
   updateLoans.updated = endDate;
   updateLoans.updatedHuman = new Date(endDate).toISOString();
-  fs.writeFileSync(loansFilePath, JSON.stringify(updateLoans, null, 2));
+  WriteJSON(loansFilePath, updateLoans);
 }
 
 async function fetchLoansInfo(
@@ -242,9 +331,9 @@ async function fetchLoansInfo(
     promises.push(lendingTermContract.getLoan(loanData.loanId));
   }
 
-  console.log(`sending loans() multicall for ${allLoanIds.length} loans`);
+  console.log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('end multicall');
+  console.log('FetchECGData[Loans]: end multicall');
 
   let cursor = 0;
   const allLoans: Loan[] = [];
@@ -285,7 +374,7 @@ async function fetchAndSaveAuctions(
   let alreadySavedAuctions: Auction[] = [];
   const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
   if (fs.existsSync(auctionsFilePath)) {
-    const auctionsFile: AuctionsFileStructure = JSON.parse(fs.readFileSync(auctionsFilePath, 'utf-8'));
+    const auctionsFile: AuctionsFileStructure = ReadJSON(auctionsFilePath);
     alreadySavedAuctions = auctionsFile.auctions;
   }
 
@@ -355,7 +444,7 @@ async function fetchAndSaveAuctions(
   const endDate = Date.now();
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();
-  fs.writeFileSync(auctionsFilePath, JSON.stringify(updateAuctions, null, 2));
+  WriteJSON(auctionsFilePath, updateAuctions);
 }
 
 async function fetchAuctionsInfo(
@@ -369,9 +458,9 @@ async function fetchAuctionsInfo(
     promises.push(auctionHouseContract.getAuction(auctionData.loanId));
   }
 
-  console.log(`sending getAuction() multicall for ${allLoanIds.length} loans`);
+  console.log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('end multicall');
+  console.log('FetchECGData[Auctions]: end multicall');
 
   let cursor = 0;
   const allAuctions: Auction[] = [];

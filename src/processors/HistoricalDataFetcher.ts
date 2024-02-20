@@ -1,4 +1,4 @@
-import { WaitUntilScheduled, retry } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
 import fs from 'fs';
 import path from 'path';
@@ -77,7 +77,7 @@ async function fetchCreditTotalSupply(
   };
 
   if (fs.existsSync(historyFilename)) {
-    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    fullHistoricalData = ReadJSON(historyFilename);
     startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
   }
 
@@ -100,7 +100,7 @@ async function fetchCreditTotalSupply(
     );
   }
 
-  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+  WriteJSON(historyFilename, fullHistoricalData);
 }
 
 async function fetchCreditTotalIssuance(
@@ -117,7 +117,7 @@ async function fetchCreditTotalIssuance(
   };
 
   if (fs.existsSync(historyFilename)) {
-    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    fullHistoricalData = ReadJSON(historyFilename);
     startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
   }
 
@@ -140,7 +140,7 @@ async function fetchCreditTotalIssuance(
     );
   }
 
-  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+  WriteJSON(historyFilename, fullHistoricalData);
 }
 
 async function fetchAverageInterestRate(
@@ -159,7 +159,7 @@ async function fetchAverageInterestRate(
   };
 
   if (fs.existsSync(historyFilename)) {
-    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    fullHistoricalData = ReadJSON(historyFilename);
     startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
   }
 
@@ -210,7 +210,7 @@ async function fetchAverageInterestRate(
     );
   }
 
-  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+  WriteJSON(historyFilename, fullHistoricalData);
 }
 
 async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
@@ -225,7 +225,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
   };
 
   if (fs.existsSync(historyFilename)) {
-    fullHistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+    fullHistoricalData = ReadJSON(historyFilename);
     startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
   }
 
@@ -284,7 +284,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
     );
   }
 
-  fs.writeFileSync(historyFilename, JSON.stringify(fullHistoricalData));
+  WriteJSON(historyFilename, fullHistoricalData);
 }
 
 HistoricalDataFetcher();

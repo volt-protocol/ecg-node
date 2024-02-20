@@ -62,6 +62,9 @@ function startProcessors(nodeConfig: NodeConfig) {
   if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
     startWithSpawn('AuctionBidder');
   }
+  if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
+    startWithSpawn('TestnetMarketMaker');
+  }
   if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
     startWithSpawn('NewTermsWatcher');
   }

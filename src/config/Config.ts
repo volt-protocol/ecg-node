@@ -7,14 +7,20 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     guildTokenAddress: '0x',
     creditTokenAddress: '0x',
     profitManagerAddress: '0x',
-    lendingTermOffboardingAddress: '0x'
+    lendingTermOffboardingAddress: '0x',
+    uniswapV2RouterAddress: '0x',
+    gatewayAddress: '0x',
+    psmAddress: '0x'
   },
   SEPOLIA: {
     deployBlock: 5191505,
     guildTokenAddress: '0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f',
     creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
     profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
-    lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405'
+    lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405',
+    uniswapV2RouterAddress: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
+    gatewayAddress: '0xca8eAdE75466e68FdC5C3c74A170aB97430A01b1',
+    psmAddress: '0xc19d710f13a725fd67021e8c45bdedffe95202e3'
   }
 };
 
@@ -102,4 +108,16 @@ export function GetProfitManagerAddress() {
 
 export function GetLendingTermOffboardingAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOffboardingAddress;
+}
+
+export function GetUniswapV2RouterAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].uniswapV2RouterAddress;
+}
+
+export function GetGatewayAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].gatewayAddress;
+}
+
+export function GetPSMAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].psmAddress;
 }

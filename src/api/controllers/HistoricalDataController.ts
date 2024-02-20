@@ -2,6 +2,7 @@ import { ApiHistoricalData, HistoricalData } from '../../model/HistoricalData';
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../../utils/Constants';
+import { ReadJSON } from '../../utils/Utils';
 
 const HISTORY_DIR = path.join(DATA_DIR, 'history');
 class HistoricalDataController {
@@ -10,7 +11,7 @@ class HistoricalDataController {
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
-      const fullHistory: HistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+      const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
       const values = Object.values(fullHistory.values);
 
@@ -26,7 +27,7 @@ class HistoricalDataController {
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
-      const fullHistory: HistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+      const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
       const values = Object.values(fullHistory.values);
 
@@ -42,7 +43,7 @@ class HistoricalDataController {
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
-      const fullHistory: HistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+      const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
       const values = Object.values(fullHistory.values);
 
@@ -58,7 +59,7 @@ class HistoricalDataController {
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
-      const fullHistory: HistoricalData = JSON.parse(fs.readFileSync(historyFilename, 'utf-8'));
+      const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
       const values = Object.values(fullHistory.values);
 
