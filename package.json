@@ -5,6 +5,12 @@
     "scripts": {
         "start": "ts-node ./src/ECGNode.ts",
         "start:api": "ts-node ./src/api/Api.ts",
+        "debug:auction-bidder": "ts-node ./src/processors/AuctionBidder.ts",
+        "debug:historical-data-fetcher": "ts-node ./src/processors/HistoricalDataFetcher.ts",
+        "debug:loan-caller": "ts-node ./src/processors/LoanCaller.ts",
+        "debug:term-offboarder": "ts-node ./src/processors/TermOffboarder.ts",
+        "debug:market-maker": "ts-node ./src/processors/TestnetMarketMaker.ts",
+        "debug:user-slasher": "ts-node ./src/processors/UserSlasher.ts",
         "build": "run-script-os",
         "build:win32": "rimraf ./build& tsc& copy .\\ecg-node-config.json .\\build\\ecg-node-config.json& copy .\\package.json .\\build\\package.json",
         "build:darwin:linux": "rimraf ./build && tsc && cp ./ecg-node-config.json ./build/ecg-node-config.json && cp ./package.json ./build/package.json",
