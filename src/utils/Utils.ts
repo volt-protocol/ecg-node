@@ -1,6 +1,29 @@
 import { readFileSync } from 'fs';
 import { NodeConfig } from '../model/NodeConfig';
 import { ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constants';
+import fs from 'fs';
+
+export function JsonBigIntReplacer(key: string, value: any) {
+  if (typeof value === 'bigint') {
+    return value.toString() + 'n';
+  }
+  return value;
+}
+
+export function JsonBigIntReviver(key: string, value: any) {
+  if (typeof value === 'string' && /^\d+n$/.test(value)) {
+    return BigInt(value.slice(0, -1));
+  }
+  return value;
+}
+
+export function ReadJSON(filename: string) {
+  return JSON.parse(fs.readFileSync(filename, 'utf-8'), JsonBigIntReviver);
+}
+
+export function WriteJSON(filename: string, obj: any) {
+  fs.writeFileSync(filename, JSON.stringify(obj, JsonBigIntReplacer, 2));
+}
 
 /**
  * sleep
@@ -61,6 +84,6 @@ export async function retry<T extends (...arg0: any[]) => any>(
 }
 
 export function GetNodeConfig() {
-  const nodeConfig: NodeConfig = JSON.parse(readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
+  const nodeConfig: NodeConfig = ReadJSON(ECG_NODE_CONFIG_FULL_FILENAME);
   return nodeConfig;
 }

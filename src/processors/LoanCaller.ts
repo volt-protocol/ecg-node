@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { WaitUntilScheduled, sleep } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
@@ -20,8 +20,8 @@ async function LoanCaller() {
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
 
-    const termFileData: LendingTermsFileStructure = JSON.parse(readFileSync(termsFilename, 'utf-8'));
-    const loanFileData: LoansFileStructure = JSON.parse(readFileSync(loansFilename, 'utf-8'));
+    const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
+    const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
 
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {

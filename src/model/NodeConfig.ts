@@ -6,8 +6,9 @@ export interface Processors {
   LOAN_CALLER: ProcessorConfig;
   TERM_OFFBOARDER: TermOffboarderConfig;
   NEW_TERMS_WATCHER: ProcessorConfig;
-  USER_SLASHER: ProcessorConfig;
+  USER_SLASHER: UserSlasherConfig;
   AUCTION_BIDDER: AuctionBidderConfig;
+  TESTNET_MARKET_MAKER: TestnetMarketMakerConfig;
   HISTORICAL_DATA_FETCHER: ProcessorConfig;
 }
 
@@ -19,6 +20,10 @@ export interface TermOffboarderConfig extends ProcessorConfig {
   tokens: { [tokenSymbol: string]: TermOffboarderConfigToken };
 }
 
+export interface UserSlasherConfig extends ProcessorConfig {
+  minSizeToSlash: number;
+}
+
 export interface TermOffboarderConfigToken {
   minOvercollateralization: number;
 }
@@ -26,4 +31,15 @@ export interface TermOffboarderConfigToken {
 export interface AuctionBidderConfig extends ProcessorConfig {
   minProfitUsdc: number;
   enableForgive: boolean;
+}
+
+export interface TestnetMarketMakerConfig extends ProcessorConfig {
+  threshold: number;
+  uniswapPairs: MMUniswapPairConfig[];
+}
+
+export interface MMUniswapPairConfig {
+  path: string[];
+  poolAddress: string;
+  targetRatio: number;
 }
