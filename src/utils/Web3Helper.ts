@@ -120,14 +120,14 @@ export async function FetchAllEvents(
     if (events.length != 0) {
       for (const e of events) {
         if (e instanceof EventLog) {
-          let obj : any = {
+          let obj: any = {
             transactionHash: e.transactionHash,
             blockHash: e.blockHash,
             blockNumber: e.blockNumber,
             transactionIndex: e.transactionIndex,
             args: {}
           };
-          e.fragment.inputs.forEach(function(paramType, i) {
+          e.fragment.inputs.forEach(function (paramType, i) {
             obj.args[paramType.name] = e.args[i];
           });
           extractedArray.push(obj);

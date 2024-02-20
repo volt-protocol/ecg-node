@@ -64,9 +64,9 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   }
 
   // wait the promises
-  console.log(`FetchECGData: sending ${promises.length} multicall`);
+  console.log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
   await Promise.all(promises);
-  console.log('FetchECGData: end multicall');
+  console.log('FetchECGData[Terms]: end multicall');
 
   const lendingTerms: LendingTerm[] = [];
   let cursor = 0;
@@ -144,7 +144,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
 function getSyncData() {
   const syncDataPath = path.join(DATA_DIR, 'sync.json');
   if (!fs.existsSync(syncDataPath)) {
-    console.log(APP_ENV);
+    // console.log(APP_ENV);
     // create the sync file
     const syncData: SyncData = {
       termSync: [],
@@ -172,6 +172,8 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
       fs.rmSync(path.join(DATA_DIR, 'gauges.json'));
     }
   }
+
+  console.log('FetchECGData[Gauges]: getting gauges infos');
 
   // load existing gauges from file if it exists
   let gaugesFile: GaugesFileStructure = {
@@ -240,6 +242,8 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
     lastBlockFetched: 0
   };
   syncData.gaugeSync.lastBlockFetched = currentBlock;
+
+  console.log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
 }
 
 async function fetchAndSaveLoans(
@@ -327,9 +331,9 @@ async function fetchLoansInfo(
     promises.push(lendingTermContract.getLoan(loanData.loanId));
   }
 
-  console.log(`sending loans() multicall for ${allLoanIds.length} loans`);
+  console.log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('end multicall');
+  console.log('FetchECGData[Loans]: end multicall');
 
   let cursor = 0;
   const allLoans: Loan[] = [];
@@ -454,9 +458,9 @@ async function fetchAuctionsInfo(
     promises.push(auctionHouseContract.getAuction(auctionData.loanId));
   }
 
-  console.log(`sending getAuction() multicall for ${allLoanIds.length} loans`);
+  console.log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('end multicall');
+  console.log('FetchECGData[Auctions]: end multicall');
 
   let cursor = 0;
   const allAuctions: Auction[] = [];

@@ -1,13 +1,6 @@
 import { GetNodeConfig, sleep } from '../utils/Utils';
-import {
-  UniswapV2Router__factory,
-  UniswapV2Pair__factory,
-  UniswapV2Router
-} from '../contracts/types';
-import {
-  GetUniswapV2RouterAddress,
-  getTokenBySymbol
-} from '../config/Config';
+import { UniswapV2Router__factory, UniswapV2Pair__factory, UniswapV2Router } from '../contracts/types';
+import { GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 
 const RUN_EVERY_SEC = 120;
@@ -48,7 +41,9 @@ async function TestnetMarketMaker() {
       console.log(`TestnetMarketMaker: checking pair ${token0.symbol}-${token1.symbol}`);
 
       const reserves = await uniswapPair.getReserves();
-      let spotRatio = Number(reserves[0] * BigInt(10**(18 - token0.decimals))) / Number(reserves[1] * BigInt(10**(18 - token1.decimals)));
+      let spotRatio =
+        Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+        Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
       const diff = Math.abs(spotRatio - targetRatio);
       if (diff < threshold) {
         //console.log(`TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio}`);
@@ -57,20 +52,22 @@ async function TestnetMarketMaker() {
 
       // if we have to swap token0 for token1
       if (spotRatio < targetRatio) {
-        let step = 1n * BigInt(10**token0.decimals);
+        let step = 1n * BigInt(10 ** token0.decimals);
         let amountIn = 0n;
         let amountOut = 0n;
         while (spotRatio < targetRatio) {
           amountIn += step;
           amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
           let reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
-          spotRatio = Number(reservesAfter[0] * BigInt(10**(18 - token0.decimals))) / Number(reservesAfter[1] * BigInt(10**(18 - token1.decimals)));
+          spotRatio =
+            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
         console.log(`TestnetMarketMaker: swap ${amountIn} ${token0.symbol} -> ${amountOut} ${token1.symbol}`);
 
         await swapExactTokensForTokens(
           amountIn,
-          amountOut * 995n / 1000n, // max 0.5% slippage
+          (amountOut * 995n) / 1000n, // max 0.5% slippage
           [token0.address, token1.address],
           signer.address,
           Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
@@ -79,20 +76,22 @@ async function TestnetMarketMaker() {
       }
       // if we have to swap token1 for token0
       else {
-        let step = 1n * BigInt(10**token1.decimals);
+        let step = 1n * BigInt(10 ** token1.decimals);
         let amountIn = 0n;
         let amountOut = 0n;
         while (spotRatio > targetRatio) {
           amountIn += step;
           amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
           let reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
-          spotRatio = Number(reservesAfter[0] * BigInt(10**(18 - token0.decimals))) / Number(reservesAfter[1] * BigInt(10**(18 - token1.decimals)));
+          spotRatio =
+            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
         console.log(`TestnetMarketMaker: swap ${amountIn} ${token1.symbol} -> ${amountOut} ${token0.symbol}`);
 
         await swapExactTokensForTokens(
           amountIn,
-          amountOut * 995n / 1000n, // max 0.5% slippage
+          (amountOut * 995n) / 1000n, // max 0.5% slippage
           [token1.address, token0.address],
           signer.address,
           Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
@@ -105,7 +104,7 @@ async function TestnetMarketMaker() {
   }
 }
 
-function getAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint) : bigint {
+function getAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint): bigint {
   const amountInWithFee = amountIn * 997n;
   const numerator = amountInWithFee * reserveOut;
   const denominator = reserveIn * 1000n + amountInWithFee;
@@ -121,13 +120,7 @@ async function swapExactTokensForTokens(
   deadline: number,
   uniswapRouter: UniswapV2Router
 ) {
-  const txReceipt = await uniswapRouter.swapExactTokensForTokens(
-    amountIn,
-    minAmountOut,
-    path,
-    to,
-    deadline
-  );
+  const txReceipt = await uniswapRouter.swapExactTokensForTokens(amountIn, minAmountOut, path, to, deadline);
   await txReceipt.wait();
 }
 
