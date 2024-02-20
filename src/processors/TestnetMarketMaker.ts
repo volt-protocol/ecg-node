@@ -52,13 +52,13 @@ async function TestnetMarketMaker() {
 
       // if we have to swap token0 for token1
       if (spotRatio < targetRatio) {
-        let step = 1n * BigInt(10 ** token0.decimals);
+        const step = 1n * BigInt(10 ** token0.decimals);
         let amountIn = 0n;
         let amountOut = 0n;
         while (spotRatio < targetRatio) {
           amountIn += step;
           amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
-          let reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
+          const reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
           spotRatio =
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
@@ -76,13 +76,13 @@ async function TestnetMarketMaker() {
       }
       // if we have to swap token1 for token0
       else {
-        let step = 1n * BigInt(10 ** token1.decimals);
+        const step = 1n * BigInt(10 ** token1.decimals);
         let amountIn = 0n;
         let amountOut = 0n;
         while (spotRatio > targetRatio) {
           amountIn += step;
           amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
-          let reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
+          const reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
           spotRatio =
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
