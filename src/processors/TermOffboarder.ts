@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
+import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { GetTokenPrice } from '../utils/Price';
@@ -37,7 +37,7 @@ async function TermOffboarder() {
     }
     const web3Provider = new ethers.JsonRpcProvider(rpcURL);
 
-    const termFileData: LendingTermsFileStructure = JSON.parse(readFileSync(termsFilename, 'utf-8'));
+    const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
       const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
       if (termMustBeOffboarded) {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { DATA_DIR } from '../utils/Constants';
-import { GetNodeConfig, sleep } from '../utils/Utils';
+import { GetNodeConfig, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import {
   AuctionHouse__factory,
@@ -31,8 +31,8 @@ async function AuctionBidder() {
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
-    const auctionFileData: AuctionsFileStructure = JSON.parse(readFileSync(auctionsFilename, 'utf-8'));
-    const termFileData: LendingTermsFileStructure = JSON.parse(readFileSync(termsFilename, 'utf-8'));
+    const auctionFileData: AuctionsFileStructure = ReadJSON(auctionsFilename);
+    const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
 
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {
@@ -68,7 +68,7 @@ async function AuctionBidder() {
         await processBid(auction, term, web3Provider, auctionBidderConfig.minProfitUsdc);
         continue;
       }
-      
+
       console.log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${profit}`);
     }
 
@@ -125,10 +125,7 @@ async function processBid(
   await txReceipt.wait();
 }
 
-async function processForgive(
-  auction: Auction,
-  web3Provider: ethers.JsonRpcProvider
-) {
+async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProvider) {
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
   }

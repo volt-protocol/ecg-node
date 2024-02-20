@@ -18,7 +18,8 @@
             "enabled": false
         },
         "USER_SLASHER": {
-            "enabled": false
+            "enabled": true,
+            "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
             "enabled": true,
