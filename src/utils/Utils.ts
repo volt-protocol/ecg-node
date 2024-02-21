@@ -1,7 +1,9 @@
 import { readFileSync } from 'fs';
 import { NodeConfig } from '../model/NodeConfig';
-import { ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constants';
+import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constants';
 import fs from 'fs';
+import path from 'path';
+import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 
 export function JsonBigIntReplacer(key: string, value: any) {
   if (typeof value === 'bigint') {
@@ -86,4 +88,17 @@ export async function retry<T extends (...arg0: any[]) => any>(
 export function GetNodeConfig() {
   const nodeConfig: NodeConfig = ReadJSON(ECG_NODE_CONFIG_FULL_FILENAME);
   return nodeConfig;
+}
+
+export function GetProtocolData(): ProtocolData {
+  const protocolDataFilename = path.join(DATA_DIR, 'protocol-data.json');
+
+  const protocolDataFile = ReadJSON(protocolDataFilename) as ProtocolDataFileStructure;
+  console.log(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
+
+  if (protocolDataFile.updated < Date.now() - 2 * 3600 * 1000) {
+    throw new Error('Protocol data outdated');
+  } else {
+    return protocolDataFile.data;
+  }
 }

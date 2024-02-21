@@ -24,57 +24,6 @@ export async function GetAvgGasPrice(rpcUrl: string) {
   return Math.round(average(results.map((_) => Number(_)))) + 3e9;
 }
 
-/*export async function SignPermit(
-  signer: ethers.Wallet,
-  chainId: number,
-  erc20Name: string,
-  contractAddress: string,
-  spenderAddress: string,
-  amount: string,
-  nonce: string,
-  deadline: number,
-  version = '1'
-) {
-  const types = {
-    Permit: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-      { name: 'value', type: 'uint256' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'deadline', type: 'uint256' }
-    ]
-  };
-
-  const domainData = {
-    name: erc20Name,
-    version: version ?? '1',
-    chainId: chainId,
-    verifyingContract: contractAddress
-  };
-
-  const message = {
-    owner: signer.address,
-    spender: spenderAddress,
-    value: amount,
-    nonce,
-    deadline
-  };
-
-  const signature = await signer.signTypedData(domainData, types, message);
-
-  const splitSign = ethers.Signature.from(signature);
-  // Append signature and related data to the final array
-  signedRiskDatas.push({
-    r: splitSign.r,
-    s: splitSign.s,
-    v: splitSign.v,
-    liquidationBonus: parameter.bonus,
-    riskData: typedData.value
-  });
-  const [r, s, v] = [slice(signature, 0, 32), slice(signature, 32, 64), slice(signature, 64, 65)];
-  return { r, s, v: hexToNumber(v), deadline: deadline };
-}*/
-
 export async function FetchAllEvents(
   contract: BaseContract,
   contractName: string,
@@ -83,8 +32,7 @@ export async function FetchAllEvents(
   targetBlock: number,
   blockStepLimit?: number
 ): Promise<any[]> {
-  const extractedArray: any[] = new Array();
-  const logPrefix = `fetchAllEvents[${contractName}-${eventName}-all]`;
+  const extractedArray: any[] = [];
 
   const initBlockStep = 100_000;
   //console.log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
@@ -120,7 +68,7 @@ export async function FetchAllEvents(
     if (events.length != 0) {
       for (const e of events) {
         if (e instanceof EventLog) {
-          let obj: any = {
+          const obj: any = {
             transactionHash: e.transactionHash,
             blockHash: e.blockHash,
             blockNumber: e.blockNumber,
@@ -181,7 +129,6 @@ export async function FetchAllEventsAndExtractStringArray(
   blockStepLimit?: number
 ): Promise<string[]> {
   const extractedArray: Set<string> = new Set<string>();
-  const logPrefix = `fetchAllEvents[${contractName}-${eventName}-${argNames.join(',')}]`;
 
   const initBlockStep = 100_000;
   //console.log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);

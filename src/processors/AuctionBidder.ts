@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { DATA_DIR } from '../utils/Constants';
-import { GetNodeConfig, ReadJSON, sleep } from '../utils/Utils';
+import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import {
   AuctionHouse__factory,
@@ -43,8 +43,7 @@ async function AuctionBidder() {
     }
 
     const web3Provider = new ethers.JsonRpcProvider(rpcURL);
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
-    const creditMultiplier = await profitManagerContract.creditMultiplier();
+    const creditMultiplier = GetProtocolData().creditMultiplier;
 
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
     console.log(`AuctionBidder: Will check ${auctionsToCheck.length} auctions`);

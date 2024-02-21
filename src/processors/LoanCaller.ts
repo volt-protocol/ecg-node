@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { ReadJSON, WaitUntilScheduled, sleep } from '../utils/Utils';
+import { existsSync } from 'node:fs';
+import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
@@ -15,7 +15,6 @@ async function LoanCaller() {
   while (true) {
     process.title = 'LOAN_CALLER';
     console.log('LoanCaller: starting');
-    const startDate = Date.now();
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
@@ -28,14 +27,10 @@ async function LoanCaller() {
       throw new Error('Cannot find RPC_URL in env');
     }
     const web3Provider = new ethers.JsonRpcProvider(rpcURL);
-    const lastBlockTimestamp = (await web3Provider.getBlock(await web3Provider.getBlockNumber()))?.timestamp;
-    if (!lastBlockTimestamp) {
-      await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
-      continue;
-    }
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+    // assume lastBlockTimestampMs is date.now() minus 12 sec
+    const lastBlockTimestampMs = Date.now() - 12000;
 
-    const creditMultiplier = await profitManagerContract.creditMultiplier();
+    const creditMultiplier = GetProtocolData().creditMultiplier;
 
     const loansToCall: { [termAddress: string]: string[] } = {};
 
@@ -49,7 +44,7 @@ async function LoanCaller() {
       }
 
       const termDeprecated = term.status != LendingTermStatus.LIVE;
-      const aboveMaxBorrow = checkAboveMaxBorrow(loan, term, creditMultiplier, lastBlockTimestamp);
+      const aboveMaxBorrow = checkAboveMaxBorrow(loan, term, creditMultiplier, lastBlockTimestampMs);
       const partialRepayDelayPassed = checkPartialRepayDelayPassed(loan, term);
 
       if (termDeprecated || aboveMaxBorrow || partialRepayDelayPassed) {
@@ -88,12 +83,12 @@ async function callMany(loansToCall: { [termAddress: string]: string[] }, web3Pr
   }
 }
 
-function checkAboveMaxBorrow(loan: Loan, term: LendingTerm, creditMultiplier: bigint, lastBlockTimestampSec: number) {
+function checkAboveMaxBorrow(loan: Loan, term: LendingTerm, creditMultiplier: bigint, lastBlockTimestampMs: number) {
   const maxBorrow = (BigInt(loan.collateralAmount) * BigInt(term.maxDebtPerCollateralToken)) / creditMultiplier;
   const interest =
     (BigInt(loan.borrowAmount) *
       BigInt(term.interestRate) *
-      (BigInt(lastBlockTimestampSec * 1000) - BigInt(loan.originationTime))) /
+      (BigInt(lastBlockTimestampMs) - BigInt(loan.originationTime))) /
     BigInt(MS_PER_YEAR) /
     10n ** 18n;
   const openingFee = (BigInt(loan.borrowAmount) * BigInt(term.openingFee)) / 10n ** 18n;
