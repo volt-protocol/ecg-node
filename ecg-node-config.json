@@ -18,7 +18,7 @@
             "enabled": false
         },
         "USER_SLASHER": {
-            "enabled": true,
+            "enabled": false,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
@@ -27,7 +27,7 @@
             "minProfitUsdc": 20
         },
         "TESTNET_MARKET_MAKER": {
-            "enabled": true,
+            "enabled": false,
             "threshold": 0.005,
             "uniswapPairs": [
                 {

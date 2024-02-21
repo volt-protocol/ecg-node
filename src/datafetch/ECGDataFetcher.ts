@@ -2,7 +2,7 @@ import { JsonRpcProvider, ethers } from 'ethers';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import fs from 'fs';
 import path from 'path';
-import { APP_ENV, DATA_DIR } from '../utils/Constants';
+import { DATA_DIR } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
 import {
   AuctionHouse,
@@ -17,11 +17,12 @@ import { LendingTerm as LendingTermNamespace } from '../contracts/types/LendingT
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
-import { JsonBigIntReplacer, JsonBigIntReviver, ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { GaugesFileStructure } from '../model/Gauge';
 import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
+import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 
 export async function FetchECGData() {
   const rpcURL = process.env.RPC_URL;
@@ -36,7 +37,8 @@ export async function FetchECGData() {
 
   const syncData: SyncData = getSyncData();
   console.log('FetchECGData: fetching');
-  const terms = await fetchAndSaveTerms(web3Provider);
+  const protocolData = await fetchAndSaveProtocolData(web3Provider);
+  const terms = await fetchAndSaveTerms(web3Provider, protocolData);
   const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
   const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
   const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
@@ -45,7 +47,28 @@ export async function FetchECGData() {
   console.log('FetchECGData: finished fetching');
 }
 
-async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
+async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+  const creditMultiplier = await profitManagerContract.creditMultiplier();
+
+  const data: ProtocolData = {
+    creditMultiplier: creditMultiplier
+  };
+
+  const protocolDataPath = path.join(DATA_DIR, 'protocol-data.json');
+  const fetchDate = Date.now();
+  const protocolFileData: ProtocolDataFileStructure = {
+    updated: fetchDate,
+    updatedHuman: new Date(fetchDate).toISOString(),
+    data: data
+  };
+
+  WriteJSON(protocolDataPath, protocolFileData);
+
+  return data;
+}
+
+async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: ProtocolData) {
   const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
   const gauges = await guildTokenContract.gauges();
   const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
@@ -53,7 +76,6 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promises: any[] = [];
   promises.push(profitManagerContract.minBorrow());
-  promises.push(profitManagerContract.creditMultiplier());
   for (const lendingTermAddress of gauges) {
     console.log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
     const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
@@ -71,7 +93,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
   const lendingTerms: LendingTerm[] = [];
   let cursor = 0;
   const minBorrow: bigint = await promises[cursor++];
-  const creditMultiplier: bigint = await promises[cursor++];
+  const creditMultiplier: bigint = protocolData.creditMultiplier;
   for (const lendingTermAddress of gauges) {
     // read promises in the same order as the multicall
     const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
