@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { ReadJSON, WaitUntilScheduled, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
@@ -33,6 +33,7 @@ async function LoanCaller() {
       await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
       continue;
     }
+
     const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
 
     const creditMultiplier = await profitManagerContract.creditMultiplier();
