@@ -68,9 +68,12 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
     return false;
   }
 
-  console.log(`TermOffboarder[${term.label}]: overcollateralization: ${tokenConfig.minOvercollateralization}`);
+  const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
+  console.log(
+    `TermOffboarder[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${tokenConfig.minOvercollateralization}`
+  );
 
-  if (collateralRealPrice / pegTokenRealPrice < normBorrowRatio * tokenConfig.minOvercollateralization) {
+  if (currentOvercollateralization < tokenConfig.minOvercollateralization) {
     return true;
   } else {
     return false;
