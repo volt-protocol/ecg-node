@@ -23,7 +23,7 @@ async function main() {
   await FetchECGData();
 
   // set a timeout to check if the last fetch was performed recently and fetch if needed
-  setTimeout(async () => await FetchIfTooOld(), 60000);
+  setInterval(async () => await FetchIfTooOld(), 60000);
   StartEventListener();
   StartEventProcessor();
 
