@@ -1,7 +1,9 @@
-import { GetNodeConfig, sleep } from '../utils/Utils';
-import { UniswapV2Router__factory, UniswapV2Pair__factory, UniswapV2Router } from '../contracts/types';
-import { GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
+import { GetNodeConfig, buildTxUrl, sleep } from '../utils/Utils';
+import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
+import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
+import { SendTelegramMessage } from '../utils/TelegramHelper';
+import { norm } from '../utils/TokenUtils';
 
 const RUN_EVERY_SEC = 120;
 
@@ -29,7 +31,6 @@ async function TestnetMarketMaker() {
 
     const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-    const uniswapRouter = UniswapV2Router__factory.connect(GetUniswapV2RouterAddress(), signer);
 
     for (let i = 0; i < config.uniswapPairs.length; i++) {
       const token0 = getTokenBySymbol(config.uniswapPairs[i].path[0]);
@@ -46,7 +47,9 @@ async function TestnetMarketMaker() {
         Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
       const diff = Math.abs(spotRatio - targetRatio);
       if (diff < threshold) {
-        //console.log(`TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio}`);
+        console.log(
+          `TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`
+        );
         continue;
       }
 
@@ -65,13 +68,19 @@ async function TestnetMarketMaker() {
         }
         console.log(`TestnetMarketMaker: swap ${amountIn} ${token0.symbol} -> ${amountOut} ${token1.symbol}`);
 
+        // approve token0 to the router
+        const erc20Contract = ERC20__factory.connect(token0.address, signer);
+        await (await erc20Contract.approve(GetUniswapV2RouterAddress(), amountIn)).wait();
         await swapExactTokensForTokens(
+          token0,
+          token1,
+          targetRatio,
           amountIn,
           (amountOut * 995n) / 1000n, // max 0.5% slippage
           [token0.address, token1.address],
           signer.address,
           Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-          uniswapRouter
+          signer
         );
       }
       // if we have to swap token1 for token0
@@ -90,12 +99,15 @@ async function TestnetMarketMaker() {
         console.log(`TestnetMarketMaker: swap ${amountIn} ${token1.symbol} -> ${amountOut} ${token0.symbol}`);
 
         await swapExactTokensForTokens(
+          token1,
+          token0,
+          targetRatio,
           amountIn,
           (amountOut * 995n) / 1000n, // max 0.5% slippage
           [token1.address, token0.address],
           signer.address,
           Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-          uniswapRouter
+          signer
         );
       }
     }
@@ -113,15 +125,31 @@ function getAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint): 
 }
 
 async function swapExactTokensForTokens(
+  fromToken: TokenConfig,
+  toToken: TokenConfig,
+  targetRatio: number,
   amountIn: bigint,
   minAmountOut: bigint,
   path: string[],
   to: string,
   deadline: number,
-  uniswapRouter: UniswapV2Router
+  signer: ethers.Wallet
 ) {
+  const routerAddress = GetUniswapV2RouterAddress();
+  // approve fromToken amountIn to the router
+  const erc20Contract = ERC20__factory.connect(fromToken.address, signer);
+  await (await erc20Contract.approve(routerAddress, amountIn)).wait();
+  const uniswapRouter = UniswapV2Router__factory.connect(routerAddress, signer);
+
   const txReceipt = await uniswapRouter.swapExactTokensForTokens(amountIn, minAmountOut, path, to, deadline);
   await txReceipt.wait();
+  await SendTelegramMessage(
+    `[MarketMaker] swapped ${fromToken.symbol} => ${toToken.symbol}\n` +
+      `Target ratio: ${targetRatio}\n` +
+      `Sent ${norm(amountIn, fromToken.decimals)} ${fromToken.symbol}\n` +
+      `Tx: ${buildTxUrl(txReceipt.hash)}`,
+    false
+  );
 }
 
 TestnetMarketMaker();
