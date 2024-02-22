@@ -101,11 +101,11 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
     // propose offboard
 
     const proposeResponse = await lendingTermOffboardingContract.proposeOffboard(term.termAddress);
-    const msg =
-      `[TERM_OFFBOARDER] Created Offboard proposal on term ${term.label} ${term.termAddress}\n` +
-      `Tx: ${buildTxUrl(proposeResponse.hash)}`;
-
-    await SendTelegramMessage(msg, false);
+    await SendTelegramMessage(
+      `[Term Offboarder] Created Offboard proposal on term ${term.label} ${term.termAddress}\n` +
+        `Tx: ${buildTxUrl(proposeResponse.hash)}`,
+      false
+    );
     await proposeResponse.wait();
 
     // here, the offboard proposal should have been created, find it by block
@@ -124,6 +124,11 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   } else {
     const supportResponse = await lendingTermOffboardingContract.supportOffboard(pollBlock, term.termAddress);
     await supportResponse.wait();
+    await SendTelegramMessage(
+      `[Term Offboarder] Supported Offboard term ${term.label} ${term.termAddress}\n` +
+        `Tx: ${buildTxUrl(supportResponse.hash)}`,
+      false
+    );
   }
 
   /*enum OffboardStatus {
@@ -136,11 +141,19 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   if (canOffboard == 1n) {
     const offboardResp = await lendingTermOffboardingContract.offboard(term.termAddress);
     await offboardResp.wait();
+    await SendTelegramMessage(
+      `[Term Offboarder] Offboarded term ${term.label} ${term.termAddress}\n` + `Tx: ${buildTxUrl(offboardResp.hash)}`,
+      false
+    );
     canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
   }
 
   if (canOffboard == 2n) {
     const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
     await cleanupResp.wait();
+    await SendTelegramMessage(
+      `[Term Offboarder] Cleaned up term ${term.label} ${term.termAddress}\n` + `Tx: ${buildTxUrl(cleanupResp.hash)}`,
+      false
+    );
   }
 }

@@ -19,6 +19,7 @@ import {
 import { ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
+import { SendTelegramMessage } from '../utils/TelegramHelper';
 
 const RUN_EVERY_SEC = 15;
 
@@ -122,6 +123,9 @@ async function processBid(
     minProfit
   );
   await txReceipt.wait();
+  SendTelegramMessage(
+    `[Auction Bidder] bidded on auction ${auction.loanId}\nUsing the Gateway.bidWithBalancerFlashLoan() function`
+  );
 }
 
 async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProvider) {
@@ -132,6 +136,8 @@ async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProv
   const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, signer);
   const txReceipt = await auctionHouseContract.forgive(auction.loanId);
   await txReceipt.wait();
+
+  SendTelegramMessage(`[Auction Bidder] Forgave auction ${auction.loanId}\n`);
 }
 
 AuctionBidder();

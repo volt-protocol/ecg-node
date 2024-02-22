@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
+import { GetProtocolData, ReadJSON, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { ethers } from 'ethers';
@@ -7,6 +7,7 @@ import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../mo
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { LendingTerm__factory, ProfitManager__factory } from '../contracts/types';
 import { GetProfitManagerAddress } from '../config/Config';
+import { SendTelegramMessage } from '../utils/TelegramHelper';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
@@ -80,6 +81,11 @@ async function callMany(loansToCall: { [termAddress: string]: string[] }, web3Pr
     const callManyResponse = await lendingTermContract.callMany(loanIds);
 
     await callManyResponse.wait();
+    SendTelegramMessage(
+      `[Loan Caller] called ${loanIds.length} loans on term ${termAddress}\n` +
+        `loanIds:\n ${loanIds.join('\n')}` +
+        `Tx: ${buildTxUrl(callManyResponse.hash)}`
+    );
   }
 }
 
