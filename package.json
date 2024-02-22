@@ -15,6 +15,7 @@
         "build:win32": "rimraf ./build& tsc& copy .\\ecg-node-config.json .\\build\\ecg-node-config.json& copy .\\package.json .\\build\\package.json",
         "build:darwin:linux": "rimraf ./build && tsc && cp ./ecg-node-config.json ./build/ecg-node-config.json && cp ./package.json ./build/package.json",
         "build:default": "rimraf ./build && tsc",
+        "deploy": "scp -r build/* dev-0:/app/ecg-node/",
         "lint": "eslint . --ext .ts",
         "lintfix": "eslint . --ext .ts --fix",
         "prettier:format": "prettier --config .prettierrc \"./src/**/*.ts\" --write",

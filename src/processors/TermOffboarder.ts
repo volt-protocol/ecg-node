@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
+import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { GetTokenPrice } from '../utils/Price';
-import { GetLendingTermOffboardingAddress, getTokenByAddress } from '../config/Config';
+import { GetLendingTermOffboardingAddress, getTokenByAddress, getTokenBySymbol } from '../config/Config';
 import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
@@ -56,10 +56,13 @@ async function TermOffboarder() {
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
-  const pegTokenRealPrice = 1; // TODO FETCH REAL PEG TOKEN PRICE
+  const pegToken = getTokenBySymbol('USDC');
+  const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   console.log(`TermOffboarder[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
-  const normBorrowRatio = norm(term.borrowRatio);
-  console.log(`TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} / ${collateralToken.symbol}`);
+  const normBorrowRatio = norm(term.borrowRatio) * norm(GetProtocolData().creditMultiplier);
+  console.log(
+    `TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`
+  );
 
   // find the min overcollateralization config for this token
   const tokenConfig = offboarderConfig.tokens[collateralToken.symbol];
