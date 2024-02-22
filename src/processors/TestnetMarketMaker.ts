@@ -136,7 +136,7 @@ async function swapExactTokensForTokens(
   signer: ethers.Wallet
 ) {
   const routerAddress = GetUniswapV2RouterAddress();
-  // approve token1 to the router
+  // approve fromToken amountIn to the router
   const erc20Contract = ERC20__factory.connect(fromToken.address, signer);
   await (await erc20Contract.approve(routerAddress, amountIn)).wait();
   const uniswapRouter = UniswapV2Router__factory.connect(routerAddress, signer);
