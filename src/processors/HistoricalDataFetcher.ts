@@ -82,7 +82,7 @@ async function fetchCreditTotalSupply(
   }
 
   if (startBlock > currentBlock) {
-    console.log('HistoricalDataFetcher |fetchCreditTotalSupply: data already up to date');
+    console.log('HistoricalDataFetcher | fetchCreditTotalSupply: data already up to date');
     return;
   }
 

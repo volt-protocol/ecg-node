@@ -24,7 +24,12 @@ import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../utils/We
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 
+// amount of seconds between two fetches if no events on the protocol
+const SECONDS_BETWEEN_FETCHES = 30 * 60;
+let lastFetch = 0;
+
 export async function FetchECGData() {
+  lastFetch = Date.now();
   const rpcURL = process.env.RPC_URL;
   if (!rpcURL) {
     throw new Error('Cannot find RPC_URL in env');
@@ -502,4 +507,13 @@ async function fetchAuctionsInfo(
   }
 
   return allAuctions;
+}
+
+export async function FetchIfTooOld() {
+  if (lastFetch + SECONDS_BETWEEN_FETCHES * 1000 > Date.now()) {
+    console.log('FetchIfTooOld: no fetch needed');
+  } else {
+    console.log('FetchIfTooOld: start fetching data');
+    await FetchECGData();
+  }
 }

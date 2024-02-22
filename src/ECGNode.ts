@@ -1,13 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from './utils/Constants';
-import { FetchECGData } from './datafetch/ECGDataFetcher';
+import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
 import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
 import * as dotenv from 'dotenv';
-import { GetNodeConfig } from './utils/Utils';
+import { GetNodeConfig, sleep } from './utils/Utils';
 dotenv.config();
 
 async function main() {
@@ -22,54 +22,52 @@ async function main() {
 
   await FetchECGData();
 
-  // set a timeout that fetches ecg data every 30 minutes
-  setTimeout(async () => await FetchECGData(), 30 * 60 * 1000);
+  // set a timeout to check if the last fetch was performed recently and fetch if needed
+  setTimeout(async () => await FetchIfTooOld(), 60000);
   StartEventListener();
   StartEventProcessor();
 
-  // only start processors if running from node and not ts-node
-  // if ts-node, it means we are debugging
-  // to debug a processor, run the processor directly
+  // only start processors if running in production
   if (!isDebug()) {
     startProcessors(nodeConfig);
   }
 }
 
 /**
- * Check if the process is started by node (and not ts-node)
- * meaning it's started not in debug
- * @returns false if started by 'node'
+ * Check if the process is in debug mode: aka launching a .ts file
  */
 function isDebug() {
-  // console.log(process.argv);
-  const starterProcess = path.basename(process.argv[0]).split('.')[0];
-  console.log({ starterProcess });
-  const isDebug = starterProcess != 'node';
-
-  return isDebug;
+  return process.argv[1].endsWith('.ts');
 }
 
-function startProcessors(nodeConfig: NodeConfig) {
+async function startProcessors(nodeConfig: NodeConfig) {
   if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
     startWithSpawn('HistoricalDataFetcher');
+    await sleep(5000);
   }
   if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
     startWithSpawn('TermOffboarder');
+    await sleep(5000);
   }
   if (nodeConfig.processors.LOAN_CALLER.enabled) {
     startWithSpawn('LoanCaller');
+    await sleep(5000);
   }
   if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
     startWithSpawn('AuctionBidder');
+    await sleep(5000);
   }
   if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
     startWithSpawn('TestnetMarketMaker');
+    await sleep(5000);
   }
   if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
     startWithSpawn('NewTermsWatcher');
+    await sleep(5000);
   }
   if (nodeConfig.processors.USER_SLASHER.enabled) {
     startWithSpawn('UserSlasher');
+    await sleep(5000);
   }
 }
 
