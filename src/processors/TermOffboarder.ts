@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
 import path from 'path';
@@ -9,7 +9,7 @@ import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
+import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 60 * 5;
 TermOffboarder();
@@ -104,10 +104,10 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
     // propose offboard
 
     const proposeResponse = await lendingTermOffboardingContract.proposeOffboard(term.termAddress);
-    await SendTelegramMessage(
-      `[Term Offboarder] Created Offboard proposal on term ${term.label} ${term.termAddress}\n` +
-        `Tx: ${buildTxUrl(proposeResponse.hash)}`,
-      false
+    await SendNotifications(
+      'Term Offboarder',
+      `Created Offboard proposal on term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(proposeResponse.hash)}`
     );
     await proposeResponse.wait();
 
@@ -127,10 +127,11 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   } else {
     const supportResponse = await lendingTermOffboardingContract.supportOffboard(pollBlock, term.termAddress);
     await supportResponse.wait();
-    await SendTelegramMessage(
-      `[Term Offboarder] Supported Offboard term ${term.label} ${term.termAddress}\n` +
-        `Tx: ${buildTxUrl(supportResponse.hash)}`,
-      false
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Supported Offboard term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(supportResponse.hash)}`
     );
   }
 
@@ -144,19 +145,24 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   if (canOffboard == 1n) {
     const offboardResp = await lendingTermOffboardingContract.offboard(term.termAddress);
     await offboardResp.wait();
-    await SendTelegramMessage(
-      `[Term Offboarder] Offboarded term ${term.label} ${term.termAddress}\n` + `Tx: ${buildTxUrl(offboardResp.hash)}`,
-      false
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Offboarded term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(offboardResp.hash)}`
     );
+
     canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
   }
 
   if (canOffboard == 2n) {
     const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
     await cleanupResp.wait();
-    await SendTelegramMessage(
-      `[Term Offboarder] Cleaned up term ${term.label} ${term.termAddress}\n` + `Tx: ${buildTxUrl(cleanupResp.hash)}`,
-      false
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Cleaned up term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(cleanupResp.hash)}`
     );
   }
 }

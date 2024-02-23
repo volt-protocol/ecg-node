@@ -3,23 +3,12 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { DATA_DIR } from '../utils/Constants';
 import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import {
-  AuctionHouse__factory,
-  GatewayV1__factory,
-  ProfitManager__factory,
-  UniswapV2Router__factory
-} from '../contracts/types';
-import {
-  GetGatewayAddress,
-  GetPSMAddress,
-  GetUniswapV2RouterAddress,
-  GetProfitManagerAddress,
-  getTokenBySymbol
-} from '../config/Config';
+import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
+import { GetGatewayAddress, GetPSMAddress, GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
+import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 15;
 
@@ -123,8 +112,10 @@ async function processBid(
     minProfit
   );
   await txReceipt.wait();
-  SendTelegramMessage(
-    `[Auction Bidder] bidded on auction ${auction.loanId}\nUsing the Gateway.bidWithBalancerFlashLoan() function`
+  await SendNotifications(
+    'Auction Bidder',
+    `bidded on auction ${auction.loanId}`,
+    'Using the Gateway.bidWithBalancerFlashLoan() function'
   );
 }
 
@@ -137,7 +128,7 @@ async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProv
   const txReceipt = await auctionHouseContract.forgive(auction.loanId);
   await txReceipt.wait();
 
-  SendTelegramMessage(`[Auction Bidder] Forgave auction ${auction.loanId}\n`);
+  await SendNotifications('Auction Bidder', 'Forgave auction', auction.loanId);
 }
 
 AuctionBidder();
