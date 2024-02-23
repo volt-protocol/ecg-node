@@ -2,8 +2,8 @@ import { GetNodeConfig, buildTxUrl, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
 import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { norm } from '../utils/TokenUtils';
+import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 120;
 
@@ -143,12 +143,12 @@ async function swapExactTokensForTokens(
 
   const txReceipt = await uniswapRouter.swapExactTokensForTokens(amountIn, minAmountOut, path, to, deadline);
   await txReceipt.wait();
-  await SendTelegramMessage(
-    `[MarketMaker] swapped ${fromToken.symbol} => ${toToken.symbol}\n` +
-      `Target ratio: ${targetRatio}\n` +
+  await SendNotifications(
+    'MarketMaker',
+    `Swapped ${fromToken.symbol} => ${toToken.symbol}`,
+    `Target ratio: ${targetRatio}\n` +
       `Sent ${norm(amountIn, fromToken.decimals)} ${fromToken.symbol}\n` +
-      `Tx: ${buildTxUrl(txReceipt.hash)}`,
-    false
+      `Tx: ${buildTxUrl(txReceipt.hash)}`
   );
 }
 
