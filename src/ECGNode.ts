@@ -6,8 +6,8 @@ import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
 import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
-import * as dotenv from 'dotenv';
 import { GetNodeConfig, sleep } from './utils/Utils';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function main() {
