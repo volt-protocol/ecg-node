@@ -1,7 +1,7 @@
 import { EventData, EventQueue } from '../utils/EventQueue';
 import { buildTxUrl, sleep } from '../utils/Utils';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { FetchECGData } from './ECGDataFetcher';
+import { SendNotifications } from '../utils/Notifications';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
@@ -29,12 +29,9 @@ async function ProcessAsync(event: EventData) {
       lastBlockFetched = event.block;
     }
 
-    const msg =
-      `[${event.sourceContract}] Emitted event: ${event.eventName}\n` +
-      'Updated backend data\n' +
-      `Tx: ${buildTxUrl(event.txHash)}`;
+    const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
-    await SendTelegramMessage(msg, false);
+    await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
     console.log(msg);
   }
 }

@@ -14,8 +14,8 @@
                 }
             }
         },
-        "NEW_TERMS_WATCHER": {
-            "enabled": false
+        "TERM_ONBOARDING_WATCHER": {
+            "enabled": true
         },
         "USER_SLASHER": {
             "enabled": false,
@@ -27,7 +27,7 @@
             "minProfitUsdc": 20
         },
         "TESTNET_MARKET_MAKER": {
-            "enabled": false,
+            "enabled": true,
             "threshold": 0.005,
             "uniswapPairs": [
                 {

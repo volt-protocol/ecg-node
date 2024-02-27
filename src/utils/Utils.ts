@@ -97,7 +97,7 @@ export function GetProtocolData(): ProtocolData {
   console.log(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
 
   if (protocolDataFile.updated < Date.now() - 2 * 3600 * 1000) {
-    throw new Error('Protocol data outdated');
+    throw new Error(`Protocol data outdated: ${protocolDataFile.updatedHuman}`);
   } else {
     return protocolDataFile.data;
   }

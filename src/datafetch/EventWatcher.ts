@@ -19,7 +19,7 @@ export function StartEventListener() {
   StartLendingTermListener();
 }
 
-setTimeout(StartEventListener, 30 * 60 * 1000); // restart listener every X minutes
+setInterval(StartEventListener, 30 * 60 * 1000); // restart listener every X minutes
 
 export function StartGuildTokenListener() {
   if (guildTokenContract) {

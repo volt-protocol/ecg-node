@@ -1,15 +1,15 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
+import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { GetTokenPrice } from '../utils/Price';
-import { GetLendingTermOffboardingAddress, getTokenByAddress } from '../config/Config';
+import { GetLendingTermOffboardingAddress, getTokenByAddress, getTokenBySymbol } from '../config/Config';
 import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
+import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 60 * 5;
 TermOffboarder();
@@ -56,10 +56,13 @@ async function TermOffboarder() {
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
-  const pegTokenRealPrice = 1; // TODO FETCH REAL PEG TOKEN PRICE
+  const pegToken = getTokenBySymbol('USDC');
+  const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   console.log(`TermOffboarder[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
-  const normBorrowRatio = norm(term.borrowRatio);
-  console.log(`TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} / ${collateralToken.symbol}`);
+  const normBorrowRatio = norm(term.borrowRatio) * norm(GetProtocolData().creditMultiplier);
+  console.log(
+    `TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`
+  );
 
   // find the min overcollateralization config for this token
   const tokenConfig = offboarderConfig.tokens[collateralToken.symbol];
@@ -68,9 +71,12 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
     return false;
   }
 
-  console.log(`TermOffboarder[${term.label}]: overcollateralization: ${tokenConfig.minOvercollateralization}`);
+  const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
+  console.log(
+    `TermOffboarder[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${tokenConfig.minOvercollateralization}`
+  );
 
-  if (collateralRealPrice / pegTokenRealPrice < normBorrowRatio * tokenConfig.minOvercollateralization) {
+  if (currentOvercollateralization < tokenConfig.minOvercollateralization) {
     return true;
   } else {
     return false;
@@ -98,11 +104,11 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
     // propose offboard
 
     const proposeResponse = await lendingTermOffboardingContract.proposeOffboard(term.termAddress);
-    const msg =
-      `[TERM_OFFBOARDER] Created Offboard proposal on term ${term.label} ${term.termAddress}\n` +
-      `Tx: ${buildTxUrl(proposeResponse.hash)}`;
-
-    await SendTelegramMessage(msg, false);
+    await SendNotifications(
+      'Term Offboarder',
+      `Created Offboard proposal on term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(proposeResponse.hash)}`
+    );
     await proposeResponse.wait();
 
     // here, the offboard proposal should have been created, find it by block
@@ -121,6 +127,12 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   } else {
     const supportResponse = await lendingTermOffboardingContract.supportOffboard(pollBlock, term.termAddress);
     await supportResponse.wait();
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Supported Offboard term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(supportResponse.hash)}`
+    );
   }
 
   /*enum OffboardStatus {
@@ -133,11 +145,24 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
   if (canOffboard == 1n) {
     const offboardResp = await lendingTermOffboardingContract.offboard(term.termAddress);
     await offboardResp.wait();
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Offboarded term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(offboardResp.hash)}`
+    );
+
     canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
   }
 
   if (canOffboard == 2n) {
     const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
     await cleanupResp.wait();
+
+    await SendNotifications(
+      'Term Offboarder',
+      `Cleaned up term ${term.label} ${term.termAddress}`,
+      `Tx: ${buildTxUrl(cleanupResp.hash)}`
+    );
   }
 }

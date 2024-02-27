@@ -8,6 +8,7 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     creditTokenAddress: '0x',
     profitManagerAddress: '0x',
     lendingTermOffboardingAddress: '0x',
+    lendingTermOnboardingAddress: '0x',
     uniswapV2RouterAddress: '0x',
     gatewayAddress: '0x',
     psmAddress: '0x'
@@ -18,6 +19,7 @@ export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
     creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
     profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
     lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405',
+    lendingTermOnboardingAddress: '0x3274ebe53c4fa1d0a59ad8fadbc6f944186b408e',
     uniswapV2RouterAddress: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
     gatewayAddress: '0xca8eAdE75466e68FdC5C3c74A170aB97430A01b1',
     psmAddress: '0xc19d710f13a725fd67021e8c45bdedffe95202e3'
@@ -108,6 +110,10 @@ export function GetProfitManagerAddress() {
 
 export function GetLendingTermOffboardingAddress() {
   return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOffboardingAddress;
+}
+
+export function GetLendingTermOnboardingAddress() {
+  return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOnboardingAddress;
 }
 
 export function GetUniswapV2RouterAddress() {
