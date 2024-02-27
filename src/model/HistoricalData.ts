@@ -14,3 +14,8 @@ export interface ApiHistoricalData {
   timestamps: number[];
   values: number[];
 }
+
+export interface ApiHistoricalDataMulti {
+  timestamps: number[];
+  values: { [valueName: string]: number[] };
+}

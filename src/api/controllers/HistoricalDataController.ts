@@ -1,4 +1,9 @@
-import { ApiHistoricalData, HistoricalData } from '../../model/HistoricalData';
+import {
+  ApiHistoricalData,
+  ApiHistoricalDataMulti,
+  HistoricalData,
+  HistoricalDataMulti
+} from '../../model/HistoricalData';
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../../utils/Constants';
@@ -66,6 +71,47 @@ class HistoricalDataController {
       return {
         timestamps: times,
         values: values
+      };
+    }
+  }
+
+  static async GetDebtCeilingIssuance(termAddress: string): Promise<ApiHistoricalDataMulti | undefined> {
+    const historyFilename = path.join(HISTORY_DIR, 'debtceiling-issuance.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`CANNOT FIND ${historyFilename}`);
+    } else {
+      const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
+      const keyDebtCeiling = `${termAddress}-debtCeiling`;
+      const keyIssuance = `${termAddress}-issuance`;
+      const times: number[] = [];
+      const multiValues: { [key: string]: number[] } = {
+        debtCeiling: [],
+        issuance: []
+      };
+
+      let termFound = false;
+
+      for (const [blockNumber, blockTimestamp] of Object.entries(fullHistory.blockTimes)) {
+        times.push(blockTimestamp);
+        const valuesAtBlock = fullHistory.values[Number(blockNumber)];
+        if (valuesAtBlock[keyDebtCeiling]) {
+          multiValues.debtCeiling.push(valuesAtBlock[keyDebtCeiling]);
+          multiValues.issuance.push(valuesAtBlock[keyIssuance]);
+          termFound = true;
+        } else {
+          // if no value recorded, assume 0 to not have holes in the data
+          multiValues.debtCeiling.push(0);
+          multiValues.issuance.push(0);
+        }
+      }
+
+      if (!termFound) {
+        return undefined;
+      }
+
+      return {
+        timestamps: times,
+        values: multiValues
       };
     }
   }

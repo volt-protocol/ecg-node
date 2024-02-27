@@ -59,7 +59,7 @@ async function UserSlasher() {
           const userLastState = userSlasherState.gauges[gauge.address]?.users[user.address];
           if (userLastState && userLastState.lastCheckedTimestamp + SLASH_DELAY_MS > Date.now()) {
             console.log(
-              `UserSlasher:user ${user.address} for gauge ${gauge.address} was already tried at ${new Date(
+              `UserSlasher: user ${user.address} for gauge ${gauge.address} was already tried at ${new Date(
                 userLastState.lastCheckedTimestamp
               ).toISOString()}`
             );
