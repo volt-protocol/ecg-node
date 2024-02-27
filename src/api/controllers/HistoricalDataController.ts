@@ -1,4 +1,9 @@
-import { ApiHistoricalData, HistoricalData } from '../../model/HistoricalData';
+import {
+  ApiHistoricalData,
+  ApiHistoricalDataMulti,
+  HistoricalData,
+  HistoricalDataMulti
+} from '../../model/HistoricalData';
 import fs from 'fs';
 import path from 'path';
 import { DATA_DIR } from '../../utils/Constants';
@@ -66,6 +71,32 @@ class HistoricalDataController {
       return {
         timestamps: times,
         values: values
+      };
+    }
+  }
+
+  static async GetDebtCeilingIssuance(): Promise<ApiHistoricalDataMulti> {
+    const historyFilename = path.join(HISTORY_DIR, 'debtceiling-issuance.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`CANNOT FIND ${historyFilename}`);
+    } else {
+      const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
+      const times = Object.values(fullHistory.blockTimes);
+      const values = Object.values(fullHistory.values);
+      const multiValues: { [key: string]: number[] } = {};
+      for (const val of values) {
+        for (const [key, subVal] of Object.entries(val)) {
+          if (!multiValues[key]) {
+            multiValues[key] = [];
+          }
+
+          multiValues[key].push(subVal);
+        }
+      }
+
+      return {
+        timestamps: times,
+        values: multiValues
       };
     }
   }
