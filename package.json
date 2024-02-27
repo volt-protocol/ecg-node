@@ -11,6 +11,7 @@
         "debug:term-offboarder": "node --inspect -r ts-node/register ./src/processors/TermOffboarder.ts",
         "debug:market-maker": "node --inspect -r ts-node/register ./src/processors/TestnetMarketMaker.ts",
         "debug:user-slasher": "node --inspect -r ts-node/register ./src/processors/UserSlasher.ts",
+        "debug:term-onboarder-watcher": "node --inspect -r ts-node/register ./src/processors/TermOnboardingWatcher.ts",
         "build": "run-script-os",
         "build:win32": "rimraf ./build& tsc& copy .\\ecg-node-config.json .\\build\\ecg-node-config.json& copy .\\package.json .\\build\\package.json",
         "build:darwin:linux": "rimraf ./build && tsc && cp ./ecg-node-config.json ./build/ecg-node-config.json && cp ./package.json ./build/package.json",

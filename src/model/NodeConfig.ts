@@ -5,7 +5,7 @@ export interface NodeConfig {
 export interface Processors {
   LOAN_CALLER: ProcessorConfig;
   TERM_OFFBOARDER: TermOffboarderConfig;
-  NEW_TERMS_WATCHER: ProcessorConfig;
+  TERM_ONBOARDING_WATCHER: ProcessorConfig;
   USER_SLASHER: UserSlasherConfig;
   AUCTION_BIDDER: AuctionBidderConfig;
   TESTNET_MARKET_MAKER: TestnetMarketMakerConfig;
