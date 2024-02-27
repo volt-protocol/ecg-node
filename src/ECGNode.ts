@@ -61,8 +61,8 @@ async function startProcessors(nodeConfig: NodeConfig) {
     startWithSpawn('TestnetMarketMaker');
     await sleep(5000);
   }
-  if (nodeConfig.processors.NEW_TERMS_WATCHER.enabled) {
-    startWithSpawn('NewTermsWatcher');
+  if (nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled) {
+    startWithSpawn('TermOnboardingWatcher');
     await sleep(5000);
   }
   if (nodeConfig.processors.USER_SLASHER.enabled) {

@@ -14,8 +14,8 @@
                 }
             }
         },
-        "NEW_TERMS_WATCHER": {
-            "enabled": false
+        "TERM_ONBOARDING_WATCHER": {
+            "enabled": true
         },
         "USER_SLASHER": {
             "enabled": false,
