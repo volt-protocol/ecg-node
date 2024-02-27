@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { UserSlasherState } from '../model/UserSlasherState';
+import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 300;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
@@ -50,7 +51,7 @@ async function UserSlasher() {
 
     const calls: Multicall3.Call3Struct[] = [];
 
-    let slashMsg = '';
+    const slashMsgfields: { fieldName: string; fieldValue: string }[] = [];
     let slashCounter = 0;
     for (const [gaugeAddress, gauge] of Object.entries(gaugesFileData.gauges)) {
       for (const [gaugeUserAddress, user] of Object.entries(gaugesFileData.gauges[gaugeAddress].users)) {
@@ -69,7 +70,10 @@ async function UserSlasher() {
               // if here, the static call does not revert so we can add the applyGaugeLoss to the multicall
               const applyGaugeLossResponse = await guildToken.applyGaugeLoss(gauge.address, user.address);
               await applyGaugeLossResponse.wait();
-              slashMsg += `${gauge.address} / ${user.address}: ${buildTxUrl(applyGaugeLossResponse.hash)}\n`;
+              slashMsgfields.push({
+                fieldName: `${gauge.address} / ${user.address}`,
+                fieldValue: buildTxUrl(applyGaugeLossResponse.hash)
+              });
             } catch (e: any) {
               if (!userSlasherState.gauges[gauge.address]) {
                 userSlasherState.gauges[gauge.address] = {
@@ -83,7 +87,11 @@ async function UserSlasher() {
               };
 
               console.log(`Cannot slash user ${user.address} for gauge ${gauge.address}: ${e.reason}`);
-              slashMsg += `${gauge.address} / ${user.address}: Cannot slash -> ${e.reason}\n`;
+
+              slashMsgfields.push({
+                fieldName: `${gauge.address} / ${user.address}`,
+                fieldValue: `Cannot slash -> ${e.reason}`
+              });
             }
 
             slashCounter++;
@@ -108,10 +116,7 @@ async function UserSlasher() {
     // const receipt = await multicallResponse.wait();
 
     if (slashCounter > 0) {
-      await SendTelegramMessage(
-        `[User Slasher] Try/Slashed ${slashCounter} users:\n` + 'GAUGE / USER\n' + slashMsg,
-        false
-      );
+      await SendNotificationsList('UserSlasher', `Try/Slashed ${slashCounter} users`, slashMsgfields);
     }
 
     saveLastState(userSlasherState);
