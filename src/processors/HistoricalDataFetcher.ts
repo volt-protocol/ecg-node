@@ -11,7 +11,7 @@ import {
   GetProfitManagerAddress,
   getTokenByAddress
 } from '../config/Config';
-import { HistoricalData } from '../model/HistoricalData';
+import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
 import {
   CreditToken__factory,
   ERC20__factory,
@@ -58,6 +58,7 @@ async function HistoricalDataFetcher() {
     await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
     await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
     await fetchTVL(currentBlock, historicalDataDir, web3Provider);
+    await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -281,6 +282,72 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
       `HistoricalDataFetcher | fetchTVL: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) TVL : ${fullHistoricalData.values[blockToFetch]}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchDebtCeilingAndIssuance(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'debtceiling-issuance.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'debtceiling-issuance',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchDebtCeilingAndIssuance: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+
+    for (const termAddress of liveTerms) {
+      const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
+      promises.push(termContract['debtCeiling()']({ blockTag: blockToFetch }));
+      promises.push(termContract.issuance({ blockTag: blockToFetch }));
+    }
+
+    const results = await Promise.all(promises);
+
+    let cursor = 0;
+    let totalDebtCeiling = 0;
+    let totalIssuance = 0;
+    for (const termAddress of liveTerms) {
+      const debtCeiling = results[cursor++];
+      const issuance = results[cursor++];
+      fullHistoricalData.values[blockToFetch][`${termAddress}-debtCeiling`] = norm(debtCeiling);
+      fullHistoricalData.values[blockToFetch][`${termAddress}-issuance`] = norm(issuance);
+      totalDebtCeiling += norm(debtCeiling);
+      totalIssuance += norm(issuance);
+    }
+
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `HistoricalDataFetcher | fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total debtCeiling: ${totalDebtCeiling} | total issuance: ${totalIssuance}`
     );
   }
 
