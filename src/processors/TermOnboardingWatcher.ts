@@ -10,6 +10,8 @@ dotenv.config();
 
 let onboardingContract: Contract | undefined;
 
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+
 async function TermOnboardingWatcher() {
   process.title = 'TERM_ONBOARDING_WATCHER';
   console.log('TermOnboardingWatcher: starting');
@@ -23,7 +25,6 @@ async function TermOnboardingWatcher() {
 
     const onboardingAddress = GetLendingTermOnboardingAddress();
 
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     if (onboardingContract) {
       console.log('TermOnboardingWatcher: resetting contract listener');
       onboardingContract.removeAllListeners();

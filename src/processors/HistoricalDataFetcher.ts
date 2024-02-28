@@ -30,6 +30,7 @@ dotenv.config();
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = 277;
 
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
 /**
  * Fetches data historically since the protocol deployment, 1 data per hour for a selected data
  * Assumes 1 block = 13 seconds so fetches data for every 277 blocks
@@ -44,7 +45,6 @@ async function HistoricalDataFetcher() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const currentBlock = await web3Provider.getBlockNumber();
     console.log(`HistoricalDataFetcher | fetching data up to block ${currentBlock}`);
 

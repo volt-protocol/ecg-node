@@ -10,6 +10,9 @@ import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
+
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -26,7 +29,6 @@ async function LoanCaller() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     // assume lastBlockTimestampMs is date.now() minus 12 sec
     const lastBlockTimestampMs = Date.now() - 12000;
 

@@ -7,6 +7,8 @@ import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 120;
 
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+
 /**
  * Market maker for testnet tokens
  * Assumptions:
@@ -29,7 +31,6 @@ async function TestnetMarketMaker() {
       throw new Error('Cannot find ETH_PRIVATE_KEY in env');
     }
 
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
 
     for (let i = 0; i < config.uniswapPairs.length; i++) {

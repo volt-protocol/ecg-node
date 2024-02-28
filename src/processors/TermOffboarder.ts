@@ -13,6 +13,7 @@ import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 60 * 5;
 TermOffboarder();
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
 
 async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
@@ -35,7 +36,6 @@ async function TermOffboarder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
 
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {

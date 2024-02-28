@@ -12,6 +12,8 @@ import { SendNotifications } from '../utils/Notifications';
 
 const RUN_EVERY_SEC = 15;
 
+const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -32,7 +34,6 @@ async function AuctionBidder() {
       throw new Error('Cannot find ETH_PRIVATE_KEY in env');
     }
 
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const creditMultiplier = GetProtocolData().creditMultiplier;
 
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);

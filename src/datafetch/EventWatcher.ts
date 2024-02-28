@@ -9,7 +9,7 @@ dotenv.config();
 
 const RPC_URL: string | undefined = process.env.RPC_URL;
 
-const provider = new ethers.JsonRpcProvider(RPC_URL);
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
 
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
