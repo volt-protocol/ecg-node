@@ -20,7 +20,7 @@ import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getToken
 import { ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { GaugesFileStructure } from '../model/Gauge';
-import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../utils/Web3Helper';
+import { FetchAllEvents, FetchAllEventsAndExtractStringArray, GetWeb3Provider } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 
@@ -28,14 +28,10 @@ import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
 let lastFetch = 0;
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider();
 
 export async function FetchECGData() {
   lastFetch = Date.now();
-  const rpcURL = process.env.RPC_URL;
-  if (!rpcURL) {
-    throw new Error('Cannot find RPC_URL in env');
-  }
 
   const currentBlock = await web3Provider.getBlockNumber();
   console.log(`FetchECGData: fetching data up to block ${currentBlock}`);

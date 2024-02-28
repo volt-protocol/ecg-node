@@ -22,7 +22,7 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { GetBlock } from '../utils/Web3Helper';
+import { GetBlock, GetWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 dotenv.config();
@@ -30,7 +30,7 @@ dotenv.config();
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = 277;
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider();
 /**
  * Fetches data historically since the protocol deployment, 1 data per hour for a selected data
  * Assumes 1 block = 13 seconds so fetches data for every 277 blocks

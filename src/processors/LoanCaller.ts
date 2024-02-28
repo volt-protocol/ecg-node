@@ -7,11 +7,12 @@ import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../mo
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { LendingTerm__factory } from '../contracts/types';
 import { SendNotifications } from '../utils/Notifications';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider();
 
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition

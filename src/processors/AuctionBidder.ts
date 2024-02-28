@@ -9,10 +9,11 @@ import { ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 15;
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider();
 
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition

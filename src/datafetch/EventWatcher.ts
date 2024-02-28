@@ -5,11 +5,10 @@ import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import { GetGuildTokenAddress } from '../config/Config';
 import { GuildToken__factory } from '../contracts/types';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 dotenv.config();
 
-const RPC_URL: string | undefined = process.env.RPC_URL;
-
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const provider = GetWeb3Provider(5000);
 
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];

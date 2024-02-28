@@ -6,11 +6,12 @@ import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
 import { GetLendingTermOnboardingAddress, TOKENS } from '../config/Config';
 import { sleep } from '../utils/Utils';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 dotenv.config();
 
 let onboardingContract: Contract | undefined;
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider(5000);
 
 async function TermOnboardingWatcher() {
   process.title = 'TERM_ONBOARDING_WATCHER';

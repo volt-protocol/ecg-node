@@ -11,12 +11,13 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { UserSlasherState } from '../model/UserSlasherState';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 300;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
 const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.json');
 
-const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL, undefined, { staticNetwork: true });
+const web3Provider = GetWeb3Provider();
 
 /**
  * Slash users with an unapplied loss

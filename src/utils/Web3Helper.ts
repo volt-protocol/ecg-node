@@ -1,7 +1,22 @@
-import { BaseContract, ContractEventName, EventLog, ethers } from 'ethers';
+import { BaseContract, ContractEventName, EventLog, JsonRpcProvider, ethers } from 'ethers';
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import axios from 'axios';
+
+/**
+ * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
+ * @returns {JsonRpcProvider}
+ */
+export function GetWeb3Provider(pollingIntervalMs = 1000 * 60 * 60): JsonRpcProvider {
+  const rpcURL = process.env.RPC_URL;
+  if (!rpcURL) {
+    throw new Error('Cannot find RPC_URL in env');
+  }
+  const web3Provider = new JsonRpcProvider(rpcURL, undefined, { staticNetwork: true });
+  web3Provider.pollingInterval = pollingIntervalMs;
+
+  return web3Provider;
+}
 
 export async function GetBlock(web3Provider: ethers.JsonRpcProvider, blockNumber: number) {
   const block = await web3Provider.getBlock(blockNumber);
