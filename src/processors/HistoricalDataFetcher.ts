@@ -54,11 +54,12 @@ async function HistoricalDataFetcher() {
       fs.mkdirSync(historicalDataDir, { recursive: true });
     }
 
-    await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
-    await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
-    await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
-    await fetchTVL(currentBlock, historicalDataDir, web3Provider);
-    await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+    // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
+    // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
+    // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
+    // await fetchTVL(currentBlock, historicalDataDir, web3Provider);
+    // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+    await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -348,6 +349,62 @@ async function fetchDebtCeilingAndIssuance(
       `HistoricalDataFetcher | fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total debtCeiling: ${totalDebtCeiling} | total issuance: ${totalIssuance}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'gauge-weight.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'gauge-weight',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchGaugeWeight: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+
+    for (const termAddress of liveTerms) {
+      promises.push(guildContract.getGaugeWeight(termAddress));
+    }
+
+    const results = await Promise.all(promises);
+
+    let cursor = 0;
+    let totalWeight = 0;
+    for (const termAddress of liveTerms) {
+      const gaugeWeight = results[cursor++];
+      fullHistoricalData.values[blockToFetch][`${termAddress}-weight`] = norm(gaugeWeight);
+      totalWeight += norm(gaugeWeight);
+    }
+
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `HistoricalDataFetcher | fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total weight: ${totalWeight}`
     );
   }
 
