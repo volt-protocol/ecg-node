@@ -54,12 +54,13 @@ async function HistoricalDataFetcher() {
       fs.mkdirSync(historicalDataDir, { recursive: true });
     }
 
-    // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
-    // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
-    // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
-    // await fetchTVL(currentBlock, historicalDataDir, web3Provider);
-    // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+    await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
+    await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
+    await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
+    await fetchTVL(currentBlock, historicalDataDir, web3Provider);
+    await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
     await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
+    await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -402,9 +403,70 @@ async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string,
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
 
     console.log(
-      `HistoricalDataFetcher | fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
+      `HistoricalDataFetcher | fetchGaugeWeight: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total weight: ${totalWeight}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchSurplusBuffer(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'surplus-buffer.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'surplus-buffer',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchSurplusBuffer: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+
+    for (const termAddress of liveTerms) {
+      promises.push(profitManagerContract.termSurplusBuffer(termAddress));
+    }
+
+    const results = await Promise.all(promises);
+
+    let cursor = 0;
+    let totalBuffer = 0;
+    for (const termAddress of liveTerms) {
+      const surplusBuffer = results[cursor++];
+      fullHistoricalData.values[blockToFetch][`${termAddress}-surplus-buffer`] = norm(surplusBuffer);
+      totalBuffer += norm(surplusBuffer);
+    }
+
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `HistoricalDataFetcher | fetchSurplusBuffer: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total surplus buffer: ${totalBuffer}`
     );
   }
 

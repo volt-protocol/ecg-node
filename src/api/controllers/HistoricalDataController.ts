@@ -94,7 +94,7 @@ class HistoricalDataController {
       for (const [blockNumber, blockTimestamp] of Object.entries(fullHistory.blockTimes)) {
         times.push(blockTimestamp);
         const valuesAtBlock = fullHistory.values[Number(blockNumber)];
-        if (valuesAtBlock[keyDebtCeiling]) {
+        if (valuesAtBlock[keyDebtCeiling] != undefined) {
           multiValues.debtCeiling.push(valuesAtBlock[keyDebtCeiling]);
           multiValues.issuance.push(valuesAtBlock[keyIssuance]);
           termFound = true;
@@ -134,8 +134,43 @@ class HistoricalDataController {
       for (const [blockNumber, blockTimestamp] of Object.entries(fullHistory.blockTimes)) {
         returnVal.timestamps.push(blockTimestamp);
         const valuesAtBlock = fullHistory.values[Number(blockNumber)];
-        if (valuesAtBlock[keyWeight]) {
+        if (valuesAtBlock[keyWeight] != undefined) {
           returnVal.values.push(valuesAtBlock[keyWeight]);
+          termFound = true;
+        } else {
+          // if no value recorded, assume 0 to not have holes in the data
+          returnVal.values.push(0);
+        }
+      }
+
+      if (!termFound) {
+        return undefined;
+      }
+
+      return returnVal;
+    }
+  }
+
+  static async GetSurplusBuffer(termAddress: string): Promise<ApiHistoricalData | undefined> {
+    const historyFilename = path.join(HISTORY_DIR, 'surplus-buffer.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`CANNOT FIND ${historyFilename}`);
+    } else {
+      const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
+      const keySurplusBuffer = `${termAddress}-surplus-buffer`;
+
+      const returnVal: ApiHistoricalData = {
+        timestamps: [],
+        values: []
+      };
+
+      let termFound = false;
+
+      for (const [blockNumber, blockTimestamp] of Object.entries(fullHistory.blockTimes)) {
+        returnVal.timestamps.push(blockTimestamp);
+        const valuesAtBlock = fullHistory.values[Number(blockNumber)];
+        if (valuesAtBlock[keySurplusBuffer] != undefined) {
+          returnVal.values.push(valuesAtBlock[keySurplusBuffer]);
           termFound = true;
         } else {
           // if no value recorded, assume 0 to not have holes in the data

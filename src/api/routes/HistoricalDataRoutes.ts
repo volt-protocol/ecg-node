@@ -267,4 +267,55 @@ router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/history/SurplusBuffer/{termAddress}:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Get the surplus buffer history of a lending term
+ *     parameters:
+ *       - in: path
+ *         name: termAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The term address to get the history for
+ *     responses:
+ *       200:
+ *         description:  Get the surplus buffer history of a lending term
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *       404:
+ *         description: Term address not found
+ */
+router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) => {
+  try {
+    const termAddress = req.params.termAddress;
+    const cacheKey = `/api/history/SurplusBuffer/${termAddress}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetSurplusBuffer(termAddress),
+      HISTORICAL_CACHE_DURATION
+    );
+    if (!history) {
+      res.status(404).json({ error: `Cannot find term ${termAddress}` });
+    }
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
