@@ -11,7 +11,7 @@ dotenv.config();
 
 let onboardingContract: Contract | undefined;
 
-const web3Provider = GetWeb3Provider(5000);
+const web3Provider = GetWeb3Provider(15000);
 
 async function TermOnboardingWatcher() {
   process.title = 'TERM_ONBOARDING_WATCHER';

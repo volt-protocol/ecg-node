@@ -8,7 +8,7 @@ import { GuildToken__factory } from '../contracts/types';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 dotenv.config();
 
-const provider = GetWeb3Provider(5000);
+const provider = GetWeb3Provider(15000);
 
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];

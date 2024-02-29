@@ -211,7 +211,6 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
 
   // fetch & handle data
   const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
-
   // IncrementGaugeWeight(user, gauge, weight)
   (await FetchAllEvents(guild, 'GuildToken', 'IncrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
     gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
