@@ -10,8 +10,11 @@ import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
 import { SendNotifications } from '../utils/Notifications';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 60 * 5;
+const web3Provider = GetWeb3Provider();
+
 TermOffboarder();
 
 async function TermOffboarder() {
@@ -35,7 +38,6 @@ async function TermOffboarder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
 
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {

@@ -11,10 +11,13 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { UserSlasherState } from '../model/UserSlasherState';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 300;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
 const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.json');
+
+const web3Provider = GetWeb3Provider();
 
 /**
  * Slash users with an unapplied loss
@@ -41,7 +44,6 @@ async function UserSlasher() {
 
     const userSlasherState: UserSlasherState = loadLastState();
 
-    const web3Provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
     const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
     const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), signer);
     // const multicallContract = Multicall3__factory.connect('0xcA11bde05977b3631167028862bE2a173976CA11', signer);

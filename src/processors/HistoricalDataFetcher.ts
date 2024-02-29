@@ -22,7 +22,7 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { GetBlock } from '../utils/Web3Helper';
+import { GetBlock, GetWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 dotenv.config();
@@ -30,6 +30,7 @@ dotenv.config();
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = 277;
 
+const web3Provider = GetWeb3Provider();
 /**
  * Fetches data historically since the protocol deployment, 1 data per hour for a selected data
  * Assumes 1 block = 13 seconds so fetches data for every 277 blocks
@@ -44,7 +45,6 @@ async function HistoricalDataFetcher() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const web3Provider = new ethers.JsonRpcProvider(rpcURL);
     const currentBlock = await web3Provider.getBlockNumber();
     console.log(`HistoricalDataFetcher | fetching data up to block ${currentBlock}`);
 
@@ -59,6 +59,8 @@ async function HistoricalDataFetcher() {
     await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
     await fetchTVL(currentBlock, historicalDataDir, web3Provider);
     await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+    await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
+    await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -348,6 +350,123 @@ async function fetchDebtCeilingAndIssuance(
       `HistoricalDataFetcher | fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total debtCeiling: ${totalDebtCeiling} | total issuance: ${totalIssuance}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'gauge-weight.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'gauge-weight',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchGaugeWeight: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+
+    for (const termAddress of liveTerms) {
+      promises.push(guildContract.getGaugeWeight(termAddress));
+    }
+
+    const results = await Promise.all(promises);
+
+    let cursor = 0;
+    let totalWeight = 0;
+    for (const termAddress of liveTerms) {
+      const gaugeWeight = results[cursor++];
+      fullHistoricalData.values[blockToFetch][`${termAddress}-weight`] = norm(gaugeWeight);
+      totalWeight += norm(gaugeWeight);
+    }
+
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `HistoricalDataFetcher | fetchGaugeWeight: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total weight: ${totalWeight}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchSurplusBuffer(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'surplus-buffer.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'surplus-buffer',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchSurplusBuffer: data already up to date');
+    return;
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+
+    const promises = [];
+
+    for (const termAddress of liveTerms) {
+      promises.push(profitManagerContract.termSurplusBuffer(termAddress));
+    }
+
+    const results = await Promise.all(promises);
+
+    let cursor = 0;
+    let totalBuffer = 0;
+    for (const termAddress of liveTerms) {
+      const surplusBuffer = results[cursor++];
+      fullHistoricalData.values[blockToFetch][`${termAddress}-surplus-buffer`] = norm(surplusBuffer);
+      totalBuffer += norm(surplusBuffer);
+    }
+
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    console.log(
+      `HistoricalDataFetcher | fetchSurplusBuffer: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) total surplus buffer: ${totalBuffer}`
     );
   }
 

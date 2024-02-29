@@ -1,7 +1,10 @@
 import express, { Request, Response } from 'express';
 import HistoricalDataController from '../controllers/HistoricalDataController';
+import SimpleCacheService from '../../utils/CacheService';
 
 const router = express.Router();
+
+const HISTORICAL_CACHE_DURATION = 10 * 60 * 1000;
 
 /**
  * @openapi
@@ -29,7 +32,12 @@ const router = express.Router();
  */
 router.get('/CreditSupply', async (_: Request, res: Response) => {
   try {
-    const history = await HistoricalDataController.GetCreditSupplyHistory();
+    const cacheKey = '/api/history/CreditSupply';
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetCreditSupplyHistory(),
+      HISTORICAL_CACHE_DURATION
+    );
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -62,7 +70,12 @@ router.get('/CreditSupply', async (_: Request, res: Response) => {
  */
 router.get('/CreditTotalIssuance', async (_: Request, res: Response) => {
   try {
-    const history = await HistoricalDataController.GetCreditTotalIssuance();
+    const cacheKey = '/api/history/CreditTotalIssuance';
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetCreditTotalIssuance(),
+      HISTORICAL_CACHE_DURATION
+    );
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -95,7 +108,12 @@ router.get('/CreditTotalIssuance', async (_: Request, res: Response) => {
  */
 router.get('/AverageInterestRate', async (_: Request, res: Response) => {
   try {
-    const history = await HistoricalDataController.GetAverageInterestRate();
+    const cacheKey = '/api/history/AverageInterestRate';
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetAverageInterestRate(),
+      HISTORICAL_CACHE_DURATION
+    );
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -128,7 +146,12 @@ router.get('/AverageInterestRate', async (_: Request, res: Response) => {
  */
 router.get('/TVL', async (_: Request, res: Response) => {
   try {
-    const history = await HistoricalDataController.GetTVL();
+    const cacheKey = '/api/history/TVL';
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetTVL(),
+      HISTORICAL_CACHE_DURATION
+    );
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -141,7 +164,7 @@ router.get('/TVL', async (_: Request, res: Response) => {
  *   get:
  *     tags:
  *      - history
- *     description: Gets the Debt ceiling and issuance history of all terms
+ *     description: Gets the Debt ceiling and issuance history of a terms
  *     parameters:
  *       - in: path
  *         name: termAddress
@@ -151,7 +174,7 @@ router.get('/TVL', async (_: Request, res: Response) => {
  *         description: The term address to get the history for
  *     responses:
  *       200:
- *         description: Gets the Debt ceiling and issuance history of all terms
+ *         description: Gets the Debt ceiling and issuance history of a terms
  *         content:
  *           application/json:
  *            schema:
@@ -178,7 +201,114 @@ router.get('/TVL', async (_: Request, res: Response) => {
 router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Response) => {
   try {
     const termAddress = req.params.termAddress;
-    const history = await HistoricalDataController.GetDebtCeilingIssuance(termAddress);
+    const cacheKey = `/api/history/DebtCeilingIssuance/${termAddress}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetDebtCeilingIssuance(termAddress),
+      HISTORICAL_CACHE_DURATION
+    );
+    if (!history) {
+      res.status(404).json({ error: `Cannot find term ${termAddress}` });
+    }
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @openapi
+ * /api/history/GaugeWeight/{termAddress}:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Get the gauge weight history of a lending term
+ *     parameters:
+ *       - in: path
+ *         name: termAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The term address to get the history for
+ *     responses:
+ *       200:
+ *         description:  Get the gauge weight history of a lending term
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *       404:
+ *         description: Term address not found
+ */
+router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
+  try {
+    const termAddress = req.params.termAddress;
+    const cacheKey = `/api/history/GaugeWeight/${termAddress}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetGaugeWeight(termAddress),
+      HISTORICAL_CACHE_DURATION
+    );
+    if (!history) {
+      res.status(404).json({ error: `Cannot find term ${termAddress}` });
+    }
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @openapi
+ * /api/history/SurplusBuffer/{termAddress}:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Get the surplus buffer history of a lending term
+ *     parameters:
+ *       - in: path
+ *         name: termAddress
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The term address to get the history for
+ *     responses:
+ *       200:
+ *         description:  Get the surplus buffer history of a lending term
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *       404:
+ *         description: Term address not found
+ */
+router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) => {
+  try {
+    const termAddress = req.params.termAddress;
+    const cacheKey = `/api/history/SurplusBuffer/${termAddress}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetSurplusBuffer(termAddress),
+      HISTORICAL_CACHE_DURATION
+    );
     if (!history) {
       res.status(404).json({ error: `Cannot find term ${termAddress}` });
     }
