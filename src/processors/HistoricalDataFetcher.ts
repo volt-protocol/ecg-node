@@ -22,9 +22,11 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { GetBlock, GetWeb3Provider } from '../utils/Web3Helper';
+import { FetchAllEventsAndExtractStringArray, GetBlock, GetWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
+import { Loan, LoanStatus } from '../model/Loan';
+import { HistoricalDataState } from '../model/HistoricalDataState';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -61,6 +63,7 @@ async function HistoricalDataFetcher() {
     await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
     await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
     await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
+    await fetchLoansData(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -469,6 +472,136 @@ async function fetchSurplusBuffer(
       ).toISOString()}) total surplus buffer: ${totalBuffer}`
     );
   }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchLoansData(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'loan-borrow.json');
+
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'loan-borrow',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    console.log('HistoricalDataFetcher | fetchLoansData: data already up to date');
+    return;
+  }
+
+  let historicalDataState: HistoricalDataState = {
+    openLoans: {}
+  };
+
+  const historicalDataStateFile = path.join(DATA_DIR, 'processors', 'historical-data-state.json');
+  if (fs.existsSync(historicalDataStateFile)) {
+    historicalDataState = ReadJSON(historicalDataStateFile);
+  }
+
+  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    const [liveTerms, creditMultiplier] = await Promise.all([
+      guildContract.liveGauges({ blockTag: blockToFetch }),
+      profitManagerContract.creditMultiplier({ blockTag: blockToFetch })
+    ]);
+
+    // for all live terms get the LoanOpen events from blockToFetch - STEP_BLOCK to blockToFetch
+    for (const termAddress of liveTerms) {
+      const termContract = LendingTerm__factory.connect(termAddress, web3Provider);
+      const newLoanIds = await FetchAllEventsAndExtractStringArray(
+        termContract,
+        `Term-${termAddress}`,
+        'LoanOpen',
+        ['loanId'],
+        blockToFetch - STEP_BLOCK + 1,
+        blockToFetch
+      );
+
+      if (!historicalDataState.openLoans[termAddress]) {
+        historicalDataState.openLoans[termAddress] = [];
+      }
+
+      historicalDataState.openLoans[termAddress].push(...newLoanIds);
+    }
+
+    // for all open loans, fetch amount borrowed and check if still open
+    const promises = [];
+    for (const termAddress of Object.keys(historicalDataState.openLoans)) {
+      const lendingTermContract = LendingTerm__factory.connect(termAddress, multicallProvider);
+      for (const loanId of historicalDataState.openLoans[termAddress]) {
+        promises.push(lendingTermContract.getLoan(loanId));
+      }
+    }
+
+    const getLoanResults = await Promise.all(promises);
+
+    let cursor = 0;
+    const allLoans: Loan[] = [];
+    for (const termAddress of Object.keys(historicalDataState.openLoans)) {
+      for (const loanId of historicalDataState.openLoans[termAddress]) {
+        const loanData = getLoanResults[cursor++];
+        allLoans.push({
+          id: loanId,
+          bidTime: Number(loanData.closeTime) * 1000,
+          borrowerAddress: loanData.borrower,
+          borrowAmount: loanData.borrowAmount.toString(10),
+          callerAddress: loanData.caller,
+          callTime: Number(loanData.callTime) * 1000,
+          closeTime: Number(loanData.closeTime) * 1000,
+          collateralAmount: loanData.collateralAmount.toString(10),
+          debtWhenSeized: loanData.callDebt.toString(10),
+          lendingTermAddress: termAddress,
+          status: Number(loanData.closeTime) == 0 ? LoanStatus.ACTIVE : LoanStatus.CLOSED,
+          originationTime: Number(loanData.borrowTime) * 1000,
+          lastPartialRepay: Number(loanData.lastPartialRepay) * 1000
+        });
+      }
+    }
+
+    let currentlyOpenedLoans = 0;
+    let totalBorrowUSDC = 0;
+    // cleanup openLoans to only save the currently still open loans
+    historicalDataState.openLoans = {};
+    for (const loan of allLoans) {
+      if (loan.status != LoanStatus.CLOSED) {
+        currentlyOpenedLoans++;
+        totalBorrowUSDC += norm(loan.borrowAmount) * norm(creditMultiplier);
+
+        if (!historicalDataState.openLoans[loan.lendingTermAddress]) {
+          historicalDataState.openLoans[loan.lendingTermAddress] = [];
+        }
+
+        historicalDataState.openLoans[loan.lendingTermAddress].push(loan.id);
+      }
+    }
+
+    fullHistoricalData.values[blockToFetch].openLoans = currentlyOpenedLoans;
+    fullHistoricalData.values[blockToFetch].borrowValue = totalBorrowUSDC;
+
+    console.log(
+      `HistoricalDataFetcher | fetchLoansData: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowUSDC}`
+    );
+  }
+
+  // save state file
+  WriteJSON(historicalDataStateFile, historicalDataState);
 
   WriteJSON(historyFilename, fullHistoricalData);
 }
