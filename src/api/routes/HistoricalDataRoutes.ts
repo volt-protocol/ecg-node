@@ -318,4 +318,49 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
   }
 });
 
+/**
+ * @openapi
+ * /api/history/LoanBorrow:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Gets history of open loans and loan borrow value
+ *     responses:
+ *       200:
+ *         description: Gets history of open loans and loan borrow value
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: object
+ *                  properties:
+ *                    openLoans:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ *                    borrowValue:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ */
+router.get('/LoanBorrow', async (_: Request, res: Response) => {
+  try {
+    const cacheKey = '/api/history/LoanBorrow';
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetLoanBorrow(),
+      HISTORICAL_CACHE_DURATION
+    );
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

@@ -75,6 +75,26 @@ class HistoricalDataController {
     }
   }
 
+  static async GetLoanBorrow(): Promise<ApiHistoricalDataMulti> {
+    const historyFilename = path.join(HISTORY_DIR, 'loan-borrow.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`CANNOT FIND ${historyFilename}`);
+    } else {
+      const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
+      const times = Object.values(fullHistory.blockTimes);
+
+      const multiValues: { [key: string]: number[] } = {
+        openLoans: Object.values(fullHistory.values).map((_) => _.openLoans),
+        borrowValue: Object.values(fullHistory.values).map((_) => _.borrowValue)
+      };
+
+      return {
+        timestamps: times,
+        values: multiValues
+      };
+    }
+  }
+
   static async GetDebtCeilingIssuance(termAddress: string): Promise<ApiHistoricalDataMulti | undefined> {
     const historyFilename = path.join(HISTORY_DIR, 'debtceiling-issuance.json');
     if (!fs.existsSync(historyFilename)) {
