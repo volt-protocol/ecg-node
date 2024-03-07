@@ -76,6 +76,14 @@ async function UserSlasher() {
                 fieldName: `${gauge.address} / ${user.address}`,
                 fieldValue: buildTxUrl(applyGaugeLossResponse.hash)
               });
+
+              // delete state if successfull slash
+              if (userLastState) {
+                delete userSlasherState.gauges[gauge.address].users[user.address];
+                if (Object.keys(userSlasherState.gauges[gauge.address].users).length == 0) {
+                  delete userSlasherState.gauges[gauge.address];
+                }
+              }
             } catch (e: any) {
               if (!userSlasherState.gauges[gauge.address]) {
                 userSlasherState.gauges[gauge.address] = {
