@@ -252,7 +252,7 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
   });
   // GaugeLossApply(gauge, who, weight, when)
   (await FetchAllEvents(guild, 'GuildToken', 'GaugeLossApply', sinceBlock, currentBlock)).forEach((event) => {
-    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied = Number(event.args.when);
+    gaugesFile.gauges[event.args.gauge].users[event.args.who].lastLossApplied = Number(event.args.when);
   });
 
   gaugesFile.updated = Date.now();
