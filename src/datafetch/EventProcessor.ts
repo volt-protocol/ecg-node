@@ -59,6 +59,7 @@ function guildTokenMustUpdate(event: EventData): boolean {
       return false;
     case 'addgauge':
     case 'incrementgaugeweight':
+    case 'decrementgaugeweight':
       console.log(`GuildToken ${event.eventName} must force an update`);
       return true;
   }
