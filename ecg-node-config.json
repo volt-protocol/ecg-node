@@ -1,10 +1,10 @@
 {
     "processors": {
         "LOAN_CALLER": {
-            "enabled": true
+            "enabled": false
         },
         "TERM_OFFBOARDER": {
-            "enabled": true,
+            "enabled": false,
             "tokens": {
                 "WBTC": {
                     "minOvercollateralization": 1.2
@@ -15,19 +15,19 @@
             }
         },
         "TERM_ONBOARDING_WATCHER": {
-            "enabled": true
+            "enabled": false
         },
         "USER_SLASHER": {
-            "enabled": true,
+            "enabled": false,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": true,
+            "enabled": false,
             "enableForgive": true,
             "minProfitUsdc": 20
         },
         "TESTNET_MARKET_MAKER": {
-            "enabled": true,
+            "enabled": false,
             "threshold": 0.005,
             "uniswapPairs": [
                 {
@@ -38,7 +38,7 @@
             ]
         },
         "HISTORICAL_DATA_FETCHER": {
-            "enabled": true
+            "enabled": false
         }
     }
 }
