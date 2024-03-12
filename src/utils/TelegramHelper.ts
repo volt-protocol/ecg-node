@@ -8,8 +8,8 @@ type TGBody = {
   parse_mode?: string;
 };
 async function CallTelegram(msg: string, isMarkdown = false) {
-  const TG_BOT_ID: string | undefined = process.env.TG_BOT_ID;
-  const TG_CHAT_ID: string | undefined = process.env.TG_CHAT_ID;
+  const TG_BOT_ID: string | undefined = process.env.TG_BOT_ID || process.env.WATCHER_TG_BOT_ID;
+  const TG_CHAT_ID: string | undefined = process.env.TG_CHAT_ID || process.env.WATCHER_TG_CHAT_ID;
   if (!TG_CHAT_ID || !TG_BOT_ID) {
     return;
   }

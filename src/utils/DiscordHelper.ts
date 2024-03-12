@@ -16,7 +16,7 @@ export async function SendDiscordMessageList(
   title: string,
   fields: { fieldName: string; fieldValue: string }[]
 ) {
-  const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+  const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || process.env.WATCHER_DISCORD_WEBHOOK_URL;
   if (!DISCORD_WEBHOOK_URL) {
     return;
   }
