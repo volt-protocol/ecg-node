@@ -1,6 +1,6 @@
 # Processors
 
-The processors are like feature that you can enable or disable from running on your node deployment.
+The processors are like features that you can enable or disable from running on your node deployment.
 
 They're launched in separate process and are all more or less using the protocol data (stored in the `.json` files of the `./data` directory)
 
