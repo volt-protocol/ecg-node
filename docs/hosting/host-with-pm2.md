@@ -6,7 +6,7 @@ Using PM2 facilitates hosting and running
 
 1. Install pm2 on the server, see https://pm2.keymetrics.io/
 1. Build the project with `npm run build`
-2. Deploy the `./build` directory where you want. In this example we will deploy it to `/app/ecg-node/`
+2. Deploy the `./build` directory where you want. In this example, we will deploy it to `/app/ecg-node/`
 3. Copy `package.json` into `/app/ecg-node/`
 4. Install dependencies with `npm install`
 5. Copy the `ecg-node-config.json` file into `/app/ecg-node/` and update it like that, which will only start the [TERM_ONBOARDING_WATCHER](../processors/term-onboarding-watcher.md) processor

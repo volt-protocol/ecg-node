@@ -2,9 +2,9 @@
 
 This processor is just a notifier for when a new lending term is proposed.
 
-This processor is creating a listener on the onboarding contract and it waits for a 'ProposalCreated' event to be emitted.
+This processor creates a listener on the onboarding contract and it waits for a 'ProposalCreated' event to be emitted.
 
-It can outputs to either discord or telegram or both
+It can output to either Discord or telegram or both
 
 Example discord notification:
 ![alt text](../images/processors/onboarding-watcher-discord.png)

@@ -1,14 +1,14 @@
 # Auction Bidder
 
-The auction bidder goal is to bid on auctions as soon as the auction becomes profitable.
+The auction bidder's goal is to bid on auctions as soon as the auction becomes profitable.
 
-It is the one keeping the protocol bad debt free.
+It is the one keeping the protocol bad-debt free.
 
 ## Requirements
 
-You need to have a wallet private key in the environment variables. The wallet must have enough eth to pay the transaction gas.
+You need to have a wallet private key in the environment variables. The wallet must have enough ETH to pay the transaction gas.
 
-Example on unix:
+Example on Unix:
 
 `export ETH_PRIVATE_KEY=abcdef123456779....`
 
