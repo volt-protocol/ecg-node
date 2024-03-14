@@ -1,3 +1,12 @@
+# ECG Node Configuration
+
+The node configuration is stored in a .json file at the root of this project
+
+`ecg-node-config.json`
+
+By default, it looks like that:
+
+``` json
 {
     "processors": {
         "LOAN_CALLER": {
@@ -42,3 +51,6 @@
         }
     }
 }
+```
+
+Its role is to enable/disable and to give some parameters for the processors, see [processors](./processors/processors.md) for more details.

@@ -17,13 +17,16 @@ async function TermOnboardingWatcher() {
   process.title = 'TERM_ONBOARDING_WATCHER';
   console.log('TermOnboardingWatcher: starting');
 
+  const atLeastOneNotificationChannelEnabled =
+    (process.env.WATCHER_TG_BOT_ID != undefined && process.env.WATCHER_TG_CHAT_ID != undefined) ||
+    process.env.WATCHER_DISCORD_WEBHOOK_URL != undefined;
+
+  if (!atLeastOneNotificationChannelEnabled) {
+    throw new Error('At least one notification channel must be enabled');
+  }
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const rpcURL = process.env.RPC_URL;
-    if (!rpcURL) {
-      throw new Error('Cannot find RPC_URL in env');
-    }
-
     const onboardingAddress = GetLendingTermOnboardingAddress();
 
     if (onboardingContract) {
@@ -74,32 +77,37 @@ async function processEvent(event: any, web3Provider: JsonRpcProvider, iface: In
     collateralTokenStr += ` (${foundToken.symbol})`;
   }
 
-  await SendNotificationsList('TermOnboarderWatcher', `New term ${termAddress} is proposed`, [
-    {
-      fieldName: 'Proposal Id',
-      fieldValue: proposalId.toString(10)
-    },
-    {
-      fieldName: 'Proposer',
-      fieldValue: proposer
-    },
-    {
-      fieldName: 'Collateral',
-      fieldValue: collateralTokenStr
-    },
-    {
-      fieldName: 'Hard Cap',
-      fieldValue: params.hardCap.toString(10)
-    },
-    {
-      fieldName: 'Interest rate',
-      fieldValue: norm(params.interestRate).toString()
-    },
-    {
-      fieldName: 'maxDebtPerCollateralToken',
-      fieldValue: params.maxDebtPerCollateralToken.toString(10)
-    }
-  ]);
+  await SendNotificationsList(
+    'TermOnboarderWatcher',
+    `New term ${termAddress} is proposed`,
+    [
+      {
+        fieldName: 'Proposal Id',
+        fieldValue: proposalId.toString(10)
+      },
+      {
+        fieldName: 'Proposer',
+        fieldValue: proposer
+      },
+      {
+        fieldName: 'Collateral',
+        fieldValue: collateralTokenStr
+      },
+      {
+        fieldName: 'Hard Cap',
+        fieldValue: params.hardCap.toString(10)
+      },
+      {
+        fieldName: 'Interest rate',
+        fieldValue: norm(params.interestRate).toString()
+      },
+      {
+        fieldName: 'maxDebtPerCollateralToken',
+        fieldValue: params.maxDebtPerCollateralToken.toString(10)
+      }
+    ],
+    true
+  );
 }
 
 TermOnboardingWatcher();

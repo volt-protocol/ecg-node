@@ -1,16 +1,13 @@
 import path from 'path';
 import fs from 'fs';
 import { GetNodeConfig, ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
-import { GuildToken, GuildToken__factory, Multicall3, Multicall3__factory } from '../contracts/types';
+import { GuildToken__factory, Multicall3 } from '../contracts/types';
 import { GetGuildTokenAddress } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
 import { DATA_DIR } from '../utils/Constants';
-import { readFileSync } from 'node:fs';
-import { MulticallWrapper } from 'ethers-multicall-provider';
-import { SendTelegramMessage } from '../utils/TelegramHelper';
 import { UserSlasherState } from '../model/UserSlasherState';
-import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
+import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 
 const RUN_EVERY_SEC = 600;

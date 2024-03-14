@@ -7,14 +7,9 @@ type TGBody = {
   text: string;
   parse_mode?: string;
 };
-async function CallTelegram(msg: string, isMarkdown = false) {
-  const TG_BOT_ID: string | undefined = process.env.TG_BOT_ID;
-  const TG_CHAT_ID: string | undefined = process.env.TG_CHAT_ID;
-  if (!TG_CHAT_ID || !TG_BOT_ID) {
-    return;
-  }
+async function CallTelegram(botId: string, chatId: string, msg: string, isMarkdown = false) {
   const body: TGBody = {
-    chat_id: TG_CHAT_ID,
+    chat_id: chatId,
     text: msg
   };
 
@@ -22,7 +17,7 @@ async function CallTelegram(msg: string, isMarkdown = false) {
     body.parse_mode = 'MarkdownV2';
   }
 
-  const url = `https://api.telegram.org/bot${TG_BOT_ID}/sendMessage`;
+  const url = `https://api.telegram.org/bot${botId}/sendMessage`;
   const config = {
     headers: {
       'Content-type': 'application/json',
@@ -60,6 +55,6 @@ async function CallTelegram(msg: string, isMarkdown = false) {
   }
 }
 
-export async function SendTelegramMessage(msg: string, isMarkdown = false) {
-  await CallTelegram(msg, isMarkdown);
+export async function SendTelegramMessage(botId: string, chatId: string, msg: string, isMarkdown = false) {
+  await CallTelegram(botId, chatId, msg, isMarkdown);
 }
