@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "main": "ECGNode.ts",
     "scripts": {
+        "postinstall": "npm run typechain",
         "start": "node --inspect -r ts-node/register ./src/ECGNode.ts",
         "start:api": "node --inspect -r ts-node/register ./src/api/Api.ts",
         "debug:auction-bidder": "node --inspect -r ts-node/register ./src/processors/AuctionBidder.ts",
