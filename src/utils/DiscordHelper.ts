@@ -1,27 +1,18 @@
 import { MessageBuilder, Webhook } from 'discord-webhook-node';
 
-export async function SendDiscordMessage(sender: string, title: string, msg: string) {
-  const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
-  if (!DISCORD_WEBHOOK_URL) {
-    return;
-  }
-
-  const hook = new Webhook(DISCORD_WEBHOOK_URL);
+export async function SendDiscordMessage(hookUrl: string, sender: string, title: string, msg: string) {
+  const hook = new Webhook(hookUrl);
 
   await hook.info(`[${sender}]`, truncateFieldValue(title), truncateFieldValue(msg));
 }
 
 export async function SendDiscordMessageList(
+  hookUrl: string,
   sender: string,
   title: string,
   fields: { fieldName: string; fieldValue: string }[]
 ) {
-  const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || process.env.WATCHER_DISCORD_WEBHOOK_URL;
-  if (!DISCORD_WEBHOOK_URL) {
-    return;
-  }
-
-  const hook = new Webhook(DISCORD_WEBHOOK_URL);
+  const hook = new Webhook(hookUrl);
 
   const builder = new MessageBuilder();
   builder.setTitle(`[${sender}]`);
