@@ -14,6 +14,10 @@ Refer to NodeJS website for installation guidelines: https://nodejs.org/en
 
 or use nvm: https://github.com/nvm-sh/nvm
 
+## Clone
+
+`git clone https://github.com/volt-protocol/ecg-node.git`
+
 ## Install dependencies
 
 `npm install`
