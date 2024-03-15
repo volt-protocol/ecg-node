@@ -1,10 +1,11 @@
-import { GetNodeConfig, buildTxUrl, sleep } from '../utils/Utils';
+import { GetNodeConfig, buildTxUrl, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
 import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { GetTokenPrice } from '../utils/Price';
 
 const RUN_EVERY_SEC = 120;
 
@@ -33,21 +34,27 @@ async function TestnetMarketMaker() {
     }
 
     const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-
     for (let i = 0; i < config.uniswapPairs.length; i++) {
       const token0 = getTokenBySymbol(config.uniswapPairs[i].path[0]);
       const token1 = getTokenBySymbol(config.uniswapPairs[i].path[1]);
-      const targetRatio = config.uniswapPairs[i].targetRatio;
       const threshold = config.threshold;
       const pairAddress = config.uniswapPairs[i].poolAddress;
       const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
       console.log(`TestnetMarketMaker: checking pair ${token0.symbol}-${token1.symbol}`);
 
+      const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
+      const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
+      const targetRatio = priceToken1 / priceToken0;
       const reserves = await uniswapPair.getReserves();
       let spotRatio =
         Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
         Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
-      const diff = Math.abs(spotRatio - targetRatio);
+
+      const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
+      console.log(
+        `TestnetMarketMaker: price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`
+      );
+
       if (diff < threshold) {
         console.log(
           `TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`
@@ -68,7 +75,12 @@ async function TestnetMarketMaker() {
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
-        console.log(`TestnetMarketMaker: swap ${amountIn} ${token0.symbol} -> ${amountOut} ${token1.symbol}`);
+        console.log(
+          `TestnetMarketMaker: swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(
+            amountOut,
+            token1.decimals
+          )} ${token1.symbol}`
+        );
 
         // approve token0 to the router
         const erc20Contract = ERC20__factory.connect(token0.address, signer);
@@ -76,7 +88,7 @@ async function TestnetMarketMaker() {
         await swapExactTokensForTokens(
           token0,
           token1,
-          targetRatio,
+          1 / targetRatio,
           amountIn,
           (amountOut * 995n) / 1000n, // max 0.5% slippage
           [token0.address, token1.address],
@@ -98,7 +110,12 @@ async function TestnetMarketMaker() {
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
-        console.log(`TestnetMarketMaker: swap ${amountIn} ${token1.symbol} -> ${amountOut} ${token0.symbol}`);
+        console.log(
+          `TestnetMarketMaker: swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(
+            amountOut,
+            token0.decimals
+          )} ${token0.symbol}`
+        );
 
         await swapExactTokensForTokens(
           token1,
@@ -148,7 +165,7 @@ async function swapExactTokensForTokens(
   await SendNotifications(
     'MarketMaker',
     `Swapped ${fromToken.symbol} => ${toToken.symbol}`,
-    `Target ratio: ${targetRatio}\n` +
+    `Target ratio: 1 ${fromToken.symbol} = ${targetRatio} ${toToken.symbol}\n` +
       `Sent ${norm(amountIn, fromToken.decimals)} ${fromToken.symbol}\n` +
       `Tx: ${buildTxUrl(txReceipt.hash)}`
   );
