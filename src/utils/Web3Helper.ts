@@ -7,7 +7,7 @@ import axios from 'axios';
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
  * @returns {JsonRpcProvider}
  */
-export function GetWeb3Provider(pollingIntervalMs = 1000 * 60 * 60): JsonRpcProvider {
+export function GetWeb3Provider(pollingIntervalMs = 15000): JsonRpcProvider {
   const rpcURL = process.env.RPC_URL;
   if (!rpcURL) {
     throw new Error('Cannot find RPC_URL in env');

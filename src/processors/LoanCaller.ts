@@ -39,7 +39,6 @@ async function LoanCaller() {
 
     const loansToCheck = loanFileData.loans.filter((_) => _.status == LoanStatus.ACTIVE);
     console.log(`LoanCaller: will check ${loansToCheck.length} loans`);
-
     for (const loan of loansToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == loan.lendingTermAddress);
       if (!term) {
@@ -112,7 +111,7 @@ function checkPartialRepayDelayPassed(loan: Loan, term: LendingTerm) {
   }
 
   // return true if delay is passed
-  return loan.lastPartialRepay < Date.now() / 1000 - term.maxDelayBetweenPartialRepay;
+  return loan.lastPartialRepay + term.maxDelayBetweenPartialRepay * 1000 < Date.now();
 }
 
 function checks(termsFilename: string, loansFilename: string) {
