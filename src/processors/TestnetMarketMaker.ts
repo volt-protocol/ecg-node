@@ -1,15 +1,17 @@
-import { GetNodeConfig, buildTxUrl, roundTo, sleep } from '../utils/Utils';
+import { GetNodeConfig, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
 import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
-import { SendNotifications } from '../utils/Notifications';
+import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { GetTokenPrice } from '../utils/Price';
 
 const RUN_EVERY_SEC = 120;
 
 const web3Provider = GetWeb3Provider();
+let lastNotification = 0;
+const NOTIFICATION_DELAY = 12 * 60 * 60 * 1000; // send notification every 12h
 
 /**
  * Market maker for testnet tokens
@@ -21,6 +23,7 @@ const web3Provider = GetWeb3Provider();
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    const sendNotification = lastNotification + NOTIFICATION_DELAY < Date.now();
     process.title = 'TESTNET_MARKET_MAKER';
     console.log('TestnetMarketMaker: starting');
     const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
@@ -32,6 +35,8 @@ async function TestnetMarketMaker() {
     if (!process.env.ETH_PRIVATE_KEY) {
       throw new Error('Cannot find ETH_PRIVATE_KEY in env');
     }
+
+    const fields: { fieldName: string; fieldValue: string }[] = [];
 
     const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
     for (let i = 0; i < config.uniswapPairs.length; i++) {
@@ -59,76 +64,113 @@ async function TestnetMarketMaker() {
         console.log(
           `TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`
         );
-        continue;
-      }
+      } else {
+        // if we have to swap token0 for token1
+        if (spotRatio < targetRatio) {
+          const step = 1n * BigInt(10 ** (token1.decimals - 2));
+          let amountIn = 0n;
+          let amountOut = 0n;
+          while (spotRatio < targetRatio) {
+            amountIn += step;
+            amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
+            const reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
+            spotRatio =
+              Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+              Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
+          }
+          console.log(
+            `TestnetMarketMaker: swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(
+              amountOut,
+              token1.decimals
+            )} ${token1.symbol}`
+          );
 
-      // if we have to swap token0 for token1
-      if (spotRatio < targetRatio) {
-        const step = 1n * BigInt(10 ** token0.decimals);
-        let amountIn = 0n;
-        let amountOut = 0n;
-        while (spotRatio < targetRatio) {
-          amountIn += step;
-          amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
-          const reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
-          spotRatio =
-            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
-            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
+          // approve token0 to the router
+          const erc20Contract = ERC20__factory.connect(token0.address, signer);
+          await (await erc20Contract.approve(GetUniswapV2RouterAddress(), amountIn)).wait();
+          await swapExactTokensForTokens(
+            token0,
+            token1,
+            1 / targetRatio,
+            amountIn,
+            (amountOut * 995n) / 1000n, // max 0.5% slippage
+            [token0.address, token1.address],
+            signer.address,
+            Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
+            signer
+          );
         }
-        console.log(
-          `TestnetMarketMaker: swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(
-            amountOut,
-            token1.decimals
-          )} ${token1.symbol}`
-        );
+        // if we have to swap token1 for token0
+        else {
+          const step = 1n * BigInt(10 ** (token1.decimals - 2));
+          let amountIn = 0n;
+          let amountOut = 0n;
+          while (spotRatio > targetRatio) {
+            amountIn += step;
+            amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
+            const reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
+            spotRatio =
+              Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+              Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
+          }
+          console.log(
+            `TestnetMarketMaker: swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(
+              amountOut,
+              token0.decimals
+            )} ${token0.symbol}`
+          );
 
-        // approve token0 to the router
-        const erc20Contract = ERC20__factory.connect(token0.address, signer);
-        await (await erc20Contract.approve(GetUniswapV2RouterAddress(), amountIn)).wait();
-        await swapExactTokensForTokens(
-          token0,
-          token1,
-          1 / targetRatio,
-          amountIn,
-          (amountOut * 995n) / 1000n, // max 0.5% slippage
-          [token0.address, token1.address],
-          signer.address,
-          Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-          signer
-        );
-      }
-      // if we have to swap token1 for token0
-      else {
-        const step = 1n * BigInt(10 ** token1.decimals);
-        let amountIn = 0n;
-        let amountOut = 0n;
-        while (spotRatio > targetRatio) {
-          amountIn += step;
-          amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
-          const reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
-          spotRatio =
-            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
-            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
+          await swapExactTokensForTokens(
+            token1,
+            token0,
+            targetRatio,
+            amountIn,
+            (amountOut * 995n) / 1000n, // max 0.5% slippage
+            [token1.address, token0.address],
+            signer.address,
+            Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
+            signer
+          );
         }
-        console.log(
-          `TestnetMarketMaker: swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(
-            amountOut,
-            token0.decimals
-          )} ${token0.symbol}`
-        );
-
-        await swapExactTokensForTokens(
-          token1,
-          token0,
-          targetRatio,
-          amountIn,
-          (amountOut * 995n) / 1000n, // max 0.5% slippage
-          [token1.address, token0.address],
-          signer.address,
-          Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-          signer
-        );
       }
+
+      if (sendNotification) {
+        const reserves = await uniswapPair.getReserves();
+        const spotRatio =
+          Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+          Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
+
+        const ratioDiff = roundTo(Math.abs((targetRatio - spotRatio) / targetRatio) * 100, 2);
+        // const fields: { fieldName: string; fieldValue: string }[] = [];
+        if (targetRatio < 1) {
+          fields.push({
+            fieldName: `${token0.symbol}->${token1.symbol} real price`,
+            fieldValue: (1 / targetRatio).toString()
+          });
+          fields.push({
+            fieldName: `${token0.symbol}->${token1.symbol} univ2 price `,
+            fieldValue: `${1 / spotRatio} (${ratioDiff}% diff)`
+          });
+        } else {
+          fields.push({
+            fieldName: `${token1.symbol}->${token0.symbol} real price`,
+            fieldValue: targetRatio.toString()
+          });
+          fields.push({
+            fieldName: `${token1.symbol}->${token0.symbol} univ2 price`,
+            fieldValue: `${spotRatio} (${ratioDiff}% diff)`
+          });
+        }
+      }
+    }
+
+    if (sendNotification) {
+      fields.push({
+        fieldName: 'Next update: ',
+        fieldValue: `${new Date(Date.now() + NOTIFICATION_DELAY).toISOString()}`
+      });
+      await SendNotificationsList('MarketMaker', 'Market update', fields);
+      lastNotification = Date.now();
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
@@ -162,13 +204,6 @@ async function swapExactTokensForTokens(
 
   const txReceipt = await uniswapRouter.swapExactTokensForTokens(amountIn, minAmountOut, path, to, deadline);
   await txReceipt.wait();
-  await SendNotifications(
-    'MarketMaker',
-    `Swapped ${fromToken.symbol} => ${toToken.symbol}`,
-    `Target ratio: 1 ${fromToken.symbol} = ${targetRatio} ${toToken.symbol}\n` +
-      `Sent ${norm(amountIn, fromToken.decimals)} ${fromToken.symbol}\n` +
-      `Tx: ${buildTxUrl(txReceipt.hash)}`
-  );
 }
 
 TestnetMarketMaker();
