@@ -31,7 +31,7 @@ async function ProcessAsync(event: EventData) {
 
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
-    await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
+    // await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
     console.log(msg);
   }
 }
