@@ -82,11 +82,15 @@ async function callMany(loansToCall: { [termAddress: string]: string[] }, web3Pr
     const callManyResponse = await lendingTermContract.callMany(loanIds);
 
     await callManyResponse.wait();
-    await SendNotifications(
-      'Loan Caller',
-      `called ${loanIds.length} loans on term ${termAddress}`,
-      `loanIds:\n ${loanIds.join('\n')}` + `Tx: ${buildTxUrl(callManyResponse.hash)}`
-    );
+    // do not send notifications for term 0x427425372b643fc082328b70A0466302179260f5
+    // it its the test term used to open loans and calls for external liquidators
+    if (termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
+      await SendNotifications(
+        'Loan Caller',
+        `called ${loanIds.length} loans on term ${termAddress}`,
+        `loanIds:\n ${loanIds.join('\n')}` + `Tx: ${buildTxUrl(callManyResponse.hash)}`
+      );
+    }
   }
 }
 
