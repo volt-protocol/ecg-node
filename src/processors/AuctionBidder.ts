@@ -53,14 +53,14 @@ async function AuctionBidder() {
         continue;
       }
 
-      const profit = await checkBidProfitability(term, bidDetail, web3Provider, creditMultiplier);
-      if (profit >= auctionBidderConfig.minProfitUsdc) {
-        console.log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${profit}`);
-        await processBid(auction, term, web3Provider, auctionBidderConfig.minProfitUsdc);
+      const estimatedProfit = await checkBidProfitability(term, bidDetail, web3Provider, creditMultiplier);
+      if (estimatedProfit >= auctionBidderConfig.minProfitUsdc) {
+        console.log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
+        await processBid(auction, term, web3Provider, auctionBidderConfig.minProfitUsdc, estimatedProfit);
         continue;
       }
 
-      console.log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${profit}`);
+      console.log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
@@ -102,7 +102,8 @@ async function processBid(
   auction: Auction,
   term: LendingTerm,
   web3Provider: ethers.JsonRpcProvider,
-  minProfit: number
+  minProfit: number,
+  estimatedProfit: number
 ) {
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
@@ -122,8 +123,8 @@ async function processBid(
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
     await SendNotifications(
       'Auction Bidder',
-      `bidded on auction ${auction.loanId}`,
-      'Using the Gateway.bidWithBalancerFlashLoan() function'
+      `Auction ${auction.loanId} fulfilled`,
+      `Estimated USDC profit: ${estimatedProfit}`
     );
   }
 }
