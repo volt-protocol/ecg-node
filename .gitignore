@@ -114,3 +114,5 @@ nocommit/*
 data/
 
 src/contracts/types
+
+build-scripts/
