@@ -67,7 +67,7 @@ async function TestnetMarketMaker() {
       } else {
         // if we have to swap token0 for token1
         if (spotRatio < targetRatio) {
-          const step = 1n * BigInt(10 ** (token1.decimals - 2));
+          const step = 1n * BigInt(10 ** (token0.decimals - 2));
           let amountIn = 0n;
           let amountOut = 0n;
           while (spotRatio < targetRatio) {
