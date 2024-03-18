@@ -119,11 +119,13 @@ async function processBid(
     minProfit
   );
   await txReceipt.wait();
-  await SendNotifications(
-    'Auction Bidder',
-    `bidded on auction ${auction.loanId}`,
-    'Using the Gateway.bidWithBalancerFlashLoan() function'
-  );
+  if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
+    await SendNotifications(
+      'Auction Bidder',
+      `bidded on auction ${auction.loanId}`,
+      'Using the Gateway.bidWithBalancerFlashLoan() function'
+    );
+  }
 }
 
 async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProvider) {
