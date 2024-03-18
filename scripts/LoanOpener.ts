@@ -38,27 +38,3 @@ async function LoanOpener() {
 }
 
 LoanOpener();
-
-// async function createTerm() {
-//   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-//   const signer = new ethers.Wallet(privateKey!, web3Provider);
-
-//   const ON_BOARDING_CONTRACT = '0x3274ebe53c4fa1d0a59ad8fadbc6f944186b408e';
-//   const lendingTermFactory = LendingTermFactory__factory.connect('0xd3ecFC72fE299B58764E12AC38d59f20fc287052', signer);
-//   const lendingTermV1 = '0x87b22b22666c15c11b8632c8a132ee820b783061';
-//   const auctionHouse = '0x912e76518b318c209ef7ff04d119967acae3569e';
-//   await (
-//     await lendingTermFactory.createTerm(1, lendingTermV1, auctionHouse, {
-//       collateralToken: '0x9f07498d9f4903b10db57a3bd1d91b6b64aed61e', // SDAI
-//       maxDebtPerCollateralToken: 10n ** 18n,
-//       interestRate: 10n ** 17n, // 10%
-//       maxDelayBetweenPartialRepay: 1, // 1 sec
-//       minPartialRepayPercent: 1n ** 16n, // 1%
-//       openingFee: 0,
-//       hardCap: 2_000_000n * 10n ** 18n
-//     })
-//   ).wait();
-//   // const onboarding = LendingTermOnboarding__factory.connect(ON_BOARDING_CONTRACT, web3Provider);
-//   // onboarding.proposeOnboard(LENDING_TERM)
-// }
-// createTerm();
