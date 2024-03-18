@@ -85,6 +85,11 @@ async function checkBidProfitability(
   const amountUsdc = norm(amountsOut[1], USDCToken.decimals);
   const creditCostInUsdc = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
+  console.log(
+    `checkBidProfitability: bidding cost: ${creditCostInUsdc} USDC, gains: ${amountUsdc} USDC. PnL: ${
+      amountUsdc - creditCostInUsdc
+    } USDC`
+  );
   if (creditCostInUsdc > amountUsdc) {
     return 0;
   }
