@@ -86,8 +86,6 @@ async function TestnetMarketMaker() {
           );
 
           // approve token0 to the router
-          const erc20Contract = ERC20__factory.connect(token0.address, signer);
-          await (await erc20Contract.approve(GetUniswapV2RouterAddress(), amountIn)).wait();
           await swapExactTokensForTokens(
             token0,
             token1,
