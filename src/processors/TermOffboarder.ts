@@ -11,9 +11,9 @@ import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { FileMutex } from '../utils/FileMutex';
 
 const RUN_EVERY_SEC = 60 * 5;
-const web3Provider = GetWeb3Provider();
 
 TermOffboarder();
 
@@ -39,11 +39,14 @@ async function TermOffboarder() {
       throw new Error('Cannot find RPC_URL in env');
     }
 
+    // wait for unlock just before reading data file
+    await FileMutex.WaitForUnlock();
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
       const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
       if (termMustBeOffboarded) {
         console.log(`TermOffboarder[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
+        const web3Provider = GetWeb3Provider();
         await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
       } else {
         console.log(`TermOffboarder[${term.label}]: Term is healthy`);

@@ -23,6 +23,7 @@ import { GaugesFileStructure } from '../model/Gauge';
 import { FetchAllEvents, FetchAllEventsAndExtractStringArray, GetWeb3Provider } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
+import { FileMutex } from '../utils/FileMutex';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -31,6 +32,7 @@ let lastFetch = 0;
 const web3Provider = GetWeb3Provider();
 
 export async function FetchECGData() {
+  await FileMutex.Lock();
   lastFetch = Date.now();
 
   const currentBlock = await web3Provider.getBlockNumber();
@@ -46,6 +48,7 @@ export async function FetchECGData() {
 
   WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
   console.log('FetchECGData: finished fetching');
+  await FileMutex.Unlock();
 }
 
 async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
