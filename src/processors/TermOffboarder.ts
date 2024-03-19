@@ -44,7 +44,7 @@ async function TermOffboarder() {
       const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
       if (termMustBeOffboarded) {
         console.log(`TermOffboarder[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
-        await offboardProcess(web3Provider, term);
+        await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
       } else {
         console.log(`TermOffboarder[${term.label}]: Term is healthy`);
       }
@@ -85,7 +85,11 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
   }
 }
 
-async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: LendingTerm) {
+async function offboardProcess(
+  web3Provider: ethers.JsonRpcProvider,
+  term: LendingTerm,
+  performCleanup: boolean | undefined
+) {
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
   }
@@ -157,7 +161,7 @@ async function offboardProcess(web3Provider: ethers.JsonRpcProvider, term: Lendi
     canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
   }
 
-  if (canOffboard == 2n) {
+  if (canOffboard == 2n && performCleanup) {
     const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
     await cleanupResp.wait();
 

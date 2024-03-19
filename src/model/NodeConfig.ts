@@ -17,6 +17,7 @@ export interface ProcessorConfig {
 }
 
 export interface TermOffboarderConfig extends ProcessorConfig {
+  performCleanup?: boolean; // default to false
   tokens: { [tokenSymbol: string]: TermOffboarderConfigToken };
 }
 
