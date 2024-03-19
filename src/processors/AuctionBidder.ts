@@ -14,8 +14,6 @@ import { FileMutex } from '../utils/FileMutex';
 
 const RUN_EVERY_SEC = 15;
 
-const web3Provider = GetWeb3Provider();
-
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -49,6 +47,7 @@ async function AuctionBidder() {
       if (!term) {
         throw new Error(`Cannot find term ${auction.lendingTermAddress}`);
       }
+      const web3Provider = GetWeb3Provider();
       const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, web3Provider);
       const bidDetail = await auctionHouseContract.getBidDetail(auction.loanId);
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {

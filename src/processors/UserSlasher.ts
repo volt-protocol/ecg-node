@@ -15,8 +15,6 @@ const RUN_EVERY_SEC = 600;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
 const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.json');
 
-const web3Provider = GetWeb3Provider();
-
 /**
  * Slash users with an unapplied loss
  */
@@ -41,9 +39,6 @@ async function UserSlasher() {
     }
 
     const userSlasherState: UserSlasherState = loadLastState();
-
-    const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-    const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), signer);
     // const multicallContract = Multicall3__factory.connect('0xcA11bde05977b3631167028862bE2a173976CA11', signer);
 
     const gaugesFilename = path.join(DATA_DIR, 'gauges.json');
@@ -69,6 +64,9 @@ async function UserSlasher() {
           } else {
             console.log(`UserSlasher: slashing user ${user.address} for gauge ${gauge.address}`);
             try {
+              const web3Provider = GetWeb3Provider();
+              const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
+              const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), signer);
               await guildToken.applyGaugeLoss.staticCall(gauge.address, user.address);
               // if here, the static call does not revert so we can add the applyGaugeLoss to the multicall
               const applyGaugeLossResponse = await guildToken.applyGaugeLoss(gauge.address, user.address);

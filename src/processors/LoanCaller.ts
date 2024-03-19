@@ -13,8 +13,6 @@ import { FileMutex } from '../utils/FileMutex';
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
 
-const web3Provider = GetWeb3Provider();
-
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -66,20 +64,20 @@ async function LoanCaller() {
     }
 
     // call if any
-    await callMany(loansToCall, web3Provider);
+    await callMany(loansToCall);
     console.log(`LoanCaller: sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }
 
-async function callMany(loansToCall: { [termAddress: string]: string[] }, web3Provider: ethers.JsonRpcProvider) {
+async function callMany(loansToCall: { [termAddress: string]: string[] }) {
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
   }
 
-  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-
   for (const [termAddress, loanIds] of Object.entries(loansToCall)) {
+    const web3Provider = GetWeb3Provider();
+    const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
     const lendingTermContract = LendingTerm__factory.connect(termAddress, signer);
 
     const callManyResponse = await lendingTermContract.callMany(loanIds);
