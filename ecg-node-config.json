@@ -5,6 +5,7 @@
         },
         "TERM_OFFBOARDER": {
             "enabled": false,
+            "performCleanup": true,
             "tokens": {
                 "WBTC": {
                     "minOvercollateralization": 1.2
