@@ -10,6 +10,7 @@ import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { FileMutex } from '../utils/FileMutex';
 
 const RUN_EVERY_SEC = 15;
 
@@ -24,6 +25,9 @@ async function AuctionBidder() {
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
+
+    // wait for unlock just before reading data file
+    await FileMutex.WaitForUnlock();
     const auctionFileData: AuctionsFileStructure = ReadJSON(auctionsFilename);
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
 

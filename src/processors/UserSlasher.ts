@@ -9,6 +9,7 @@ import { DATA_DIR } from '../utils/Constants';
 import { UserSlasherState } from '../model/UserSlasherState';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { FileMutex } from '../utils/FileMutex';
 
 const RUN_EVERY_SEC = 600;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
@@ -46,6 +47,9 @@ async function UserSlasher() {
     // const multicallContract = Multicall3__factory.connect('0xcA11bde05977b3631167028862bE2a173976CA11', signer);
 
     const gaugesFilename = path.join(DATA_DIR, 'gauges.json');
+
+    // wait for unlock just before reading data file
+    await FileMutex.WaitForUnlock();
     const gaugesFileData: GaugesFileStructure = ReadJSON(gaugesFilename);
 
     const calls: Multicall3.Call3Struct[] = [];

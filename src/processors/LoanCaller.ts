@@ -8,6 +8,7 @@ import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
 import { LendingTerm__factory } from '../contracts/types';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { FileMutex } from '../utils/FileMutex';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
@@ -23,6 +24,8 @@ async function LoanCaller() {
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
 
+    // wait for unlock just before reading data file
+    await FileMutex.WaitForUnlock();
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
 
