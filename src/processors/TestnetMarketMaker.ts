@@ -1,4 +1,4 @@
-import { GetNodeConfig, roundTo, sleep } from '../utils/Utils';
+import { GetNodeConfig, ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
 import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
@@ -6,12 +6,16 @@ import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { GetTokenPrice } from '../utils/Price';
+import { DATA_DIR } from '../utils/Constants';
+import path from 'path';
+import fs from 'fs';
+import { MarketMakerState } from '../model/MarketMakerState';
 
 const RUN_EVERY_SEC = 120;
 
 const web3Provider = GetWeb3Provider();
-let lastNotification = 0;
 const NOTIFICATION_DELAY = 12 * 60 * 60 * 1000; // send notification every 12h
+const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.json');
 
 /**
  * Market maker for testnet tokens
@@ -23,7 +27,6 @@ const NOTIFICATION_DELAY = 12 * 60 * 60 * 1000; // send notification every 12h
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const sendNotification = lastNotification + NOTIFICATION_DELAY < Date.now();
     process.title = 'TESTNET_MARKET_MAKER';
     console.log('TestnetMarketMaker: starting');
     const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
@@ -35,6 +38,15 @@ async function TestnetMarketMaker() {
     if (!process.env.ETH_PRIVATE_KEY) {
       throw new Error('Cannot find ETH_PRIVATE_KEY in env');
     }
+
+    const processorsDataDir = path.join(DATA_DIR, 'processors');
+
+    if (!fs.existsSync(processorsDataDir)) {
+      fs.mkdirSync(processorsDataDir, { recursive: true });
+    }
+
+    const marketMakerState: MarketMakerState = loadLastState();
+    const sendNotification = marketMakerState.lastNotification + NOTIFICATION_DELAY < Date.now();
 
     const fields: { fieldName: string; fieldValue: string }[] = [];
 
@@ -168,9 +180,11 @@ async function TestnetMarketMaker() {
         fieldValue: `${new Date(Date.now() + NOTIFICATION_DELAY).toISOString()}`
       });
       await SendNotificationsList('MarketMaker', 'Market update', fields);
-      lastNotification = Date.now();
+      marketMakerState.lastNotification = Date.now();
     }
 
+    saveLastState(marketMakerState);
+    console.log(`TestnetMarketMaker: sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }
@@ -202,6 +216,20 @@ async function swapExactTokensForTokens(
 
   const txReceipt = await uniswapRouter.swapExactTokensForTokens(amountIn, minAmountOut, path, to, deadline);
   await txReceipt.wait();
+}
+
+function loadLastState(): MarketMakerState {
+  if (!fs.existsSync(STATE_FILENAME)) {
+    return {
+      lastNotification: Date.now()
+    };
+  } else {
+    return ReadJSON(STATE_FILENAME);
+  }
+}
+
+function saveLastState(state: MarketMakerState) {
+  WriteJSON(STATE_FILENAME, state);
 }
 
 TestnetMarketMaker();
