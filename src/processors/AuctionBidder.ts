@@ -34,9 +34,6 @@ async function AuctionBidder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    if (!process.env.ETH_PRIVATE_KEY) {
-      throw new Error('Cannot find ETH_PRIVATE_KEY in env');
-    }
 
     const creditMultiplier = GetProtocolData().creditMultiplier;
 
@@ -109,10 +106,10 @@ async function processBid(
   minProfit: number,
   estimatedProfit: number
 ) {
-  if (!process.env.ETH_PRIVATE_KEY) {
-    throw new Error('Cannot find ETH_PRIVATE_KEY in env');
+  if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
   }
-  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
+  const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
   const gatewayContract = GatewayV1__factory.connect(GetGatewayAddress(), signer);
   const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
     auction.loanId,
@@ -134,10 +131,10 @@ async function processBid(
 }
 
 async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProvider) {
-  if (!process.env.ETH_PRIVATE_KEY) {
-    throw new Error('Cannot find ETH_PRIVATE_KEY in env');
+  if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
   }
-  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
+  const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
   const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, signer);
   const txReceipt = await auctionHouseContract.forgive(auction.loanId);
   await txReceipt.wait();
