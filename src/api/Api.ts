@@ -9,8 +9,11 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import dotenv from 'dotenv';
+import { Log } from '../utils/Logger';
 dotenv.config();
 const port = process.env.API_PORT || 17777;
+
+process.title = 'ECG_NODE_API';
 
 const app: Express = express();
 
@@ -44,7 +47,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpecification));
 app.use('/api/history/', historycalDataRoutes);
 
 app.listen(port, () => {
-  console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
+  Log(`⚡️[server]: Server is running at http://localhost:${port}`);
 });
 
 process.on('SIGINT', cleanup);
@@ -52,6 +55,6 @@ process.on('SIGTERM', cleanup);
 
 async function cleanup() {
   // do cleanup if needed
-  console.log('shutdown requested');
+  Log('shutdown requested');
   process.exit();
 }

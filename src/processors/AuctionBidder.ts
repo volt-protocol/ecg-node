@@ -11,14 +11,15 @@ import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
+import { Log } from '../utils/Logger';
 
 const RUN_EVERY_SEC = 15;
 
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = 'AUCTION_BIDDER';
-    console.log('AuctionBidder: starting');
+    process.title = 'ECG_NODE_AUCTION_BIDDER';
+    Log('starting');
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
@@ -40,7 +41,7 @@ async function AuctionBidder() {
     const creditMultiplier = GetProtocolData().creditMultiplier;
 
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
-    console.log(`AuctionBidder: Will check ${auctionsToCheck.length} auctions`);
+    Log(`Will check ${auctionsToCheck.length} auctions`);
 
     for (const auction of auctionsToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == auction.lendingTermAddress);
@@ -51,19 +52,19 @@ async function AuctionBidder() {
       const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, web3Provider);
       const bidDetail = await auctionHouseContract.getBidDetail(auction.loanId);
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {
-        console.log(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
+        Log(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
         await processForgive(auction, web3Provider);
         continue;
       }
 
       const estimatedProfit = await checkBidProfitability(term, bidDetail, web3Provider, creditMultiplier);
       if (estimatedProfit >= auctionBidderConfig.minProfitUsdc) {
-        console.log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
+        Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
         await processBid(auction, term, web3Provider, auctionBidderConfig.minProfitUsdc, estimatedProfit);
         continue;
       }
 
-      console.log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
+      Log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
@@ -88,7 +89,7 @@ async function checkBidProfitability(
   const amountUsdc = norm(amountsOut[1], USDCToken.decimals);
   const creditCostInUsdc = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
-  console.log(
+  Log(
     `checkBidProfitability: bidding cost: ${creditCostInUsdc} USDC, gains: ${amountUsdc} USDC. PnL: ${
       amountUsdc - creditCostInUsdc
     } USDC`

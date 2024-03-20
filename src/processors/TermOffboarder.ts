@@ -12,6 +12,7 @@ import { ethers } from 'ethers';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
+import { Log, Warn } from '../utils/Logger';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -23,8 +24,8 @@ async function TermOffboarder() {
     const startDate = Date.now();
     const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
 
-    process.title = 'TERM_OFFBOARDER';
-    console.log('TermOffboarder: starting');
+    process.title = 'ECG_NODE_TERM_OFFBOARDER';
+    Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     if (!existsSync(termsFilename)) {
       throw new Error('Cannot start TERM OFFBOARDER without terms file. please sync protocol data');
@@ -45,14 +46,14 @@ async function TermOffboarder() {
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
       const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
       if (termMustBeOffboarded) {
-        console.log(`TermOffboarder[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
+        Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
         const web3Provider = GetWeb3Provider();
         await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
       } else {
-        console.log(`TermOffboarder[${term.label}]: Term is healthy`);
+        Log(`[${term.label}]: Term is healthy`);
       }
     }
-    console.log('TermOffboarder: Ending');
+    Log('Ending');
 
     await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
   }
@@ -63,22 +64,20 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
   const pegToken = getTokenBySymbol('USDC');
   const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
-  console.log(`TermOffboarder[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
+  Log(`[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
   const normBorrowRatio = norm(term.borrowRatio) * norm(GetProtocolData().creditMultiplier);
-  console.log(
-    `TermOffboarder[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`
-  );
+  Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
   // find the min overcollateralization config for this token
   const tokenConfig = offboarderConfig.tokens[collateralToken.symbol];
   if (!tokenConfig) {
-    console.warn(`TermOffboarder: Cannot find ${collateralToken.symbol} in offboarder config`);
+    Warn(`Cannot find ${collateralToken.symbol} in offboarder config`);
     return false;
   }
 
   const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
-  console.log(
-    `TermOffboarder[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${tokenConfig.minOvercollateralization}`
+  Log(
+    `[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${tokenConfig.minOvercollateralization}`
   );
 
   if (currentOvercollateralization < tokenConfig.minOvercollateralization) {

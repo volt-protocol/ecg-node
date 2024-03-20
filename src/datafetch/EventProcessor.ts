@@ -2,10 +2,11 @@ import { EventData, EventQueue } from '../utils/EventQueue';
 import { buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
 import { SendNotifications } from '../utils/Notifications';
+import { Log } from '../utils/Logger';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
-  console.log('Started the event processor');
+  Log('Started the event processor');
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -15,14 +16,14 @@ export async function StartEventProcessor() {
         await ProcessAsync(event);
       }
     } else {
-      // console.log('EventProcessor: sleeping');
+      // Log('EventProcessor: sleeping');
       await sleep(1000);
     }
   }
 }
 
 async function ProcessAsync(event: EventData) {
-  console.log(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
   if (mustUpdateProtocol(event)) {
     if (lastBlockFetched < event.block) {
       await FetchECGData();
@@ -32,7 +33,7 @@ async function ProcessAsync(event: EventData) {
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
     // await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
-    console.log(msg);
+    Log(msg);
   }
 }
 
@@ -55,12 +56,12 @@ function mustUpdateProtocol(event: EventData): boolean {
 function guildTokenMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      console.log(`GuildToken ${event.eventName} is not important`);
+      Log(`GuildToken ${event.eventName} is not important`);
       return false;
     case 'addgauge':
     case 'incrementgaugeweight':
     case 'decrementgaugeweight':
-      console.log(`GuildToken ${event.eventName} must force an update`);
+      Log(`GuildToken ${event.eventName} must force an update`);
       return true;
   }
 }
@@ -68,7 +69,7 @@ function guildTokenMustUpdate(event: EventData): boolean {
 function lendingTermMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      console.log(`LendingTerm ${event.eventName} is not important`);
+      Log(`LendingTerm ${event.eventName} is not important`);
       return false;
     case 'loanopen':
     case 'loanaddcollateral':
@@ -76,7 +77,7 @@ function lendingTermMustUpdate(event: EventData): boolean {
     case 'loanclose':
     case 'loancall':
     case 'setauctionhouse':
-      console.log(`LendingTerm ${event.eventName} must force an update`);
+      Log(`LendingTerm ${event.eventName} must force an update`);
       return true;
   }
 }

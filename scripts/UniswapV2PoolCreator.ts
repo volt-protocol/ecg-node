@@ -14,7 +14,7 @@ const _1e18 = 10n ** 18n;
 const uniswapv2RouterAddress = '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008';
 
 async function UniswapV2PoolCreator() {
-  console.log('UniswapV2PoolCreator: starting');
+  Log('UniswapV2PoolCreator: starting');
   const WBTC = getTokenBySymbol('WBTC');
   const USDC = getTokenBySymbol('USDC');
 
@@ -41,10 +41,10 @@ async function UniswapV2PoolCreator() {
   while (!txFinished) {
     const txReceipt = await web3Provider.getTransactionReceipt(tx.hash);
     if (txReceipt && txReceipt.blockNumber) {
-      console.log(`transaction has been mined in block ${txReceipt.blockNumber}`);
+      Log(`transaction has been mined in block ${txReceipt.blockNumber}`);
       txFinished = true;
     } else {
-      console.log(`waiting for transaction ${tx.hash} to be mined`);
+      Log(`waiting for transaction ${tx.hash} to be mined`);
       await sleep(5000);
     }
   }

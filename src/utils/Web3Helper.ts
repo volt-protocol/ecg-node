@@ -2,6 +2,7 @@ import { BaseContract, ContractEventName, EventLog, JsonRpcProvider, ethers } fr
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import axios from 'axios';
+import { Log } from './Logger';
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -50,7 +51,7 @@ export async function FetchAllEvents(
   const extractedArray: any[] = [];
 
   const initBlockStep = 100_000;
-  //console.log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
+  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
   let toBlock = 0;
@@ -65,7 +66,7 @@ export async function FetchAllEvents(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      // console.log(`query filter error: ${e.toString()}`);
+      // Log(`query filter error: ${e.toString()}`);
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -73,7 +74,7 @@ export async function FetchAllEvents(
       toBlock = 0;
       cptError++;
       if (cptError >= 15) {
-        console.log(`getPastEvents error: ${e}`);
+        Log(`getPastEvents error: ${e}`);
         throw e;
       }
       await sleep(5000);
@@ -114,7 +115,7 @@ export async function FetchAllEvents(
       blockStep = blockStep * 2;
     }
 
-    /*console.log(
+    /*Log(
       `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
         toBlock - fromBlock + 1
       } blocks). Current results: ${extractedArray.length}`
@@ -128,7 +129,7 @@ export async function FetchAllEvents(
     }
   }
 
-  /*console.log(
+  /*Log(
     `${logPrefix}: found ${extractedArray.length} events in range [${startBlock} ${targetBlock}]`
   );*/
   return extractedArray;
@@ -146,7 +147,7 @@ export async function FetchAllEventsAndExtractStringArray(
   const extractedArray: Set<string> = new Set<string>();
 
   const initBlockStep = 100_000;
-  //console.log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
+  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
   let toBlock = 0;
@@ -161,7 +162,7 @@ export async function FetchAllEventsAndExtractStringArray(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      // console.log(`query filter error: ${e.toString()}`);
+      // Log(`query filter error: ${e.toString()}`);
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -169,7 +170,7 @@ export async function FetchAllEventsAndExtractStringArray(
       toBlock = 0;
       cptError++;
       if (cptError >= 15) {
-        console.log(`getPastEvents error: ${e}`);
+        Log(`getPastEvents error: ${e}`);
         throw e;
       }
       await sleep(5000);
@@ -204,7 +205,7 @@ export async function FetchAllEventsAndExtractStringArray(
       blockStep = blockStep * 2;
     }
 
-    /*console.log(
+    /*Log(
       `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
         toBlock - fromBlock + 1
       } blocks). Current results: ${extractedArray.size}`
@@ -218,7 +219,7 @@ export async function FetchAllEventsAndExtractStringArray(
     }
   }
 
-  /*console.log(
+  /*Log(
     `${logPrefix}: found ${extractedArray.size} ${argNames.join(',')} in range [${startBlock} ${targetBlock}]`
   );*/
   return Array.from(extractedArray);

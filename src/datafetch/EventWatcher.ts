@@ -6,6 +6,7 @@ import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import { GetGuildTokenAddress } from '../config/Config';
 import { GuildToken__factory } from '../contracts/types';
 import { GetWeb3Provider } from '../utils/Web3Helper';
+import { Log } from '../utils/Logger';
 dotenv.config();
 
 const provider = GetWeb3Provider(15000);
@@ -13,7 +14,7 @@ const provider = GetWeb3Provider(15000);
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
 export function StartEventListener() {
-  console.log('Starting/restarting events listener');
+  Log('Starting/restarting events listener');
   StartGuildTokenListener();
   StartLendingTermListener();
 }
@@ -25,9 +26,9 @@ export function StartGuildTokenListener() {
     guildTokenContract.removeAllListeners();
   }
 
-  console.log('Started the event listener');
+  Log('Started the event listener');
   guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
-  console.log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
+  Log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
 
   const iface = new Interface(GuildTokenAbi);
 
@@ -38,7 +39,7 @@ export function StartGuildTokenListener() {
     const parsed = iface.parseLog(event.log);
 
     if (!parsed) {
-      console.log('Could not parse event', { event });
+      Log('Could not parse event', { event });
       return;
     }
 
@@ -62,7 +63,7 @@ export function StartLendingTermListener() {
     termContract.removeAllListeners();
   }
   termsContracts = [];
-  console.log('Started the event listener');
+  Log('Started the event listener');
   const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
 
   // get all lending terms (gauges) from the guild token to start a listener on each one
@@ -70,7 +71,7 @@ export function StartLendingTermListener() {
     for (const lendingTermAddress of terms) {
       const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
       termsContracts.push(termContract);
-      console.log(`Starting listener on term ${lendingTermAddress}`);
+      Log(`Starting listener on term ${lendingTermAddress}`);
       const iface = new Interface(LendingTermAbi);
 
       termContract.removeAllListeners();
@@ -80,7 +81,7 @@ export function StartLendingTermListener() {
         const parsed = iface.parseLog(event.log);
 
         if (!parsed) {
-          console.log('Could not parse event', { event });
+          Log('Could not parse event', { event });
           return;
         }
 

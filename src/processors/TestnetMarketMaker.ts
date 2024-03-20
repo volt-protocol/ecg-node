@@ -10,6 +10,7 @@ import { DATA_DIR } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
 import { MarketMakerState } from '../model/MarketMakerState';
+import { Log } from '../utils/Logger';
 
 const RUN_EVERY_SEC = 120;
 
@@ -27,8 +28,8 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.jso
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = 'TESTNET_MARKET_MAKER';
-    console.log('TestnetMarketMaker: starting');
+    process.title = 'ECG_NODE_TESTNET_MARKET_MAKER';
+    Log('starting');
     const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
 
     const rpcURL = process.env.RPC_URL;
@@ -57,7 +58,7 @@ async function TestnetMarketMaker() {
       const threshold = config.threshold;
       const pairAddress = config.uniswapPairs[i].poolAddress;
       const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
-      console.log(`TestnetMarketMaker: checking pair ${token0.symbol}-${token1.symbol}`);
+      Log(`checking pair ${token0.symbol}-${token1.symbol}`);
 
       const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
       const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
@@ -68,14 +69,10 @@ async function TestnetMarketMaker() {
         Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
       const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
-      console.log(
-        `TestnetMarketMaker: price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`
-      );
+      Log(`price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`);
 
       if (diff < threshold) {
-        console.log(
-          `TestnetMarketMaker: pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`
-        );
+        Log(`pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`);
       } else {
         // if we have to swap token0 for token1
         if (spotRatio < targetRatio) {
@@ -90,11 +87,10 @@ async function TestnetMarketMaker() {
               Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
               Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
           }
-          console.log(
-            `TestnetMarketMaker: swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(
-              amountOut,
-              token1.decimals
-            )} ${token1.symbol}`
+          Log(
+            `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${
+              token1.symbol
+            }`
           );
 
           // approve token0 to the router
@@ -123,11 +119,10 @@ async function TestnetMarketMaker() {
               Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
               Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
           }
-          console.log(
-            `TestnetMarketMaker: swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(
-              amountOut,
-              token0.decimals
-            )} ${token0.symbol}`
+          Log(
+            `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${
+              token0.symbol
+            }`
           );
 
           await swapExactTokensForTokens(
@@ -184,7 +179,7 @@ async function TestnetMarketMaker() {
     }
 
     saveLastState(marketMakerState);
-    console.log(`TestnetMarketMaker: sleeping ${RUN_EVERY_SEC} seconds`);
+    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }

@@ -4,6 +4,7 @@ import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constan
 import fs from 'fs';
 import path from 'path';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
+import { Log } from './Logger';
 
 export function JsonBigIntReplacer(key: string, value: any) {
   if (typeof value === 'bigint') {
@@ -47,7 +48,7 @@ export async function WaitUntilScheduled(startDateMs: number, runEverySec: numbe
   const durationSec = (now - startDateMs) / 1000;
   const timeToSleepSec = runEverySec - durationSec;
   if (timeToSleepSec > 0) {
-    console.log(`WaitUntilScheduled: sleeping ${timeToSleepSec} seconds`);
+    Log(`WaitUntilScheduled: sleeping ${timeToSleepSec} seconds`);
     await sleep(timeToSleepSec * 1000);
   }
 }
@@ -74,12 +75,12 @@ export async function retry<T extends (...arg0: any[]) => any>(
     return result;
   } catch (e) {
     if (currRetry >= maxTry) {
-      console.log(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
+      Log(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
       throw e;
     }
-    console.log(`Retry ${currRetry} failed: ${e}`);
-    // console.log(e);
-    console.log(`Waiting ${retryCount} second(s)`);
+    Log(`Retry ${currRetry} failed: ${e}`);
+    // Log(e);
+    Log(`Waiting ${retryCount} second(s)`);
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
   }
@@ -94,7 +95,7 @@ export function GetProtocolData(): ProtocolData {
   const protocolDataFilename = path.join(DATA_DIR, 'protocol-data.json');
 
   const protocolDataFile = ReadJSON(protocolDataFilename) as ProtocolDataFileStructure;
-  console.log(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
+  Log(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
 
   if (protocolDataFile.updated < Date.now() - 2 * 3600 * 1000) {
     throw new Error(`Protocol data outdated: ${protocolDataFile.updatedHuman}`);

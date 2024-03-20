@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { Log } from '../../utils/Logger';
 
 const loggerMiddleware = (req: Request, _: Response, next: NextFunction) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  Log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 };
 

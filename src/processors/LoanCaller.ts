@@ -9,6 +9,7 @@ import { LendingTerm__factory } from '../contracts/types';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
+import { Log } from '../utils/Logger';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
@@ -16,8 +17,8 @@ const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = 'LOAN_CALLER';
-    console.log('LoanCaller: starting');
+    process.title = 'ECG_NODE_LOAN_CALLER';
+    Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
@@ -39,7 +40,7 @@ async function LoanCaller() {
     const loansToCall: { [termAddress: string]: string[] } = {};
 
     const loansToCheck = loanFileData.loans.filter((_) => _.status == LoanStatus.ACTIVE);
-    console.log(`LoanCaller: will check ${loansToCheck.length} loans`);
+    Log(`will check ${loansToCheck.length} loans`);
     for (const loan of loansToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == loan.lendingTermAddress);
       if (!term) {
@@ -51,8 +52,8 @@ async function LoanCaller() {
       const partialRepayDelayPassed = checkPartialRepayDelayPassed(loan, term);
 
       if (termDeprecated || aboveMaxBorrow || partialRepayDelayPassed) {
-        console.log(
-          `LoanCaller: Call needed on Term: ${term.termAddress} / loan ${loan.id} ` +
+        Log(
+          `Call needed on Term: ${term.termAddress} / loan ${loan.id} ` +
             `(termDeprecated: ${termDeprecated}, aboveMaxBorrow: ${aboveMaxBorrow}, partialRepayDelayPassed: ${partialRepayDelayPassed})`
         );
         if (!loansToCall[loan.lendingTermAddress]) {
@@ -65,7 +66,7 @@ async function LoanCaller() {
 
     // call if any
     await callMany(loansToCall);
-    console.log(`LoanCaller: sleeping ${RUN_EVERY_SEC} seconds`);
+    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }

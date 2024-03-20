@@ -24,6 +24,7 @@ import { FetchAllEvents, FetchAllEventsAndExtractStringArray, GetWeb3Provider } 
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { FileMutex } from '../utils/FileMutex';
+import { Log } from '../utils/Logger';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -36,10 +37,10 @@ export async function FetchECGData() {
   lastFetch = Date.now();
 
   const currentBlock = await web3Provider.getBlockNumber();
-  console.log(`FetchECGData: fetching data up to block ${currentBlock}`);
+  Log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
   const syncData: SyncData = getSyncData();
-  console.log('FetchECGData: fetching');
+  Log('FetchECGData: fetching');
   const protocolData = await fetchAndSaveProtocolData(web3Provider);
   const terms = await fetchAndSaveTerms(web3Provider, protocolData);
   const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
@@ -47,7 +48,7 @@ export async function FetchECGData() {
   const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
 
   WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
-  console.log('FetchECGData: finished fetching');
+  Log('FetchECGData: finished fetching');
   await FileMutex.Unlock();
 }
 
@@ -81,7 +82,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
   const promises: any[] = [];
   promises.push(profitManagerContract.minBorrow());
   for (const lendingTermAddress of gauges) {
-    console.log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
+    Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
     const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
     promises.push(lendingTermContract.getParameters());
     promises.push(lendingTermContract.issuance());
@@ -90,9 +91,9 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
   }
 
   // wait the promises
-  console.log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
+  Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
   await Promise.all(promises);
-  console.log('FetchECGData[Terms]: end multicall');
+  Log('FetchECGData[Terms]: end multicall');
 
   const lendingTerms: LendingTerm[] = [];
   let cursor = 0;
@@ -170,7 +171,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
 function getSyncData() {
   const syncDataPath = path.join(DATA_DIR, 'sync.json');
   if (!fs.existsSync(syncDataPath)) {
-    // console.log(APP_ENV);
+    // Log(APP_ENV);
     // create the sync file
     const syncData: SyncData = {
       termSync: [],
@@ -199,7 +200,7 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
     }
   }
 
-  console.log('FetchECGData[Gauges]: getting gauges infos');
+  Log('FetchECGData[Gauges]: getting gauges infos');
 
   // load existing gauges from file if it exists
   let gaugesFile: GaugesFileStructure = {
@@ -268,7 +269,7 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
   };
   syncData.gaugeSync.lastBlockFetched = currentBlock;
 
-  console.log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
+  Log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
 }
 
 async function fetchAndSaveLoans(
@@ -356,9 +357,9 @@ async function fetchLoansInfo(
     promises.push(lendingTermContract.getLoan(loanData.loanId));
   }
 
-  console.log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
+  Log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('FetchECGData[Loans]: end multicall');
+  Log('FetchECGData[Loans]: end multicall');
 
   let cursor = 0;
   const allLoans: Loan[] = [];
@@ -483,9 +484,9 @@ async function fetchAuctionsInfo(
     promises.push(auctionHouseContract.getAuction(auctionData.loanId));
   }
 
-  console.log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
+  Log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  console.log('FetchECGData[Auctions]: end multicall');
+  Log('FetchECGData[Auctions]: end multicall');
 
   let cursor = 0;
   const allAuctions: Auction[] = [];
@@ -509,9 +510,9 @@ async function fetchAuctionsInfo(
 
 export async function FetchIfTooOld() {
   if (lastFetch + SECONDS_BETWEEN_FETCHES * 1000 > Date.now()) {
-    console.log('FetchIfTooOld: no fetch needed');
+    Log('FetchIfTooOld: no fetch needed');
   } else {
-    console.log('FetchIfTooOld: start fetching data');
+    Log('FetchIfTooOld: start fetching data');
     await FetchECGData();
   }
 }

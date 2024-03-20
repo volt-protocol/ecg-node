@@ -17,7 +17,7 @@ const web3Provider = GetWeb3Provider();
 const privateKey = process.env.LOAN_OPENER_PRIVATE_KEY;
 const _1e18 = 10n ** 18n;
 async function LoanOpener() {
-  console.log('LoanOpener: starting');
+  Log('LoanOpener: starting');
   const signer = new ethers.Wallet(privateKey!, web3Provider);
   const lendingTerm = LendingTerm__factory.connect(LENDING_TERM, signer);
 
@@ -28,10 +28,10 @@ async function LoanOpener() {
   while (!txFinished) {
     const txReceipt = await web3Provider.getTransactionReceipt(borrowTx.hash);
     if (txReceipt && txReceipt.blockNumber) {
-      console.log(`transaction has been mined in block ${txReceipt.blockNumber}`);
+      Log(`transaction has been mined in block ${txReceipt.blockNumber}`);
       txFinished = true;
     } else {
-      console.log(`waiting for transaction ${borrowTx.hash} to be mined`);
+      Log(`waiting for transaction ${borrowTx.hash} to be mined`);
       await sleep(5000);
     }
   }

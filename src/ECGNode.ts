@@ -8,11 +8,12 @@ import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
 import { GetNodeConfig, sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
+import { Log } from './utils/Logger';
 dotenv.config();
 
 async function main() {
   process.title = 'ECG_NODE';
-  console.log('[ECG-NODE] STARTED');
+  Log('[ECG-NODE] STARTED');
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
@@ -73,14 +74,14 @@ async function startProcessors(nodeConfig: NodeConfig) {
 
 function startWithSpawn(processorName: string) {
   const nodeProcessFullPath = path.join(process.cwd(), 'processors', `${processorName}.js`);
-  console.log(`Starting ${nodeProcessFullPath}`);
+  Log(`Starting ${nodeProcessFullPath}`);
   const child = spawn('node', [nodeProcessFullPath], { stdio: 'inherit' });
 
   child.on('close', (code) => {
-    console.log(`Child process exited with code ${code}. Restarting after 10sec`);
+    Log(`Child process exited with code ${code}. Restarting after 10sec`);
     setTimeout(() => startWithSpawn(processorName), 10000);
   });
 
-  console.log(`Started ${nodeProcessFullPath}`);
+  Log(`Started ${nodeProcessFullPath}`);
 }
 main();
