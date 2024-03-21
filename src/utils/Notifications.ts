@@ -17,17 +17,21 @@ export async function SendNotifications(sender: string, title: string, msg: stri
     discordHookUrl = process.env.DISCORD_WEBHOOK_URL;
   }
 
-  let tgPromise = Promise.resolve();
-  let discordPromise = Promise.resolve();
-  if (tgBotId && tgChatId) {
-    tgPromise = retry(SendTelegramMessage, [tgBotId, tgChatId, `[${sender}] ${title}\n${msg}`]);
+  // both channels
+  if (tgBotId && tgChatId && discordHookUrl) {
+    await Promise.all([
+      retry(SendTelegramMessage, [tgBotId, tgChatId, `[${sender}] ${title}\n${msg}`]),
+      retry(SendDiscordMessage, [discordHookUrl, sender, title, msg])
+    ]);
   }
-
-  if (discordHookUrl) {
-    discordPromise = retry(SendDiscordMessage, [discordHookUrl, sender, title, msg]);
+  // only tg
+  else if (tgBotId && tgChatId) {
+    await retry(SendTelegramMessage, [tgBotId, tgChatId, `[${sender}] ${title}\n${msg}`]);
   }
-
-  await Promise.all([tgPromise, discordPromise]);
+  // only discord
+  else if (discordHookUrl) {
+    await retry(SendDiscordMessage, [discordHookUrl, sender, title, msg]);
+  }
 }
 
 export async function SendNotificationsList(

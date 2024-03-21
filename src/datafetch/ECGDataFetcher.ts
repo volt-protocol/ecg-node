@@ -35,21 +35,26 @@ const web3Provider = GetWeb3Provider();
 export async function FetchECGData() {
   await FileMutex.Lock();
   lastFetch = Date.now();
+  try {
+    const currentBlock = await web3Provider.getBlockNumber();
+    Log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
-  const currentBlock = await web3Provider.getBlockNumber();
-  Log(`FetchECGData: fetching data up to block ${currentBlock}`);
+    const syncData: SyncData = getSyncData();
+    Log('FetchECGData: fetching');
+    const protocolData = await fetchAndSaveProtocolData(web3Provider);
+    const terms = await fetchAndSaveTerms(web3Provider, protocolData);
+    const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
+    const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
+    const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
 
-  const syncData: SyncData = getSyncData();
-  Log('FetchECGData: fetching');
-  const protocolData = await fetchAndSaveProtocolData(web3Provider);
-  const terms = await fetchAndSaveTerms(web3Provider, protocolData);
-  const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
-  const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
-  const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
-
-  WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
-  Log('FetchECGData: finished fetching');
-  await FileMutex.Unlock();
+    WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
+    Log('FetchECGData: finished fetching');
+  } catch (e) {
+    Log('FetchECGData: unknown failure', e);
+    lastFetch = 0;
+  } finally {
+    await FileMutex.Unlock();
+  }
 }
 
 async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
