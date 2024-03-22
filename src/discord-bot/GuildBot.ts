@@ -14,6 +14,8 @@ import { mkdirSync } from 'fs';
 import { LinkWalletCommand } from './commands/users/LinkWallet';
 import { OpenLoansCommand } from './commands/users/OpenLoans';
 import { LoanDetailsCommand } from './commands/users/LoanDetails';
+import { UnlinkWalletCommand } from './commands/users/UnlinkWallet';
+import { ListWalletsCommands } from './commands/users/ListWallets';
 dotenv.config();
 const TOKEN = process.env.BOT_TOKEN;
 
@@ -30,7 +32,14 @@ client.once(Events.ClientReady, (readyClient) => {
 
   if (client.application) {
     client.application.commands
-      .set([PingCommand.cmd, LinkWalletCommand.cmd, OpenLoansCommand.cmd, LoanDetailsCommand.cmd])
+      .set([
+        PingCommand.cmd,
+        LinkWalletCommand.cmd,
+        UnlinkWalletCommand.cmd,
+        OpenLoansCommand.cmd,
+        LoanDetailsCommand.cmd,
+        ListWalletsCommands.cmd
+      ])
       .then((_) => {
         console.log('Reloaded commands');
       });
@@ -55,6 +64,14 @@ client.on('interactionCreate', async (interaction) => {
     }
     case LoanDetailsCommand.cmd.name: {
       await LoanDetailsCommand.execute(interaction);
+      break;
+    }
+    case UnlinkWalletCommand.cmd.name: {
+      await UnlinkWalletCommand.execute(interaction);
+      break;
+    }
+    case ListWalletsCommands.cmd.name: {
+      await ListWalletsCommands.execute(interaction);
       break;
     }
   }

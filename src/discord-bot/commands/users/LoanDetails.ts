@@ -7,11 +7,8 @@ import {
 } from 'discord.js';
 import path from 'path';
 import { DATA_DIR } from '../../../utils/Constants';
-import fs from 'fs';
-import { ReadJSON, WriteJSON } from '../../../utils/Utils';
-import { DiscordUserSavedData } from '../../model/DiscordUserSavedData';
-import { ethers } from 'ethers';
-import { LoanStatus, LoansFileStructure } from '../../../model/Loan';
+import { ReadJSON } from '../../../utils/Utils';
+import { LoansFileStructure } from '../../../model/Loan';
 
 export class LoanDetailsCommand {
   static cmd: ApplicationCommandData = {
@@ -21,6 +18,7 @@ export class LoanDetailsCommand {
       {
         name: 'loanid',
         description: 'The loan id you want to get the detail',
+        required: true,
         type: ApplicationCommandOptionType.String
       }
     ]
