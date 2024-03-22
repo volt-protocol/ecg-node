@@ -8,12 +8,19 @@ import {
 } from 'discord.js';
 import * as dotenv from 'dotenv';
 import { PingCommand } from './commands/utility/Ping';
-import { UserCommand } from './commands/utility/User';
-import { ServerCommand } from './commands/utility/Server';
+import path from 'path';
+import { DATA_DIR } from '../utils/Constants';
+import { mkdirSync } from 'fs';
+import { LinkWalletCommand } from './commands/users/LinkWallet';
+import { OpenLoansCommand } from './commands/users/OpenLoans';
+import { LoanDetailsCommand } from './commands/users/LoanDetails';
 dotenv.config();
 const TOKEN = process.env.BOT_TOKEN;
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const userDataDir = path.join(DATA_DIR, 'bot', 'users');
+mkdirSync(userDataDir, { recursive: true });
 
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
@@ -22,9 +29,11 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
 
   if (client.application) {
-    client.application.commands.set([PingCommand.cmd, UserCommand.cmd, ServerCommand.cmd]).then((_) => {
-      console.log('Reloaded commands');
-    });
+    client.application.commands
+      .set([PingCommand.cmd, LinkWalletCommand.cmd, OpenLoansCommand.cmd, LoanDetailsCommand.cmd])
+      .then((_) => {
+        console.log('Reloaded commands');
+      });
   }
 });
 
@@ -36,12 +45,16 @@ client.on('interactionCreate', async (interaction) => {
       await PingCommand.execute(interaction);
       break;
     }
-    case 'user': {
-      await UserCommand.execute(interaction);
+    case LinkWalletCommand.cmd.name: {
+      await LinkWalletCommand.execute(interaction);
       break;
     }
-    case 'server': {
-      await ServerCommand.execute(interaction);
+    case OpenLoansCommand.cmd.name: {
+      await OpenLoansCommand.execute(interaction);
+      break;
+    }
+    case LoanDetailsCommand.cmd.name: {
+      await LoanDetailsCommand.execute(interaction);
       break;
     }
   }

@@ -9,7 +9,7 @@ export class PingCommand {
   static async execute(interaction: CommandInteraction) {
     const reply: InteractionReplyOptions = {
       ephemeral: true,
-      content: `Pong ${interaction.user.displayName}`
+      content: `Pong, ${interaction.user.displayName}!`
     };
     await interaction.reply(reply);
   }
