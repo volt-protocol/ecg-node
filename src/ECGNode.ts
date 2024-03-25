@@ -9,6 +9,7 @@ import { NodeConfig } from './model/NodeConfig';
 import { GetNodeConfig, sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
+import { LoadConfiguration } from './config/Config';
 dotenv.config();
 
 async function main() {
@@ -17,6 +18,9 @@ async function main() {
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
+
+  // load external config
+  await LoadConfiguration();
 
   // load configuration from working dir
   const nodeConfig = GetNodeConfig();

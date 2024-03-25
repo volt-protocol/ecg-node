@@ -2,7 +2,7 @@ import { JsonRpcProvider, ethers } from 'ethers';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR } from '../utils/Constants';
+import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
 import {
   AuctionHouse,
@@ -112,6 +112,14 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
     const issuance: bigint = await promises[cursor++];
     const debtCeiling: bigint = await promises[cursor++];
     const auctionHouseAddress: string = await promises[cursor++];
+
+    // only save correct gauge type
+    if (Number(gaugeType) != MARKET_ID) {
+      console.log(
+        `FetchECGData[Terms]: ignoring lending term: ${lendingTermAddress} because gaugeType == ${gaugeType}`
+      );
+      continue;
+    }
 
     const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
     const availableDebt = issuance > realCap ? 0n : realCap - issuance;

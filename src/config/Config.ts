@@ -40,36 +40,6 @@ async function LoadTokens() {
   }
 }
 
-export const TOKENS: TokenConfig[] = [
-  {
-    address: '0x7b8b4418990e4Daf35F5c7f0165DC487b1963641',
-    mainnetAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-    symbol: 'USDC',
-    decimals: 6,
-    permitAllowed: true
-  },
-  {
-    address: '0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60',
-    mainnetAddress: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-    symbol: 'WBTC',
-    decimals: 8,
-    permitAllowed: true
-  },
-  {
-    address: '0x9F07498d9f4903B10dB57a3Bd1D91b6B64AEd61e',
-    mainnetAddress: '0x83f20f44975d03b1b09e64809b757c47f942beea',
-    symbol: 'sDAI',
-    decimals: 18,
-    permitAllowed: true
-  },
-  {
-    address: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
-    symbol: 'gUSDC',
-    decimals: 18,
-    permitAllowed: true
-  }
-];
-
 export interface TokenConfig {
   address: string;
   // usefull to get price from true mainnet tokens
@@ -85,7 +55,7 @@ export interface TokenConfig {
  * @param symbol
  */
 export function getTokenBySymbol(symbol: string) {
-  const token = TOKENS.find((_) => _.symbol == symbol);
+  const token = tokens.find((_) => _.symbol == symbol);
   if (!token) {
     throw new Error(`Could not find token with symbol: ${symbol}`);
   }
@@ -98,7 +68,7 @@ export function getTokenBySymbol(symbol: string) {
  * @param symbol
  */
 export function getTokenByAddress(address: string) {
-  const token = TOKENS.find((_) => _.address == address);
+  const token = tokens.find((_) => _.address == address);
   if (!token) {
     throw new Error(`Could not find token with address: ${address}`);
   }
@@ -107,37 +77,37 @@ export function getTokenByAddress(address: string) {
 }
 
 export function GetDeployBlock() {
-  return PROTOCOL_CONSTANTS[APP_ENV].deployBlock;
+  return configuration.deployBlock;
 }
 
 export function GetGuildTokenAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].guildTokenAddress;
+  return configuration.guildTokenAddress;
 }
 
 export function GetCreditTokenAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].creditTokenAddress;
+  return configuration.creditTokenAddress;
 }
 
 export function GetProfitManagerAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].profitManagerAddress;
+  return configuration.profitManagerAddress;
 }
 
 export function GetLendingTermOffboardingAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOffboardingAddress;
+  return configuration.lendingTermOffboardingAddress;
 }
 
 export function GetLendingTermOnboardingAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].lendingTermOnboardingAddress;
+  return configuration.lendingTermOnboardingAddress;
 }
 
 export function GetUniswapV2RouterAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].uniswapV2RouterAddress;
+  return configuration.uniswapV2RouterAddress;
 }
 
 export function GetGatewayAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].gatewayAddress;
+  return configuration.gatewayAddress;
 }
 
 export function GetPSMAddress() {
-  return PROTOCOL_CONSTANTS[APP_ENV].psmAddress;
+  return configuration.psmAddress;
 }
