@@ -7,6 +7,9 @@ import { GetGuildTokenAddress } from '../config/Config';
 import { GuildToken__factory } from '../contracts/types';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
+import { MulticallWrapper } from 'ethers-multicall-provider';
+import { GetGaugeForMarketId } from '../utils/ECGHelper';
+import { MARKET_ID } from '../utils/Constants';
 dotenv.config();
 
 const provider = GetWeb3Provider(15000);
@@ -64,10 +67,10 @@ export function StartLendingTermListener() {
   }
   termsContracts = [];
   Log('Started the event listener');
-  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
+  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), MulticallWrapper.wrap(provider));
 
   // get all lending terms (gauges) from the guild token to start a listener on each one
-  guildTokenContract.gauges().then((terms) => {
+  GetGaugeForMarketId(guildTokenContract, MARKET_ID, true).then((terms) => {
     for (const lendingTermAddress of terms) {
       const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
       termsContracts.push(termContract);

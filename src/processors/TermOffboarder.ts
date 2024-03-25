@@ -4,7 +4,12 @@ import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUr
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
 import { GetTokenPrice } from '../utils/Price';
-import { GetLendingTermOffboardingAddress, getTokenByAddress, getTokenBySymbol } from '../config/Config';
+import {
+  GetLendingTermOffboardingAddress,
+  LoadConfiguration,
+  getTokenByAddress,
+  getTokenBySymbol
+} from '../config/Config';
 import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
@@ -21,6 +26,8 @@ TermOffboarder();
 async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     const startDate = Date.now();
     const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
 

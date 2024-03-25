@@ -4,7 +4,7 @@ import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
 import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
-import { GetLendingTermOnboardingAddress, TOKENS } from '../config/Config';
+import { GetLendingTermOnboardingAddress, LoadConfiguration, TOKENS } from '../config/Config';
 import { sleep } from '../utils/Utils';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
@@ -28,6 +28,8 @@ async function TermOnboardingWatcher() {
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     const onboardingAddress = GetLendingTermOnboardingAddress();
 
     if (onboardingContract) {

@@ -25,6 +25,7 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
+import { GetGaugeForMarketId } from '../utils/ECGHelper';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -79,17 +80,16 @@ async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<
 }
 
 async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: ProtocolData) {
-  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
-  const gauges = await guildTokenContract.gauges();
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
+  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false, undefined);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promises: any[] = [];
   promises.push(profitManagerContract.minBorrow());
   for (const lendingTermAddress of gauges) {
     Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
     const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
-    promises.push(guildTokenContract.gaugeType(lendingTermAddress));
     promises.push(lendingTermContract.getParameters());
     promises.push(lendingTermContract.issuance());
     promises.push(lendingTermContract['debtCeiling()']());
@@ -107,19 +107,10 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
   const creditMultiplier: bigint = protocolData.creditMultiplier;
   for (const lendingTermAddress of gauges) {
     // read promises in the same order as the multicall
-    const gaugeType: bigint = await promises[cursor++];
     const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
     const issuance: bigint = await promises[cursor++];
     const debtCeiling: bigint = await promises[cursor++];
     const auctionHouseAddress: string = await promises[cursor++];
-
-    // only save correct gauge type
-    if (Number(gaugeType) != MARKET_ID) {
-      console.log(
-        `FetchECGData[Terms]: ignoring lending term: ${lendingTermAddress} because gaugeType == ${gaugeType}`
-      );
-      continue;
-    }
 
     const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
     const availableDebt = issuance > realCap ? 0n : realCap - issuance;
