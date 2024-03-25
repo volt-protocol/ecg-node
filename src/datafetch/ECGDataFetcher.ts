@@ -89,6 +89,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
   for (const lendingTermAddress of gauges) {
     Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
     const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
+    promises.push(guildTokenContract.gaugeType(lendingTermAddress));
     promises.push(lendingTermContract.getParameters());
     promises.push(lendingTermContract.issuance());
     promises.push(lendingTermContract['debtCeiling()']());
@@ -106,6 +107,7 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
   const creditMultiplier: bigint = protocolData.creditMultiplier;
   for (const lendingTermAddress of gauges) {
     // read promises in the same order as the multicall
+    const gaugeType: bigint = await promises[cursor++];
     const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
     const issuance: bigint = await promises[cursor++];
     const debtCeiling: bigint = await promises[cursor++];

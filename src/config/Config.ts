@@ -1,30 +1,44 @@
+import axios from 'axios';
 import { ProtocolConstants } from '../model/ProtocolConstants';
-import { APP_ENV } from '../utils/Constants';
+import { APP_ENV, MARKET_ID, TOKEN_FILE, CONFIG_FILE } from '../utils/Constants';
+import { readFileSync } from 'fs';
 
-export const PROTOCOL_CONSTANTS: { [chain: string]: ProtocolConstants } = {
-  MAINNET: {
-    deployBlock: 0,
-    guildTokenAddress: '0x',
-    creditTokenAddress: '0x',
-    profitManagerAddress: '0x',
-    lendingTermOffboardingAddress: '0x',
-    lendingTermOnboardingAddress: '0x',
-    uniswapV2RouterAddress: '0x',
-    gatewayAddress: '0x',
-    psmAddress: '0x'
-  },
-  SEPOLIA: {
-    deployBlock: 5191505,
-    guildTokenAddress: '0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f',
-    creditTokenAddress: '0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1',
-    profitManagerAddress: '0x8738C00828C8E6883326EA5Ba104cAcff95808e0',
-    lendingTermOffboardingAddress: '0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405',
-    lendingTermOnboardingAddress: '0x3274ebe53c4fa1d0a59ad8fadbc6f944186b408e',
-    uniswapV2RouterAddress: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
-    gatewayAddress: '0x5852d5DA77E55a846e357FC238D2d256d7df2417',
-    psmAddress: '0xc19d710f13a725fd67021e8c45bdedffe95202e3'
+let configuration: ProtocolConstants;
+let tokens: TokenConfig[] = [];
+
+export async function LoadConfiguration() {
+  await Promise.all([LoadProtocolConstants(), LoadTokens()]);
+}
+
+async function LoadProtocolConstants() {
+  if (CONFIG_FILE.startsWith('http')) {
+    // load via axios
+    const resp = await axios.get(CONFIG_FILE);
+    configuration = resp.data[MARKET_ID];
+  } else {
+    // read from filesystem
+    configuration = JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'))[MARKET_ID];
   }
-};
+
+  if (!configuration) {
+    throw new Error(`CANNOT FIND CONFIGURATION FOR MARKET_ID ${MARKET_ID} on file ${CONFIG_FILE}`);
+  }
+}
+
+async function LoadTokens() {
+  if (CONFIG_FILE.startsWith('http')) {
+    // load via axios
+    const resp = await axios.get(TOKEN_FILE);
+    tokens = resp.data;
+  } else {
+    // read from filesystem
+    tokens = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'));
+  }
+
+  if (!tokens || tokens.length == 0) {
+    throw new Error(`CANNOT FIND TOKENS CONFIG on file ${CONFIG_FILE}`);
+  }
+}
 
 export const TOKENS: TokenConfig[] = [
   {

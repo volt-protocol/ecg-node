@@ -1,0 +1,13 @@
+{
+    "0": {
+        "deployBlock": 5191505,
+        "guildTokenAddress": "0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f",
+        "creditTokenAddress": "0x7dFF544F61b262d7218811f78c94c3b2F4e3DCA1",
+        "profitManagerAddress": "0x8738C00828C8E6883326EA5Ba104cAcff95808e0",
+        "psmAddress": "0xc19d710f13a725fd67021e8c45bdedffe95202e3",
+        "lendingTermOnboardingAddress": "0x3274ebe53c4fa1d0a59ad8fadbc6f944186b408e",
+        "lendingTermOffboardingAddress": "0xB2AED7B9dcE6826D510a2559Da83afD5a2aF9405",
+        "uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
+        "gatewayAddress": "0x5852d5DA77E55a846e357FC238D2d256d7df2417"
+    }
+}
