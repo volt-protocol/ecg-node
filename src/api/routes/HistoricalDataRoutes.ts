@@ -30,12 +30,12 @@ const HISTORICAL_CACHE_DURATION = 10 * 60 * 1000;
  *                  items:
  *                    type: number
  */
-router.get('/CreditSupply', async (_: Request, res: Response) => {
+router.get('/CreditSupply', async (req: Request, res: Response) => {
   try {
     const cacheKey = '/api/history/CreditSupply';
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetCreditSupplyHistory(),
+      () => HistoricalDataController.GetCreditSupplyHistory(getMarketIdFromRequest(req)),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
@@ -68,12 +68,12 @@ router.get('/CreditSupply', async (_: Request, res: Response) => {
  *                  items:
  *                    type: number
  */
-router.get('/CreditTotalIssuance', async (_: Request, res: Response) => {
+router.get('/CreditTotalIssuance', async (req: Request, res: Response) => {
   try {
     const cacheKey = '/api/history/CreditTotalIssuance';
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetCreditTotalIssuance(),
+      () => HistoricalDataController.GetCreditTotalIssuance(getMarketIdFromRequest(req)),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
@@ -106,12 +106,12 @@ router.get('/CreditTotalIssuance', async (_: Request, res: Response) => {
  *                  items:
  *                    type: number
  */
-router.get('/AverageInterestRate', async (_: Request, res: Response) => {
+router.get('/AverageInterestRate', async (req: Request, res: Response) => {
   try {
     const cacheKey = '/api/history/AverageInterestRate';
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetAverageInterestRate(),
+      () => HistoricalDataController.GetAverageInterestRate(getMarketIdFromRequest(req)),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
@@ -144,12 +144,12 @@ router.get('/AverageInterestRate', async (_: Request, res: Response) => {
  *                  items:
  *                    type: number
  */
-router.get('/TVL', async (_: Request, res: Response) => {
+router.get('/TVL', async (req: Request, res: Response) => {
   try {
     const cacheKey = '/api/history/TVL';
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetTVL(),
+      () => HistoricalDataController.GetTVL(getMarketIdFromRequest(req)),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
@@ -204,7 +204,7 @@ router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Respon
     const cacheKey = `/api/history/DebtCeilingIssuance/${termAddress}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetDebtCeilingIssuance(termAddress),
+      () => HistoricalDataController.GetDebtCeilingIssuance(getMarketIdFromRequest(req), termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -255,7 +255,7 @@ router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
     const cacheKey = `/api/history/GaugeWeight/${termAddress}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetGaugeWeight(termAddress),
+      () => HistoricalDataController.GetGaugeWeight(getMarketIdFromRequest(req), termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -306,7 +306,7 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
     const cacheKey = `/api/history/SurplusBuffer/${termAddress}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetSurplusBuffer(termAddress),
+      () => HistoricalDataController.GetSurplusBuffer(getMarketIdFromRequest(req), termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -349,12 +349,12 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
  *                      items:
  *                        type: number
  */
-router.get('/LoanBorrow', async (_: Request, res: Response) => {
+router.get('/LoanBorrow', async (req: Request, res: Response) => {
   try {
     const cacheKey = '/api/history/LoanBorrow';
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetLoanBorrow(),
+      () => HistoricalDataController.GetLoanBorrow(getMarketIdFromRequest(req)),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
@@ -362,5 +362,14 @@ router.get('/LoanBorrow', async (_: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+function getMarketIdFromRequest(req: Request) {
+  let marketId = Number(req.params.marketId);
+  if (!marketId || Number.isNaN(marketId)) {
+    marketId = 1;
+  }
+
+  return marketId;
+}
 
 export default router;
