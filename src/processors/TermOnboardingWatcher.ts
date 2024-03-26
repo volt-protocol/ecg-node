@@ -4,7 +4,7 @@ import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
 import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
-import { GetLendingTermOnboardingAddress, LoadConfiguration, TOKENS } from '../config/Config';
+import { GetLendingTermOnboardingAddress, getTokenByAddress, LoadConfiguration, TokenConfig } from '../config/Config';
 import { sleep } from '../utils/Utils';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
@@ -75,7 +75,14 @@ async function processEvent(event: any, web3Provider: JsonRpcProvider, iface: In
   const params = await lendingTerm.getParameters();
 
   let collateralTokenStr = params.collateralToken;
-  const foundToken = TOKENS.find((_) => _.address == collateralTokenStr);
+  let foundToken: TokenConfig | undefined = undefined;
+
+  try {
+    foundToken = getTokenByAddress(collateralTokenStr);
+  } catch (e) {
+    Log(`Cannot find token with address: ${collateralTokenStr}`);
+  }
+
   if (foundToken) {
     collateralTokenStr += ` (${foundToken.symbol})`;
   }
