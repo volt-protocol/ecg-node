@@ -82,7 +82,7 @@ async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<
 async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: ProtocolData) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
   const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-  const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false, undefined);
+  const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
   const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promises: any[] = [];
@@ -297,7 +297,7 @@ async function fetchAndSaveLoans(
     updatedHuman: new Date(Date.now()).toISOString()
   };
 
-  const allNewLoandsIds: { termAddress: string; loanId: string }[] = [];
+  const allNewLoansIds: { termAddress: string; loanId: string }[] = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
     const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
@@ -317,7 +317,7 @@ async function fetchAndSaveLoans(
       currentBlock
     );
 
-    allNewLoandsIds.push(
+    allNewLoansIds.push(
       ...newLoanIds.map((_) => {
         return { termAddress: term.termAddress, loanId: _ };
       })
@@ -333,11 +333,17 @@ async function fetchAndSaveLoans(
     }
   }
 
-  const allLoanIds = alreadySavedLoans.map((_) => {
-    return { termAddress: _.lendingTermAddress, loanId: _.id };
-  });
+  // only get the loan ids from the previously known loans
+  // that are not with the status closed, no use in updating loans
+  // that are closed
+  const allLoanIds = alreadySavedLoans
+    .filter((_) => _.status != LoanStatus.CLOSED)
+    .map((_) => {
+      return { termAddress: _.lendingTermAddress, loanId: _.id };
+    });
 
-  for (const newLoanId of allNewLoandsIds) {
+  // add all new loansId (from the newly fetched files)
+  for (const newLoanId of allNewLoansIds) {
     if (!allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.termAddress == newLoanId.termAddress)) {
       allLoanIds.push(newLoanId);
     }
@@ -416,7 +422,7 @@ async function fetchAndSaveAuctions(
     updatedHuman: new Date(Date.now()).toISOString()
   };
 
-  const allNewLoandsIds: { auctionHouseAddress: string; loanId: string }[] = [];
+  const allNewLoansIds: { auctionHouseAddress: string; loanId: string }[] = [];
   const auctionsHouseAddresses = new Set<string>(terms.map((_) => _.auctionHouseAddress));
   for (const auctionHouseAddress of auctionsHouseAddresses) {
     // check if we already have a sync data about this term
@@ -437,7 +443,7 @@ async function fetchAndSaveAuctions(
       currentBlock
     );
 
-    allNewLoandsIds.push(
+    allNewLoansIds.push(
       ...newLoanIds.map((_) => {
         return { auctionHouseAddress: auctionHouseAddress, loanId: _ };
       })
@@ -458,11 +464,13 @@ async function fetchAndSaveAuctions(
     }
   }
 
-  const allLoanIds = alreadySavedAuctions.map((_) => {
-    return { auctionHouseAddress: _.auctionHouseAddress, loanId: _.loanId };
-  });
+  const allLoanIds = alreadySavedAuctions
+    .filter((_) => _.status != AuctionStatus.CLOSED)
+    .map((_) => {
+      return { auctionHouseAddress: _.auctionHouseAddress, loanId: _.loanId };
+    });
 
-  for (const newLoanId of allNewLoandsIds) {
+  for (const newLoanId of allNewLoansIds) {
     if (
       !allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.auctionHouseAddress == newLoanId.auctionHouseAddress)
     ) {
