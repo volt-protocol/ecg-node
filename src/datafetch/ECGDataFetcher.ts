@@ -292,7 +292,7 @@ async function fetchAndSaveLoans(
   }
 
   const updateLoans: LoansFileStructure = {
-    loans: [],
+    loans: alreadySavedLoans.filter((_) => _.status == LoanStatus.CLOSED),
     updated: Date.now(),
     updatedHuman: new Date(Date.now()).toISOString()
   };
@@ -351,7 +351,7 @@ async function fetchAndSaveLoans(
 
   // fetch data for all loans
   const allUpdatedLoans: Loan[] = await fetchLoansInfo(allLoanIds, web3Provider);
-  updateLoans.loans = allUpdatedLoans;
+  updateLoans.loans.push(...allUpdatedLoans);
   const endDate = Date.now();
   updateLoans.updated = endDate;
   updateLoans.updatedHuman = new Date(endDate).toISOString();
@@ -417,7 +417,8 @@ async function fetchAndSaveAuctions(
   }
 
   const updateAuctions: AuctionsFileStructure = {
-    auctions: [],
+    // keep the closed options here
+    auctions: alreadySavedAuctions.filter((_) => _.status == AuctionStatus.CLOSED),
     updated: Date.now(),
     updatedHuman: new Date(Date.now()).toISOString()
   };
@@ -480,7 +481,7 @@ async function fetchAndSaveAuctions(
 
   // fetch data for all auctions
   const allUpdatedAuctions: Auction[] = await fetchAuctionsInfo(allLoanIds, web3Provider);
-  updateAuctions.auctions = allUpdatedAuctions;
+  updateAuctions.auctions.push(...allUpdatedAuctions);
   const endDate = Date.now();
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();
