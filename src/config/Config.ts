@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ProtocolConstants } from '../model/ProtocolConstants';
-import { APP_ENV, MARKET_ID, TOKENS_FILE, CONFIG_FILE } from '../utils/Constants';
+import { MARKET_ID, TOKENS_FILE, CONFIG_FILE } from '../utils/Constants';
 import { readFileSync } from 'fs';
 import { Log } from '../utils/Logger';
 
