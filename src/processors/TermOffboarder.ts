@@ -6,6 +6,7 @@ import { DATA_DIR } from '../utils/Constants';
 import { GetTokenPrice } from '../utils/Price';
 import {
   GetLendingTermOffboardingAddress,
+  GetPegTokenAddress,
   LoadConfiguration,
   getTokenByAddress,
   getTokenBySymbol
@@ -69,7 +70,7 @@ async function TermOffboarder() {
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
-  const pegToken = getTokenBySymbol('USDC');
+  const pegToken = getTokenBySymbol(GetPegTokenAddress());
   const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   Log(`[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
   const normBorrowRatio = norm(term.borrowRatio) * norm(GetProtocolData().creditMultiplier);

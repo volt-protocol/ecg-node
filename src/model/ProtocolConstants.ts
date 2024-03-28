@@ -1,6 +1,7 @@
 export interface ProtocolConstants {
   deployBlock: number;
   guildTokenAddress: string;
+  pegTokenAddress: string;
   creditTokenAddress: string;
   profitManagerAddress: string;
   lendingTermOffboardingAddress: string;
