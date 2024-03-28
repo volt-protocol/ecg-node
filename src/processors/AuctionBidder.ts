@@ -13,7 +13,7 @@ import {
   getTokenByAddress,
   getTokenBySymbol
 } from '../config/Config';
-import { ethers } from 'ethers';
+import { JsonRpcApiProvider, JsonRpcProvider, ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
@@ -57,8 +57,12 @@ async function AuctionBidder() {
         throw new Error(`Cannot find term ${auction.lendingTermAddress}`);
       }
       const web3Provider = GetWeb3Provider();
-      const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, web3Provider);
-      const bidDetail = await auctionHouseContract.getBidDetail(auction.loanId);
+
+      const bidDetail = await getBidDetails(auction.auctionHouseAddress, web3Provider, auction.loanId);
+      if (bidDetail.auctionEnded) {
+        Log('Auction ended, will not try to bid');
+        continue;
+      }
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {
         Log(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
         await processForgive(auction, web3Provider);
@@ -91,6 +95,29 @@ async function AuctionBidder() {
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
+  }
+}
+
+async function getBidDetails(
+  auctionHouseAddress: string,
+  web3Provider: JsonRpcProvider,
+  loanId: string
+): Promise<{ collateralReceived: bigint; creditAsked: bigint; auctionEnded: boolean }> {
+  const auctionHouseContract = AuctionHouse__factory.connect(auctionHouseAddress, web3Provider);
+  try {
+    const bidDetail = await auctionHouseContract.getBidDetail(loanId);
+    return {
+      collateralReceived: bidDetail.collateralReceived,
+      creditAsked: bidDetail.creditAsked,
+      auctionEnded: false
+    };
+  } catch (e) {
+    Log('getBidDetail exception:', e);
+    return {
+      collateralReceived: -1n,
+      creditAsked: -1n,
+      auctionEnded: true
+    };
   }
 }
 
