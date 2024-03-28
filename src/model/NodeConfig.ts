@@ -30,8 +30,15 @@ export interface TermOffboarderConfigToken {
 }
 
 export interface AuctionBidderConfig extends ProcessorConfig {
-  minProfitUsdc: number;
+  minProfitPegToken: number;
   enableForgive: boolean;
+  swapMode: BidderSwapMode;
+}
+
+export enum BidderSwapMode {
+  UNISWAPV2 = 'UNISWAPV2',
+  ONE_INCH = '1INCH',
+  OPEN_OCEAN = 'OPEN_OCEAN'
 }
 
 export interface TestnetMarketMakerConfig extends ProcessorConfig {

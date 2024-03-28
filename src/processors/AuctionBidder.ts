@@ -7,6 +7,7 @@ import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } f
 import {
   GetGatewayAddress,
   GetPSMAddress,
+  GetPegTokenAddress,
   GetUniswapV2RouterAddress,
   LoadConfiguration,
   getTokenBySymbol
@@ -18,6 +19,7 @@ import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
+import { BidderSwapMode } from '../model/NodeConfig';
 
 const RUN_EVERY_SEC = 15;
 
@@ -62,10 +64,25 @@ async function AuctionBidder() {
         continue;
       }
 
-      const estimatedProfit = await checkBidProfitability(term, bidDetail, web3Provider, creditMultiplier);
-      if (estimatedProfit >= auctionBidderConfig.minProfitUsdc) {
+      const { swapData, estimatedProfit, routerAddress } = await checkBidProfitability(
+        auctionBidderConfig.swapMode,
+        term,
+        bidDetail,
+        web3Provider,
+        creditMultiplier
+      );
+
+      if (estimatedProfit >= auctionBidderConfig.minProfitPegToken) {
         Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
-        await processBid(auction, term, web3Provider, auctionBidderConfig.minProfitUsdc, estimatedProfit);
+        await processBid(
+          auction,
+          term,
+          web3Provider,
+          auctionBidderConfig.minProfitPegToken,
+          routerAddress,
+          swapData,
+          estimatedProfit
+        );
         continue;
       }
 
@@ -77,34 +94,60 @@ async function AuctionBidder() {
 }
 
 async function checkBidProfitability(
+  swapMode: BidderSwapMode,
   term: LendingTerm,
   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
-): Promise<number> {
+): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
+  switch (swapMode) {
+    default:
+    case BidderSwapMode.ONE_INCH:
+    case BidderSwapMode.OPEN_OCEAN:
+      throw new Error(`${swapMode} not implemeted`);
+    case BidderSwapMode.UNISWAPV2: {
+      return await checkBidProfitabilityUniswapV2(term, bidDetail, web3Provider, creditMultiplier);
+    }
+  }
+}
+
+async function checkBidProfitabilityUniswapV2(
+  term: LendingTerm,
+  bidDetail: { collateralReceived: bigint; creditAsked: bigint },
+  web3Provider: ethers.JsonRpcProvider,
+  creditMultiplier: bigint
+): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
   const uniswapRouterContract = UniswapV2Router__factory.connect(GetUniswapV2RouterAddress(), web3Provider);
 
   // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
   const fromToken = term.collateralAddress;
-  const USDCToken = getTokenBySymbol('USDC');
-  const toToken = USDCToken.address;
+  const pegToken = getTokenBySymbol(GetPegTokenAddress());
+  const toToken = pegToken.address;
 
   const amountsOut = await uniswapRouterContract.getAmountsOut(bidDetail.collateralReceived, [fromToken, toToken]);
 
-  const amountUsdc = norm(amountsOut[1], USDCToken.decimals);
-  const creditCostInUsdc = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
+  const amountPegToken = norm(amountsOut[1], pegToken.decimals);
+  const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
   Log(
-    `checkBidProfitability: bidding cost: ${creditCostInUsdc} USDC, gains: ${amountUsdc} USDC. PnL: ${
-      amountUsdc - creditCostInUsdc
-    } USDC`
+    `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
+      pegToken.symbol
+    }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
   );
-  if (creditCostInUsdc > amountUsdc) {
-    return 0;
+  if (creditCostInPegToken > amountPegToken) {
+    return { swapData: '', estimatedProfit: 0, routerAddress: '' };
   }
 
-  const profitUsdc = amountUsdc - creditCostInUsdc;
-  return profitUsdc;
+  const profitPegToken = amountPegToken - creditCostInPegToken;
+
+  const swapData = uniswapRouterContract.interface.encodeFunctionData('swapExactTokensForTokens', [
+    bidDetail.collateralReceived, // amountIn
+    0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
+    [fromToken, toToken], // path, collateral=>pegToken
+    GetGatewayAddress(), // to gateway
+    Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
+  ]);
+  return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
 }
 
 async function processBid(
@@ -112,6 +155,8 @@ async function processBid(
   term: LendingTerm,
   web3Provider: ethers.JsonRpcProvider,
   minProfit: number,
+  routerAddress: string, // either univ2, 1inch, openocean etc...
+  swapData: string,
   estimatedProfit: number
 ) {
   if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
@@ -123,10 +168,11 @@ async function processBid(
     auction.loanId,
     auction.lendingTermAddress,
     GetPSMAddress(),
-    GetUniswapV2RouterAddress(),
     term.collateralAddress, // collateralTokenAddress
-    getTokenBySymbol('USDC').address, // pegTokenAddress
-    minProfit
+    GetPegTokenAddress(), // pegTokenAddress
+    minProfit,
+    routerAddress,
+    swapData
   );
   await txReceipt.wait();
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {

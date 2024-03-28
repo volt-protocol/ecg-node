@@ -29,7 +29,7 @@ async function LoadProtocolConstants() {
 
 async function LoadTokens() {
   Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
-  if (CONFIG_FILE.startsWith('http')) {
+  if (TOKENS_FILE.startsWith('http')) {
     // load via axios
     const resp = await axios.get(TOKENS_FILE);
     tokens = resp.data;
@@ -39,7 +39,7 @@ async function LoadTokens() {
   }
 
   if (!tokens || tokens.length == 0) {
-    throw new Error(`CANNOT FIND TOKENS CONFIG on file ${CONFIG_FILE}`);
+    throw new Error(`CANNOT FIND TOKENS CONFIG on file ${TOKENS_FILE}`);
   }
 }
 
@@ -85,6 +85,10 @@ export function GetDeployBlock() {
 
 export function GetGuildTokenAddress() {
   return configuration.guildTokenAddress;
+}
+
+export function GetPegTokenAddress() {
+  return configuration.pegTokenAddress;
 }
 
 export function GetCreditTokenAddress() {
