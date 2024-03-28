@@ -37,7 +37,7 @@ async function AuctionBidder() {
     const termsFilename = path.join(DATA_DIR, 'terms.json');
 
     // wait for unlock just before reading data file
-    await FileMutex.WaitForUnlock();
+    // await FileMutex.WaitForUnlock();
     const auctionFileData: AuctionsFileStructure = ReadJSON(auctionsFilename);
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
 
@@ -151,6 +151,58 @@ async function checkBidProfitabilityUniswapV2(
   return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
 }
 
+// async function checkBidProfitabilityOpenOcean(
+//   term: LendingTerm,
+//   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
+//   web3Provider: ethers.JsonRpcProvider,
+//   creditMultiplier: bigint
+// ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
+//   const collateralToken = getTokenByAddress(term.collateralAddress);
+//   const fromToken = term.collateralAddress;
+//   const pegToken = getTokenByAddress(GetPegTokenAddress());
+//   const toToken = pegToken.address;
+//   const collateralAmountNorm = norm(bidDetail.collateralReceived, collateralToken.decimals);
+
+//   const chainCode = 'arbitrum';
+//   const gasPrice = GetAvgGasPrice;
+//   const openOceanURL =
+//     `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
+//     `inTokenAddress=${fromToken}` +
+//     `&outTokenAddress=${toToken}` +
+//     `&amount=${collateralAmountNorm}` +
+//     `&slippage=1` +
+//     `&gasPrice=1` +
+//     `&account=${GetGatewayAddress()}`;
+//   const uniswapRouterContract = UniswapV2Router__factory.connect(GetUniswapV2RouterAddress(), web3Provider);
+
+//   // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
+
+//   const amountsOut = await uniswapRouterContract.getAmountsOut(bidDetail.collateralReceived, [fromToken, toToken]);
+
+//   const amountPegToken = norm(amountsOut[1], pegToken.decimals);
+//   const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
+
+//   Log(
+//     `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
+//       pegToken.symbol
+//     }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
+//   );
+//   if (creditCostInPegToken > amountPegToken) {
+//     return { swapData: '', estimatedProfit: 0, routerAddress: '' };
+//   }
+
+//   const profitPegToken = amountPegToken - creditCostInPegToken;
+
+//   const swapData = uniswapRouterContract.interface.encodeFunctionData('swapExactTokensForTokens', [
+//     bidDetail.collateralReceived, // amountIn
+//     0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
+//     [fromToken, toToken], // path, collateral=>pegToken
+//     GetGatewayAddress(), // to gateway
+//     Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
+//   ]);
+//   return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
+// }
+
 async function processBid(
   auction: Auction,
   term: LendingTerm,
@@ -171,9 +223,10 @@ async function processBid(
     GetPSMAddress(),
     term.collateralAddress, // collateralTokenAddress
     GetPegTokenAddress(), // pegTokenAddress
-    minProfit,
+    BigInt(minProfit) * 10n ** BigInt(getTokenByAddress(GetPegTokenAddress()).decimals),
     routerAddress,
-    swapData
+    swapData,
+    { gasLimit: 1_000_000 }
   );
   await txReceipt.wait();
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
