@@ -21,6 +21,8 @@ import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
+import ky from 'ky';
+import { OpenOceanSwapQuote } from '../model/OpenOcean';
 
 const RUN_EVERY_SEC = 15;
 
@@ -131,8 +133,9 @@ async function checkBidProfitability(
   switch (swapMode) {
     default:
     case BidderSwapMode.ONE_INCH:
-    case BidderSwapMode.OPEN_OCEAN:
       throw new Error(`${swapMode} not implemeted`);
+    case BidderSwapMode.OPEN_OCEAN:
+      return await checkBidProfitabilityOpenOcean(term, bidDetail, web3Provider, creditMultiplier);
     case BidderSwapMode.UNISWAPV2: {
       return await checkBidProfitabilityUniswapV2(term, bidDetail, web3Provider, creditMultiplier);
     }
@@ -178,57 +181,51 @@ async function checkBidProfitabilityUniswapV2(
   return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
 }
 
-// async function checkBidProfitabilityOpenOcean(
-//   term: LendingTerm,
-//   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
-//   web3Provider: ethers.JsonRpcProvider,
-//   creditMultiplier: bigint
-// ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-//   const collateralToken = getTokenByAddress(term.collateralAddress);
-//   const fromToken = term.collateralAddress;
-//   const pegToken = getTokenByAddress(GetPegTokenAddress());
-//   const toToken = pegToken.address;
-//   const collateralAmountNorm = norm(bidDetail.collateralReceived, collateralToken.decimals);
+async function checkBidProfitabilityOpenOcean(
+  term: LendingTerm,
+  bidDetail: { collateralReceived: bigint; creditAsked: bigint },
+  web3Provider: ethers.JsonRpcProvider,
+  creditMultiplier: bigint
+): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
+  const collateralToken = getTokenByAddress(term.collateralAddress);
+  const fromToken = term.collateralAddress;
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const toToken = pegToken.address;
+  const collateralAmountNorm = norm(bidDetail.collateralReceived, collateralToken.decimals);
 
-//   const chainCode = 'arbitrum';
-//   const gasPrice = GetAvgGasPrice;
-//   const openOceanURL =
-//     `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
-//     `inTokenAddress=${fromToken}` +
-//     `&outTokenAddress=${toToken}` +
-//     `&amount=${collateralAmountNorm}` +
-//     `&slippage=1` +
-//     `&gasPrice=1` +
-//     `&account=${GetGatewayAddress()}`;
-//   const uniswapRouterContract = UniswapV2Router__factory.connect(GetUniswapV2RouterAddress(), web3Provider);
+  const chainCode = 'arbitrum'; // TODO CHANGE DYNAMICALLY
+  const gasPrice = 0.05; //0.05 GWEI // TODO CHANGE DYNAMICALLY
+  const maxSlippage = 1; // 1%
+  const openOceanURL =
+    `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
+    `inTokenAddress=${fromToken}` +
+    `&outTokenAddress=${toToken}` +
+    `&amount=${collateralAmountNorm}` +
+    `&slippage=${maxSlippage}` +
+    `&gasPrice=${gasPrice}` +
+    `&account=${GetGatewayAddress()}`;
 
-//   // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
+  const openOceanResponse = await ky.get(openOceanURL).json<OpenOceanSwapQuote>();
 
-//   const amountsOut = await uniswapRouterContract.getAmountsOut(bidDetail.collateralReceived, [fromToken, toToken]);
+  // find the amount of pegToken that can be obtain if selling bidDetail.collateralReceived
 
-//   const amountPegToken = norm(amountsOut[1], pegToken.decimals);
-//   const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
+  const amountPegToken = norm(openOceanResponse.data.outAmount, pegToken.decimals);
+  const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
-//   Log(
-//     `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
-//       pegToken.symbol
-//     }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
-//   );
-//   if (creditCostInPegToken > amountPegToken) {
-//     return { swapData: '', estimatedProfit: 0, routerAddress: '' };
-//   }
+  Log(
+    `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
+      pegToken.symbol
+    }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
+  );
+  if (creditCostInPegToken > amountPegToken) {
+    return { swapData: '', estimatedProfit: 0, routerAddress: '' };
+  }
 
-//   const profitPegToken = amountPegToken - creditCostInPegToken;
+  const profitPegToken = amountPegToken - creditCostInPegToken;
 
-//   const swapData = uniswapRouterContract.interface.encodeFunctionData('swapExactTokensForTokens', [
-//     bidDetail.collateralReceived, // amountIn
-//     0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
-//     [fromToken, toToken], // path, collateral=>pegToken
-//     GetGatewayAddress(), // to gateway
-//     Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
-//   ]);
-//   return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
-// }
+  const swapData = openOceanResponse.data.data;
+  return { swapData, estimatedProfit: profitPegToken, routerAddress: openOceanResponse.data.to };
+}
 
 async function processBid(
   auction: Auction,
