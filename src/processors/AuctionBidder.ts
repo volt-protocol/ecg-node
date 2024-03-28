@@ -10,6 +10,7 @@ import {
   GetPegTokenAddress,
   GetUniswapV2RouterAddress,
   LoadConfiguration,
+  getTokenByAddress,
   getTokenBySymbol
 } from '../config/Config';
 import { ethers } from 'ethers';
@@ -121,7 +122,7 @@ async function checkBidProfitabilityUniswapV2(
 
   // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
   const fromToken = term.collateralAddress;
-  const pegToken = getTokenBySymbol(GetPegTokenAddress());
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
   const toToken = pegToken.address;
 
   const amountsOut = await uniswapRouterContract.getAmountsOut(bidDetail.collateralReceived, [fromToken, toToken]);
