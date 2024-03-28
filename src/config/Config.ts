@@ -12,7 +12,7 @@ export async function LoadConfiguration() {
 }
 
 async function LoadProtocolConstants() {
-  Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
+  // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
   if (CONFIG_FILE.startsWith('http')) {
     // load via axios
     const resp = await axios.get(CONFIG_FILE);
@@ -28,7 +28,7 @@ async function LoadProtocolConstants() {
 }
 
 async function LoadTokens() {
-  Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
+  // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
   if (TOKENS_FILE.startsWith('http')) {
     // load via axios
     const resp = await axios.get(TOKENS_FILE);
