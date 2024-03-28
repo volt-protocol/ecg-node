@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { GetNodeConfig, ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
 import { GuildToken__factory, Multicall3 } from '../contracts/types';
-import { GetGuildTokenAddress } from '../config/Config';
+import { GetGuildTokenAddress, LoadConfiguration } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
 import { DATA_DIR } from '../utils/Constants';
@@ -22,6 +22,8 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.jso
 async function UserSlasher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     process.title = 'ECG_NODE_USER_SLASHER';
     Log('starting');
     const config = GetNodeConfig().processors.USER_SLASHER;

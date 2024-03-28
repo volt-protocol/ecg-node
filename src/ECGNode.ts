@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR } from './utils/Constants';
+import { DATA_DIR, MARKET_ID } from './utils/Constants';
 import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
@@ -9,14 +9,18 @@ import { NodeConfig } from './model/NodeConfig';
 import { GetNodeConfig, sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
+import { LoadConfiguration } from './config/Config';
 dotenv.config();
 
 async function main() {
   process.title = 'ECG_NODE';
-  Log('[ECG-NODE] STARTED');
+  Log(`[ECG-NODE] STARTED FOR MARKET_ID: ${MARKET_ID}`);
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
+
+  // load external config
+  await LoadConfiguration();
 
   // load configuration from working dir
   const nodeConfig = GetNodeConfig();

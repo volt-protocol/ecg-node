@@ -1,6 +1,6 @@
 import { GetNodeConfig, ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
-import { GetUniswapV2RouterAddress, TokenConfig, getTokenBySymbol } from '../config/Config';
+import { GetUniswapV2RouterAddress, LoadConfiguration, TokenConfig, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
@@ -28,6 +28,8 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.jso
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     process.title = 'ECG_NODE_TESTNET_MARKET_MAKER';
     Log('starting');
     const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;

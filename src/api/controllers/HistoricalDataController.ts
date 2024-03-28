@@ -11,8 +11,8 @@ import { ReadJSON } from '../../utils/Utils';
 
 const HISTORY_DIR = path.join(DATA_DIR, 'history');
 class HistoricalDataController {
-  static async GetCreditSupplyHistory(): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, 'credit-supply.json');
+  static async GetCreditSupplyHistory(marketId: number): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'credit-supply.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -27,8 +27,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetCreditTotalIssuance(): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, 'credit-total-issuance.json');
+  static async GetCreditTotalIssuance(marketId: number): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'credit-total-issuance.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -43,8 +43,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetAverageInterestRate(): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, 'average-interest-rate.json');
+  static async GetAverageInterestRate(marketId: number): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'average-interest-rate.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -59,8 +59,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetTVL(): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, 'tvl.json');
+  static async GetTVL(marketId: number): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'tvl.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -75,8 +75,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetLoanBorrow(): Promise<ApiHistoricalDataMulti> {
-    const historyFilename = path.join(HISTORY_DIR, 'loan-borrow.json');
+  static async GetLoanBorrow(marketId: number): Promise<ApiHistoricalDataMulti> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'loan-borrow.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -95,8 +95,11 @@ class HistoricalDataController {
     }
   }
 
-  static async GetDebtCeilingIssuance(termAddress: string): Promise<ApiHistoricalDataMulti | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, 'debtceiling-issuance.json');
+  static async GetDebtCeilingIssuance(
+    marketId: number,
+    termAddress: string
+  ): Promise<ApiHistoricalDataMulti | undefined> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'debtceiling-issuance.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -136,8 +139,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetGaugeWeight(termAddress: string): Promise<ApiHistoricalData | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, 'gauge-weight.json');
+  static async GetGaugeWeight(marketId: number, termAddress: string): Promise<ApiHistoricalData | undefined> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'gauge-weight.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {
@@ -171,8 +174,8 @@ class HistoricalDataController {
     }
   }
 
-  static async GetSurplusBuffer(termAddress: string): Promise<ApiHistoricalData | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, 'surplus-buffer.json');
+  static async GetSurplusBuffer(marketId: number, termAddress: string): Promise<ApiHistoricalData | undefined> {
+    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'surplus-buffer.json');
     if (!fs.existsSync(historyFilename)) {
       throw new Error(`CANNOT FIND ${historyFilename}`);
     } else {

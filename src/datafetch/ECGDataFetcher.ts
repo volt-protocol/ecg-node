@@ -2,7 +2,7 @@ import { JsonRpcProvider, ethers } from 'ethers';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR } from '../utils/Constants';
+import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
 import {
   AuctionHouse,
@@ -25,6 +25,7 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
+import { GetGaugeForMarketId } from '../utils/ECGHelper';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -79,10 +80,10 @@ async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<
 }
 
 async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: ProtocolData) {
-  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
-  const gauges = await guildTokenContract.gauges();
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
+  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promises: any[] = [];
   promises.push(profitManagerContract.minBorrow());
@@ -291,12 +292,12 @@ async function fetchAndSaveLoans(
   }
 
   const updateLoans: LoansFileStructure = {
-    loans: [],
+    loans: alreadySavedLoans.filter((_) => _.status == LoanStatus.CLOSED),
     updated: Date.now(),
     updatedHuman: new Date(Date.now()).toISOString()
   };
 
-  const allNewLoandsIds: { termAddress: string; loanId: string }[] = [];
+  const allNewLoansIds: { termAddress: string; loanId: string }[] = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
     const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
@@ -316,7 +317,7 @@ async function fetchAndSaveLoans(
       currentBlock
     );
 
-    allNewLoandsIds.push(
+    allNewLoansIds.push(
       ...newLoanIds.map((_) => {
         return { termAddress: term.termAddress, loanId: _ };
       })
@@ -332,11 +333,17 @@ async function fetchAndSaveLoans(
     }
   }
 
-  const allLoanIds = alreadySavedLoans.map((_) => {
-    return { termAddress: _.lendingTermAddress, loanId: _.id };
-  });
+  // only get the loan ids from the previously known loans
+  // that are not with the status closed, no use in updating loans
+  // that are closed
+  const allLoanIds = alreadySavedLoans
+    .filter((_) => _.status != LoanStatus.CLOSED)
+    .map((_) => {
+      return { termAddress: _.lendingTermAddress, loanId: _.id };
+    });
 
-  for (const newLoanId of allNewLoandsIds) {
+  // add all new loansId (from the newly fetched files)
+  for (const newLoanId of allNewLoansIds) {
     if (!allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.termAddress == newLoanId.termAddress)) {
       allLoanIds.push(newLoanId);
     }
@@ -344,7 +351,7 @@ async function fetchAndSaveLoans(
 
   // fetch data for all loans
   const allUpdatedLoans: Loan[] = await fetchLoansInfo(allLoanIds, web3Provider);
-  updateLoans.loans = allUpdatedLoans;
+  updateLoans.loans.push(...allUpdatedLoans);
   const endDate = Date.now();
   updateLoans.updated = endDate;
   updateLoans.updatedHuman = new Date(endDate).toISOString();
@@ -410,12 +417,13 @@ async function fetchAndSaveAuctions(
   }
 
   const updateAuctions: AuctionsFileStructure = {
-    auctions: [],
+    // keep the closed options here
+    auctions: alreadySavedAuctions.filter((_) => _.status == AuctionStatus.CLOSED),
     updated: Date.now(),
     updatedHuman: new Date(Date.now()).toISOString()
   };
 
-  const allNewLoandsIds: { auctionHouseAddress: string; loanId: string }[] = [];
+  const allNewLoansIds: { auctionHouseAddress: string; loanId: string }[] = [];
   const auctionsHouseAddresses = new Set<string>(terms.map((_) => _.auctionHouseAddress));
   for (const auctionHouseAddress of auctionsHouseAddresses) {
     // check if we already have a sync data about this term
@@ -436,7 +444,7 @@ async function fetchAndSaveAuctions(
       currentBlock
     );
 
-    allNewLoandsIds.push(
+    allNewLoansIds.push(
       ...newLoanIds.map((_) => {
         return { auctionHouseAddress: auctionHouseAddress, loanId: _ };
       })
@@ -457,11 +465,13 @@ async function fetchAndSaveAuctions(
     }
   }
 
-  const allLoanIds = alreadySavedAuctions.map((_) => {
-    return { auctionHouseAddress: _.auctionHouseAddress, loanId: _.loanId };
-  });
+  const allLoanIds = alreadySavedAuctions
+    .filter((_) => _.status != AuctionStatus.CLOSED)
+    .map((_) => {
+      return { auctionHouseAddress: _.auctionHouseAddress, loanId: _.loanId };
+    });
 
-  for (const newLoanId of allNewLoandsIds) {
+  for (const newLoanId of allNewLoansIds) {
     if (
       !allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.auctionHouseAddress == newLoanId.auctionHouseAddress)
     ) {
@@ -471,7 +481,7 @@ async function fetchAndSaveAuctions(
 
   // fetch data for all auctions
   const allUpdatedAuctions: Auction[] = await fetchAuctionsInfo(allLoanIds, web3Provider);
-  updateAuctions.auctions = allUpdatedAuctions;
+  updateAuctions.auctions.push(...allUpdatedAuctions);
   const endDate = Date.now();
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();

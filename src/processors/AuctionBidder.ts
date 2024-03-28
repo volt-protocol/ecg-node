@@ -4,7 +4,13 @@ import { DATA_DIR } from '../utils/Constants';
 import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
-import { GetGatewayAddress, GetPSMAddress, GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
+import {
+  GetGatewayAddress,
+  GetPSMAddress,
+  GetUniswapV2RouterAddress,
+  LoadConfiguration,
+  getTokenBySymbol
+} from '../config/Config';
 import { ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
@@ -18,6 +24,8 @@ const RUN_EVERY_SEC = 15;
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     process.title = 'ECG_NODE_AUCTION_BIDDER';
     Log('starting');
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;

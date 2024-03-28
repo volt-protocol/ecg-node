@@ -2,13 +2,14 @@ import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR } from '../utils/Constants';
+import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
   GetDeployBlock,
   GetGuildTokenAddress,
   GetProfitManagerAddress,
+  LoadConfiguration,
   getTokenByAddress
 } from '../config/Config';
 import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
@@ -28,6 +29,7 @@ import { GetTokenPriceAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataState } from '../model/HistoricalDataState';
 import { Log } from '../utils/Logger';
+import { GetGaugeForMarketId } from '../utils/ECGHelper';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -41,6 +43,8 @@ const web3Provider = GetWeb3Provider();
 async function HistoricalDataFetcher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // load external config
+    await LoadConfiguration();
     process.title = 'ECG_NODE_HISTORICAL_DATA_FETCHER';
     const startDate = Date.now();
     Log('starting');
@@ -179,7 +183,7 @@ async function fetchAverageInterestRate(
   const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
-    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
@@ -187,6 +191,7 @@ async function fetchAverageInterestRate(
 
     for (const termAddress of liveTerms) {
       const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
+      promises.push(guildContract.gaugeType(termAddress, { blockTag: blockToFetch }));
       promises.push(termContract.getParameters({ blockTag: blockToFetch }));
       promises.push(termContract.issuance({ blockTag: blockToFetch }));
     }
@@ -198,6 +203,7 @@ async function fetchAverageInterestRate(
     let avgInterestRate = 0;
     if (totalIssuance != 0) {
       for (const termAddress of liveTerms) {
+        const gaugeType = promiseResults[cursor++] as bigint;
         const parameters = promiseResults[cursor++] as LendingTerm.LendingTermParamsStructOutput;
         const issuance = norm(promiseResults[cursor++] as bigint);
 
@@ -244,7 +250,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
   const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
-    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const collateralPromises = [];
@@ -323,7 +329,7 @@ async function fetchDebtCeilingAndIssuance(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
-    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
@@ -385,7 +391,7 @@ async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string,
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
-    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
@@ -446,7 +452,7 @@ async function fetchSurplusBuffer(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
-    const liveTerms = await guildContract.liveGauges({ blockTag: blockToFetch });
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
@@ -515,11 +521,8 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
     fullHistoricalData.values[blockToFetch] = {};
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
-
-    const [liveTerms, creditMultiplier] = await Promise.all([
-      guildContract.liveGauges({ blockTag: blockToFetch }),
-      profitManagerContract.creditMultiplier({ blockTag: blockToFetch })
-    ]);
+    const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
+    const creditMultiplier = await profitManagerContract.creditMultiplier({ blockTag: blockToFetch });
 
     // for all live terms get the LoanOpen events from blockToFetch - STEP_BLOCK to blockToFetch
     for (const termAddress of liveTerms) {
