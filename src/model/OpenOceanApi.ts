@@ -1,4 +1,4 @@
-export interface OpenOceanSwapQuote {
+export interface OpenOceanSwapQuoteResponse {
   code: number;
   data: Data;
 }

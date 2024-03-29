@@ -22,7 +22,8 @@ import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
 import ky from 'ky';
-import { OpenOceanSwapQuote } from '../model/OpenOcean';
+import { OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
+import { OneInchSwapResponse } from '../model/OneInchApi';
 
 const RUN_EVERY_SEC = 15;
 
@@ -132,10 +133,11 @@ async function checkBidProfitability(
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
   switch (swapMode) {
     default:
+      throw new Error(`${swapMode} not implemented`);
     case BidderSwapMode.ONE_INCH:
-      throw new Error(`${swapMode} not implemeted`);
+      return await checkBidProfitability1Inch(term, bidDetail, creditMultiplier);
     case BidderSwapMode.OPEN_OCEAN:
-      return await checkBidProfitabilityOpenOcean(term, bidDetail, web3Provider, creditMultiplier);
+      return await checkBidProfitabilityOpenOcean(term, bidDetail, creditMultiplier);
     case BidderSwapMode.UNISWAPV2: {
       return await checkBidProfitabilityUniswapV2(term, bidDetail, web3Provider, creditMultiplier);
     }
@@ -184,7 +186,6 @@ async function checkBidProfitabilityUniswapV2(
 async function checkBidProfitabilityOpenOcean(
   term: LendingTerm,
   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
-  web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
   const collateralToken = getTokenByAddress(term.collateralAddress);
@@ -205,7 +206,7 @@ async function checkBidProfitabilityOpenOcean(
     `&gasPrice=${gasPrice}` +
     `&account=${GetGatewayAddress()}`;
 
-  const openOceanResponse = await ky.get(openOceanURL).json<OpenOceanSwapQuote>();
+  const openOceanResponse = await ky.get(openOceanURL).json<OpenOceanSwapQuoteResponse>();
 
   // find the amount of pegToken that can be obtain if selling bidDetail.collateralReceived
 
@@ -225,6 +226,58 @@ async function checkBidProfitabilityOpenOcean(
 
   const swapData = openOceanResponse.data.data;
   return { swapData, estimatedProfit: profitPegToken, routerAddress: openOceanResponse.data.to };
+}
+
+async function checkBidProfitability1Inch(
+  term: LendingTerm,
+  bidDetail: { collateralReceived: bigint; creditAsked: bigint },
+  creditMultiplier: bigint
+): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
+  const ONE_INCH_API_KEY = process.env.ONE_INCH_API_KEY;
+  if (!ONE_INCH_API_KEY) {
+    throw new Error('Cannot load ONE_INCH_API_KEY from env variables');
+  }
+
+  const fromToken = term.collateralAddress;
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const toToken = pegToken.address;
+
+  const chainCode = 42161; // TODO CHANGE DYNAMICALLY
+  const maxSlippage = 1; // 1%
+  const oneInchApi =
+    `https://api.1inch.dev/swap/v6.0/${chainCode}/swap?` +
+    `src=${fromToken}` +
+    `&dst=${toToken}` +
+    `&amount=${bidDetail.collateralReceived.toString()}` +
+    `&from=${GetGatewayAddress()}` +
+    `&slippage=${maxSlippage}` +
+    '&disableEstimate=true'; // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
+
+  const oneInchSwapResponse = await ky
+    .get(oneInchApi, {
+      headers: {
+        Authorization: `Bearer ${ONE_INCH_API_KEY}`
+      }
+    })
+    .json<OneInchSwapResponse>();
+
+  // find the amount of pegToken that can be obtain if selling bidDetail.collateralReceived
+  const amountPegToken = norm(oneInchSwapResponse.dstAmount, pegToken.decimals);
+  const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
+
+  Log(
+    `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
+      pegToken.symbol
+    }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
+  );
+  if (creditCostInPegToken > amountPegToken) {
+    return { swapData: '', estimatedProfit: 0, routerAddress: '' };
+  }
+
+  const profitPegToken = amountPegToken - creditCostInPegToken;
+
+  const swapData = oneInchSwapResponse.tx.data;
+  return { swapData, estimatedProfit: profitPegToken, routerAddress: oneInchSwapResponse.tx.to };
 }
 
 async function processBid(
