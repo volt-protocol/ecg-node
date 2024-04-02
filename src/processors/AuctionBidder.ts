@@ -132,7 +132,6 @@ async function checkBidProfitability(
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-  // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const pegToken = getTokenByAddress(GetPegTokenAddress());
 
