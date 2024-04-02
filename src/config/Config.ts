@@ -1,7 +1,7 @@
 import { ProtocolConstants } from '../model/ProtocolConstants';
 import { MARKET_ID, TOKENS_FILE, CONFIG_FILE } from '../utils/Constants';
 import { readFileSync } from 'fs';
-import ky from 'ky';
+import { HttpGet } from '../utils/HttpHelper';
 
 interface ConfigFile {
   [marketId: number]: ProtocolConstants;
@@ -18,7 +18,7 @@ async function LoadProtocolConstants() {
   // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
   if (CONFIG_FILE.startsWith('http')) {
     // load via http
-    const resp = await ky.get(CONFIG_FILE).json<ConfigFile>();
+    const resp = await HttpGet<ConfigFile>(CONFIG_FILE);
     configuration = resp[MARKET_ID];
   } else {
     // read from filesystem
@@ -34,7 +34,7 @@ async function LoadTokens() {
   // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
   if (TOKENS_FILE.startsWith('http')) {
     // load via http
-    tokens = await ky.get(TOKENS_FILE).json<TokenConfig[]>();
+    tokens = await HttpGet<TokenConfig[]>(TOKENS_FILE);
   } else {
     // read from filesystem
     tokens = JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'));

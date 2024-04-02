@@ -1,4 +1,3 @@
-import { readFileSync } from 'fs';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { DATA_DIR } from '../utils/Constants';
 import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
@@ -11,20 +10,18 @@ import {
   GetUniswapV2RouterAddress,
   LoadConfiguration,
   TokenConfig,
-  getTokenByAddress,
-  getTokenBySymbol
+  getTokenByAddress
 } from '../config/Config';
-import { JsonRpcApiProvider, JsonRpcProvider, ethers } from 'ethers';
+import { JsonRpcProvider, ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
 import { GetAvgGasPrice, GetWeb3Provider } from '../utils/Web3Helper';
-import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
-import ky from 'ky';
 import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
 import { OneInchSwapResponse } from '../model/OneInchApi';
+import { HttpGet } from '../utils/HttpHelper';
 
 const RUN_EVERY_SEC = 15;
 
@@ -230,13 +227,11 @@ async function getSwap1Inch(
     '&disableEstimate=true'; // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
 
   Log(`getSwap1Inch: ${oneInchApiUrl}`);
-  const oneInchSwapResponse = await ky
-    .get(oneInchApiUrl, {
-      headers: {
-        Authorization: `Bearer ${ONE_INCH_API_KEY}`
-      }
-    })
-    .json<OneInchSwapResponse>();
+  const oneInchSwapResponse = await HttpGet<OneInchSwapResponse>(oneInchApiUrl, {
+    headers: {
+      Authorization: `Bearer ${ONE_INCH_API_KEY}`
+    }
+  });
 
   return {
     pegTokenReceivedWei: BigInt(oneInchSwapResponse.dstAmount),
@@ -266,7 +261,7 @@ async function getSwapOpenOcean(
     `&gasPrice=${gasPrice}` +
     `&account=${GetGatewayAddress()}`;
 
-  const openOceanResponse = await ky.get(openOceanURL).json<OpenOceanSwapQuoteResponse>();
+  const openOceanResponse = await HttpGet<OpenOceanSwapQuoteResponse>(openOceanURL);
 
   return {
     pegTokenReceivedWei: BigInt(openOceanResponse.data.outAmount),

@@ -1,6 +1,6 @@
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import SimpleCacheService from './CacheService';
-import ky from 'ky';
+import { HttpGet } from './HttpHelper';
 
 export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number> {
   const tokenId = `ethereum:${tokenAddress}`;
@@ -28,12 +28,12 @@ export async function GetTokenPrice(tokenAddress: string): Promise<number> {
 
 async function GetDefiLlamaPrice(tokenId: string) {
   const apiUrl = `https://coins.llama.fi/prices/current/${tokenId}?searchWidth=4h`;
-  const resp = await ky.get(apiUrl).json<DefiLlamaPriceResponse>();
+  const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
   return resp.coins[tokenId].price;
 }
 
 async function GetDefiLlamaPriceAtTimestamp(tokenId: string, timestampSec: number) {
   const apiUrl = `https://coins.llama.fi/prices/historical/${timestampSec}/${tokenId}?searchWidth=4h`;
-  const resp = await ky.get(apiUrl).json<DefiLlamaPriceResponse>();
+  const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
   return resp.coins[tokenId].price;
 }

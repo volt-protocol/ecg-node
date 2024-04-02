@@ -2,7 +2,7 @@ import { BaseContract, ContractEventName, EventLog, JsonRpcProvider, ethers } fr
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import { Log } from './Logger';
-import ky from 'ky';
+import { HttpPost } from './HttpHelper';
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -52,22 +52,20 @@ export async function GetAvgGasPrice() {
     reward: string[][];
   }
 
-  const feeHistoryResponse = await ky
-    .post(rpcURL, {
-      json: {
-        jsonrpc: '2.0',
-        method: 'eth_feeHistory',
-        params: [10, 'latest', []],
-        id: 1
-      }
-    })
-    .json<feeHistory>();
+  const feeHistoryResponse = await HttpPost<feeHistory>(rpcURL, {
+    jsonrpc: '2.0',
+    method: 'eth_feeHistory',
+    params: [10, 'latest', []],
+    id: 1
+  });
 
   const results: string[] = feeHistoryResponse.result.baseFeePerGas;
   const avgGasPriceWei = BigInt(Math.round(average(results.map((_) => Number(_)))));
 
   return avgGasPriceWei;
 }
+
+GetAvgGasPrice();
 
 export async function FetchAllEvents(
   contract: BaseContract,
