@@ -65,8 +65,6 @@ export async function GetAvgGasPrice() {
   return avgGasPriceWei;
 }
 
-GetAvgGasPrice();
-
 export async function FetchAllEvents(
   contract: BaseContract,
   contractName: string,
