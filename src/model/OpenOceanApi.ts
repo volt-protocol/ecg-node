@@ -25,3 +25,16 @@ export interface Token {
   address: string;
   decimals: number;
 }
+
+export function GetOpenOceanChainCodeByChainId(chainId: bigint) {
+  switch (chainId) {
+    default:
+      throw new Error(`GetOpenOceanChainCodeByChainId: Unknown chain code: ${chainId}`);
+    case 1n:
+      return 'eth';
+    case 137n:
+      return 'polygon';
+    case 42161n:
+      return 'arbitrum';
+  }
+}
