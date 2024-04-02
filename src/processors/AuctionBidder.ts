@@ -250,7 +250,7 @@ async function getSwapOpenOcean(
   const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals);
 
   const chainCode = GetOpenOceanChainCodeByChainId((await web3Provider.getNetwork()).chainId);
-  const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1;
+  const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1; // avg gas price + 10%
   const maxSlippage = 1; // 1%
   const openOceanURL =
     `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
