@@ -46,32 +46,32 @@ function isDebug() {
 }
 
 async function startProcessors(nodeConfig: NodeConfig) {
-  if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
-    startWithSpawn('HistoricalDataFetcher');
-    await sleep(5000);
-  }
-  if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
-    startWithSpawn('TermOffboarder');
+  if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
+    startWithSpawn('AuctionBidder');
     await sleep(5000);
   }
   if (nodeConfig.processors.LOAN_CALLER.enabled) {
     startWithSpawn('LoanCaller');
     await sleep(5000);
   }
-  if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
-    startWithSpawn('AuctionBidder');
+  if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
+    startWithSpawn('TermOffboarder');
     await sleep(5000);
   }
-  if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
-    startWithSpawn('TestnetMarketMaker');
+  if (nodeConfig.processors.USER_SLASHER.enabled) {
+    startWithSpawn('UserSlasher');
     await sleep(5000);
   }
   if (nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled) {
     startWithSpawn('TermOnboardingWatcher');
     await sleep(5000);
   }
-  if (nodeConfig.processors.USER_SLASHER.enabled) {
-    startWithSpawn('UserSlasher');
+  if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
+    startWithSpawn('TestnetMarketMaker');
+    await sleep(5000);
+  }
+  if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
+    startWithSpawn('HistoricalDataFetcher');
     await sleep(5000);
   }
 }

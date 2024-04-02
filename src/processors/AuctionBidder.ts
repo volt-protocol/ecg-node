@@ -1,4 +1,3 @@
-import { readFileSync } from 'fs';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { DATA_DIR } from '../utils/Constants';
 import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
@@ -10,17 +9,19 @@ import {
   GetPegTokenAddress,
   GetUniswapV2RouterAddress,
   LoadConfiguration,
-  getTokenByAddress,
-  getTokenBySymbol
+  TokenConfig,
+  getTokenByAddress
 } from '../config/Config';
-import { ethers } from 'ethers';
+import { JsonRpcProvider, ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
-import { GetWeb3Provider } from '../utils/Web3Helper';
-import { FileMutex } from '../utils/FileMutex';
+import { GetAvgGasPrice, GetWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
+import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
+import { OneInchSwapResponse } from '../model/OneInchApi';
+import { HttpGet } from '../utils/HttpHelper';
 
 const RUN_EVERY_SEC = 15;
 
@@ -37,7 +38,7 @@ async function AuctionBidder() {
     const termsFilename = path.join(DATA_DIR, 'terms.json');
 
     // wait for unlock just before reading data file
-    await FileMutex.WaitForUnlock();
+    // await FileMutex.WaitForUnlock();
     const auctionFileData: AuctionsFileStructure = ReadJSON(auctionsFilename);
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
 
@@ -57,8 +58,12 @@ async function AuctionBidder() {
         throw new Error(`Cannot find term ${auction.lendingTermAddress}`);
       }
       const web3Provider = GetWeb3Provider();
-      const auctionHouseContract = AuctionHouse__factory.connect(auction.auctionHouseAddress, web3Provider);
-      const bidDetail = await auctionHouseContract.getBidDetail(auction.loanId);
+
+      const bidDetail = await getBidDetails(auction.auctionHouseAddress, web3Provider, auction.loanId);
+      if (bidDetail.auctionEnded) {
+        Log('Auction ended, will not try to bid');
+        continue;
+      }
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {
         Log(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
         await processForgive(auction, web3Provider);
@@ -94,6 +99,29 @@ async function AuctionBidder() {
   }
 }
 
+async function getBidDetails(
+  auctionHouseAddress: string,
+  web3Provider: JsonRpcProvider,
+  loanId: string
+): Promise<{ collateralReceived: bigint; creditAsked: bigint; auctionEnded: boolean }> {
+  const auctionHouseContract = AuctionHouse__factory.connect(auctionHouseAddress, web3Provider);
+  try {
+    const bidDetail = await auctionHouseContract.getBidDetail(loanId);
+    return {
+      collateralReceived: bidDetail.collateralReceived,
+      creditAsked: bidDetail.creditAsked,
+      auctionEnded: false
+    };
+  } catch (e) {
+    Log('getBidDetail exception:', e);
+    return {
+      collateralReceived: -1n,
+      creditAsked: -1n,
+      auctionEnded: true
+    };
+  }
+}
+
 async function checkBidProfitability(
   swapMode: BidderSwapMode,
   term: LendingTerm,
@@ -101,33 +129,27 @@ async function checkBidProfitability(
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
+  const collateralToken = getTokenByAddress(term.collateralAddress);
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
+
+  let getSwapFunction;
   switch (swapMode) {
     default:
+      throw new Error(`${swapMode} not implemented`);
     case BidderSwapMode.ONE_INCH:
+      getSwapFunction = getSwap1Inch;
+      break;
     case BidderSwapMode.OPEN_OCEAN:
-      throw new Error(`${swapMode} not implemeted`);
-    case BidderSwapMode.UNISWAPV2: {
-      return await checkBidProfitabilityUniswapV2(term, bidDetail, web3Provider, creditMultiplier);
-    }
+      getSwapFunction = getSwapOpenOcean;
+      break;
+    case BidderSwapMode.UNISWAPV2:
+      getSwapFunction = getSwapUniv2;
+      break;
   }
-}
 
-async function checkBidProfitabilityUniswapV2(
-  term: LendingTerm,
-  bidDetail: { collateralReceived: bigint; creditAsked: bigint },
-  web3Provider: ethers.JsonRpcProvider,
-  creditMultiplier: bigint
-): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-  const uniswapRouterContract = UniswapV2Router__factory.connect(GetUniswapV2RouterAddress(), web3Provider);
+  const getSwapResult = await getSwapFunction(collateralToken, pegToken, bidDetail.collateralReceived, web3Provider);
 
-  // find the amount of USDC that can be obtain if selling bidDetail.collateralReceived
-  const fromToken = term.collateralAddress;
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
-  const toToken = pegToken.address;
-
-  const amountsOut = await uniswapRouterContract.getAmountsOut(bidDetail.collateralReceived, [fromToken, toToken]);
-
-  const amountPegToken = norm(amountsOut[1], pegToken.decimals);
+  const amountPegToken = norm(getSwapResult.pegTokenReceivedWei, pegToken.decimals);
   const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
   Log(
@@ -135,20 +157,117 @@ async function checkBidProfitabilityUniswapV2(
       pegToken.symbol
     }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
   );
+
+  // always return 0 profit if negative
   if (creditCostInPegToken > amountPegToken) {
     return { swapData: '', estimatedProfit: 0, routerAddress: '' };
   }
 
+  // check if profitability > configured one
   const profitPegToken = amountPegToken - creditCostInPegToken;
 
+  return {
+    estimatedProfit: profitPegToken,
+    swapData: getSwapResult.swapData,
+    routerAddress: getSwapResult.routerAddress
+  };
+}
+
+async function getSwapUniv2(
+  collateralToken: TokenConfig,
+  pegToken: TokenConfig,
+  collateralReceivedWei: bigint,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
+  const univ2RouterAddress = GetUniswapV2RouterAddress();
+  const uniswapRouterContract = UniswapV2Router__factory.connect(univ2RouterAddress, web3Provider);
+
+  const path = [collateralToken.address, pegToken.address];
   const swapData = uniswapRouterContract.interface.encodeFunctionData('swapExactTokensForTokens', [
-    bidDetail.collateralReceived, // amountIn
+    collateralReceivedWei, // amountIn
     0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
-    [fromToken, toToken], // path, collateral=>pegToken
+    path, // path, collateral=>pegToken
     GetGatewayAddress(), // to gateway
     Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
   ]);
-  return { swapData, estimatedProfit: profitPegToken, routerAddress: GetUniswapV2RouterAddress() };
+
+  // find the amount of pegToken that can be obtained by selling 'collateralReceivedWei' of collateralToken
+  const amountsOut = await uniswapRouterContract.getAmountsOut(collateralReceivedWei, [
+    collateralToken.address,
+    pegToken.address
+  ]);
+
+  return {
+    pegTokenReceivedWei: amountsOut[1],
+    swapData,
+    routerAddress: univ2RouterAddress
+  };
+}
+
+async function getSwap1Inch(
+  collateralToken: TokenConfig,
+  pegToken: TokenConfig,
+  collateralReceivedWei: bigint,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
+  const ONE_INCH_API_KEY = process.env.ONE_INCH_API_KEY;
+  if (!ONE_INCH_API_KEY) {
+    throw new Error('Cannot load ONE_INCH_API_KEY from env variables');
+  }
+
+  const chainCode = (await web3Provider.getNetwork()).chainId;
+  const maxSlippage = 1; // 1%
+  const oneInchApiUrl =
+    `https://api.1inch.dev/swap/v6.0/${chainCode}/swap?` +
+    `src=${collateralToken.address}` +
+    `&dst=${pegToken.address}` +
+    `&amount=${collateralReceivedWei.toString()}` +
+    `&from=${GetGatewayAddress()}` +
+    `&slippage=${maxSlippage}` +
+    '&disableEstimate=true'; // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
+
+  Log(`getSwap1Inch: ${oneInchApiUrl}`);
+  const oneInchSwapResponse = await HttpGet<OneInchSwapResponse>(oneInchApiUrl, {
+    headers: {
+      Authorization: `Bearer ${ONE_INCH_API_KEY}`
+    }
+  });
+
+  return {
+    pegTokenReceivedWei: BigInt(oneInchSwapResponse.dstAmount),
+    swapData: oneInchSwapResponse.tx.data,
+    routerAddress: oneInchSwapResponse.tx.to
+  };
+}
+
+async function getSwapOpenOcean(
+  collateralToken: TokenConfig,
+  pegToken: TokenConfig,
+  collateralReceivedWei: bigint,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
+  // when calling openocena, the amount must be normalzed
+  const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals);
+
+  const chainCode = GetOpenOceanChainCodeByChainId((await web3Provider.getNetwork()).chainId);
+  const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1; // avg gas price + 10%
+  const maxSlippage = 1; // 1%
+  const openOceanURL =
+    `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
+    `inTokenAddress=${collateralToken.address}` +
+    `&outTokenAddress=${pegToken.address}` +
+    `&amount=${collateralAmountNorm}` +
+    `&slippage=${maxSlippage}` +
+    `&gasPrice=${gasPrice}` +
+    `&account=${GetGatewayAddress()}`;
+
+  const openOceanResponse = await HttpGet<OpenOceanSwapQuoteResponse>(openOceanURL);
+
+  return {
+    pegTokenReceivedWei: BigInt(openOceanResponse.data.outAmount),
+    swapData: openOceanResponse.data.data,
+    routerAddress: openOceanResponse.data.to
+  };
 }
 
 async function processBid(
@@ -171,9 +290,10 @@ async function processBid(
     GetPSMAddress(),
     term.collateralAddress, // collateralTokenAddress
     GetPegTokenAddress(), // pegTokenAddress
-    minProfit,
+    BigInt(minProfit) * 10n ** BigInt(getTokenByAddress(GetPegTokenAddress()).decimals),
     routerAddress,
-    swapData
+    swapData,
+    { gasLimit: 1_000_000 }
   );
   await txReceipt.wait();
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {

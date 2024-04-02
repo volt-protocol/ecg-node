@@ -1,8 +1,8 @@
 import { BaseContract, ContractEventName, EventLog, JsonRpcProvider, ethers } from 'ethers';
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
-import axios from 'axios';
 import { Log } from './Logger';
+import { HttpPost } from './HttpHelper';
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -28,16 +28,41 @@ export async function GetBlock(web3Provider: ethers.JsonRpcProvider, blockNumber
   }
 }
 
-export async function GetAvgGasPrice(rpcUrl: string) {
-  const feeHistoryResponse = await axios.post(rpcUrl, {
+/**
+ * Returns the avg gas price in wei
+ * @param rpcUrl the RPC url
+ * @returns avg gas price in wei
+ */
+export async function GetAvgGasPrice() {
+  const rpcURL = process.env.RPC_URL;
+  if (!rpcURL) {
+    throw new Error('Cannot find RPC_URL in env');
+  }
+
+  interface feeHistory {
+    jsonrpc: string;
+    id: number;
+    result: Result;
+  }
+
+  interface Result {
+    baseFeePerGas: string[];
+    gasUsedRatio: number[];
+    oldestBlock: string;
+    reward: string[][];
+  }
+
+  const feeHistoryResponse = await HttpPost<feeHistory>(rpcURL, {
     jsonrpc: '2.0',
     method: 'eth_feeHistory',
     params: [10, 'latest', []],
     id: 1
   });
 
-  const results: string[] = feeHistoryResponse.data.result.baseFeePerGas;
-  return Math.round(average(results.map((_) => Number(_)))) + 3e9;
+  const results: string[] = feeHistoryResponse.result.baseFeePerGas;
+  const avgGasPriceWei = BigInt(Math.round(average(results.map((_) => Number(_)))));
+
+  return avgGasPriceWei;
 }
 
 export async function FetchAllEvents(

@@ -1,6 +1,7 @@
-import axios from 'axios';
 import { sleep } from './Utils';
 import { Log } from './Logger';
+import { HttpPost } from './HttpHelper';
+import axios from 'axios';
 
 let lastTGCall = Date.now();
 type TGBody = {
@@ -35,7 +36,7 @@ async function CallTelegram(botId: string, chatId: string, msg: string, isMarkdo
     mustReCall = false;
 
     try {
-      await axios.post(url, body, config);
+      await HttpPost(url, body, config);
       Log('Message sent to telegram with success');
       lastTGCall = Date.now();
     } catch (err) {

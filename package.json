@@ -3,7 +3,6 @@
     "version": "1.0.0",
     "main": "ECGNode.ts",
     "scripts": {
-        "postinstall": "npm run typechain",
         "start": "node --inspect -r ts-node/register ./src/ECGNode.ts",
         "start:api": "node --inspect -r ts-node/register ./src/api/Api.ts",
         "debug:auction-bidder": "node --inspect -r ts-node/register ./src/processors/AuctionBidder.ts",
@@ -54,12 +53,12 @@
         "typescript": "^5.3.3"
     },
     "dependencies": {
-        "axios": "^1.6.2",
+        "axios": "^1.6.8",
         "bufferutil": "^4.0.8",
         "compression": "^1.7.4",
         "cors": "^2.8.5",
         "discord-webhook-node": "^1.1.8",
-        "discord.js": "^14.14.1",
+        "discord.js": "^14.12.1",
         "dotenv": "^16.3.1",
         "ethers": "^6.9.1",
         "ethers-multicall-provider": "^6.0.2",
