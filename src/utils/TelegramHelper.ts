@@ -1,6 +1,6 @@
-import axios from 'axios';
 import { sleep } from './Utils';
 import { Log } from './Logger';
+import ky, { HTTPError } from 'ky';
 
 let lastTGCall = Date.now();
 type TGBody = {
@@ -35,23 +35,27 @@ async function CallTelegram(botId: string, chatId: string, msg: string, isMarkdo
     mustReCall = false;
 
     try {
-      await axios.post(url, body, config);
+      await ky.post(url, {
+        json: body,
+        headers: {
+          'Content-type': 'application/json',
+          Accept: 'text/plain'
+        },
+        throwHttpErrors: true
+      });
       Log('Message sent to telegram with success');
       lastTGCall = Date.now();
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response) {
-        // Log(err.response?.data)
-        if (!err?.response) {
-          Log('SendTelegramMessage: No Server Response', err);
-          throw err;
-        } else if (err.response?.status === 429) {
+      if (err instanceof HTTPError) {
+        if (err.response.status == 429) {
           Log('SendTelegramMessage: rate limited, sleeping 5 sec', err);
           await sleep(5000);
           mustReCall = true;
-        } else {
-          Log('SendTelegramMessage: Unknown error', err);
+          continue;
         }
-      } else throw err;
+      }
+
+      throw err;
     }
   }
 }

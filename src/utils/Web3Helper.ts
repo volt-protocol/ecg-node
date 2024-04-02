@@ -1,9 +1,8 @@
 import { BaseContract, ContractEventName, EventLog, JsonRpcProvider, ethers } from 'ethers';
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
-import axios from 'axios';
 import { Log } from './Logger';
-import { norm } from './TokenUtils';
+import ky from 'ky';
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -40,14 +39,31 @@ export async function GetAvgGasPrice() {
     throw new Error('Cannot find RPC_URL in env');
   }
 
-  const feeHistoryResponse = await axios.post(rpcURL, {
-    jsonrpc: '2.0',
-    method: 'eth_feeHistory',
-    params: [10, 'latest', []],
-    id: 1
-  });
+  interface feeHistory {
+    jsonrpc: string;
+    id: number;
+    result: Result;
+  }
 
-  const results: string[] = feeHistoryResponse.data.result.baseFeePerGas;
+  interface Result {
+    baseFeePerGas: string[];
+    gasUsedRatio: number[];
+    oldestBlock: string;
+    reward: string[][];
+  }
+
+  const feeHistoryResponse = await ky
+    .post(rpcURL, {
+      json: {
+        jsonrpc: '2.0',
+        method: 'eth_feeHistory',
+        params: [10, 'latest', []],
+        id: 1
+      }
+    })
+    .json<feeHistory>();
+
+  const results: string[] = feeHistoryResponse.result.baseFeePerGas;
   const avgGasPriceWei = BigInt(Math.round(average(results.map((_) => Number(_)))));
 
   return avgGasPriceWei;

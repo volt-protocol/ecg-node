@@ -1,8 +1,11 @@
-import axios from 'axios';
 import { ProtocolConstants } from '../model/ProtocolConstants';
 import { MARKET_ID, TOKENS_FILE, CONFIG_FILE } from '../utils/Constants';
 import { readFileSync } from 'fs';
-import { Log } from '../utils/Logger';
+import ky from 'ky';
+
+interface ConfigFile {
+  [marketId: number]: ProtocolConstants;
+}
 
 let configuration: ProtocolConstants;
 let tokens: TokenConfig[] = [];
@@ -14,9 +17,9 @@ export async function LoadConfiguration() {
 async function LoadProtocolConstants() {
   // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
   if (CONFIG_FILE.startsWith('http')) {
-    // load via axios
-    const resp = await axios.get(CONFIG_FILE);
-    configuration = resp.data[MARKET_ID];
+    // load via http
+    const resp = await ky.get(CONFIG_FILE).json<ConfigFile>();
+    configuration = resp[MARKET_ID];
   } else {
     // read from filesystem
     configuration = JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'))[MARKET_ID];
@@ -30,9 +33,8 @@ async function LoadProtocolConstants() {
 async function LoadTokens() {
   // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
   if (TOKENS_FILE.startsWith('http')) {
-    // load via axios
-    const resp = await axios.get(TOKENS_FILE);
-    tokens = resp.data;
+    // load via http
+    tokens = await ky.get(TOKENS_FILE).json<TokenConfig[]>();
   } else {
     // read from filesystem
     tokens = JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'));
