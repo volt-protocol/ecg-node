@@ -47,7 +47,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpecification));
 app.use('/api/history/', historycalDataRoutes);
 
 app.listen(port, () => {
-  Log(`⚡️[server]: Server is running at http://localhost:${port}`);
+  Log(`⚡️[server]: Server is running. See doc: http://localhost:${port}/api-docs`);
 });
 
 process.on('SIGINT', cleanup);

@@ -13,6 +13,13 @@ const HISTORICAL_CACHE_DURATION = 10 * 60 * 1000;
  *     tags:
  *      - history
  *     description: Gets the credit supply history
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets the credit supply history
@@ -32,15 +39,16 @@ const HISTORICAL_CACHE_DURATION = 10 * 60 * 1000;
  */
 router.get('/CreditSupply', async (req: Request, res: Response) => {
   try {
-    const cacheKey = '/api/history/CreditSupply';
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/CreditSupply-market_${marketId}}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetCreditSupplyHistory(getMarketIdFromRequest(req)),
+      () => HistoricalDataController.GetCreditSupplyHistory(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -51,6 +59,13 @@ router.get('/CreditSupply', async (req: Request, res: Response) => {
  *     tags:
  *      - history
  *     description: Gets the total issuance history
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets the total issuance history
@@ -70,15 +85,16 @@ router.get('/CreditSupply', async (req: Request, res: Response) => {
  */
 router.get('/CreditTotalIssuance', async (req: Request, res: Response) => {
   try {
-    const cacheKey = '/api/history/CreditTotalIssuance';
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/CreditTotalIssuance-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetCreditTotalIssuance(getMarketIdFromRequest(req)),
+      () => HistoricalDataController.GetCreditTotalIssuance(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -89,6 +105,13 @@ router.get('/CreditTotalIssuance', async (req: Request, res: Response) => {
  *     tags:
  *      - history
  *     description: Gets the average interest rate history
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets the average interest rate history
@@ -108,15 +131,16 @@ router.get('/CreditTotalIssuance', async (req: Request, res: Response) => {
  */
 router.get('/AverageInterestRate', async (req: Request, res: Response) => {
   try {
-    const cacheKey = '/api/history/AverageInterestRate';
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/AverageInterestRate-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetAverageInterestRate(getMarketIdFromRequest(req)),
+      () => HistoricalDataController.GetAverageInterestRate(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -127,6 +151,13 @@ router.get('/AverageInterestRate', async (req: Request, res: Response) => {
  *     tags:
  *      - history
  *     description: Gets the TVL of the contract (sum of collateral in all terms)
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets the TVL of the contract (sum of collateral in all terms)
@@ -146,15 +177,16 @@ router.get('/AverageInterestRate', async (req: Request, res: Response) => {
  */
 router.get('/TVL', async (req: Request, res: Response) => {
   try {
-    const cacheKey = '/api/history/TVL';
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/TVL-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetTVL(getMarketIdFromRequest(req)),
+      () => HistoricalDataController.GetTVL(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -172,6 +204,12 @@ router.get('/TVL', async (req: Request, res: Response) => {
  *           type: string
  *         required: true
  *         description: The term address to get the history for
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets the Debt ceiling and issuance history of a terms
@@ -201,10 +239,11 @@ router.get('/TVL', async (req: Request, res: Response) => {
 router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Response) => {
   try {
     const termAddress = req.params.termAddress;
-    const cacheKey = `/api/history/DebtCeilingIssuance/${termAddress}`;
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/DebtCeilingIssuance/${termAddress}-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetDebtCeilingIssuance(getMarketIdFromRequest(req), termAddress),
+      () => HistoricalDataController.GetDebtCeilingIssuance(marketId, termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -212,7 +251,7 @@ router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Respon
     }
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -230,6 +269,12 @@ router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Respon
  *           type: string
  *         required: true
  *         description: The term address to get the history for
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description:  Get the gauge weight history of a lending term
@@ -251,11 +296,12 @@ router.get('/DebtCeilingIssuance/:termAddress', async (req: Request, res: Respon
  */
 router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
   try {
+    const marketId = getMarketIdFromRequest(req);
     const termAddress = req.params.termAddress;
-    const cacheKey = `/api/history/GaugeWeight/${termAddress}`;
+    const cacheKey = `/api/history/GaugeWeight/${termAddress}-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetGaugeWeight(getMarketIdFromRequest(req), termAddress),
+      () => HistoricalDataController.GetGaugeWeight(marketId, termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -263,7 +309,7 @@ router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
     }
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -281,6 +327,12 @@ router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
  *           type: string
  *         required: true
  *         description: The term address to get the history for
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description:  Get the surplus buffer history of a lending term
@@ -302,11 +354,12 @@ router.get('/GaugeWeight/:termAddress', async (req: Request, res: Response) => {
  */
 router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) => {
   try {
+    const marketId = getMarketIdFromRequest(req);
     const termAddress = req.params.termAddress;
-    const cacheKey = `/api/history/SurplusBuffer/${termAddress}`;
+    const cacheKey = `/api/history/SurplusBuffer/${termAddress}-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetSurplusBuffer(getMarketIdFromRequest(req), termAddress),
+      () => HistoricalDataController.GetSurplusBuffer(marketId, termAddress),
       HISTORICAL_CACHE_DURATION
     );
     if (!history) {
@@ -314,7 +367,7 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
     }
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
@@ -325,6 +378,13 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
  *     tags:
  *      - history
  *     description: Gets history of open loans and loan borrow value
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
  *     responses:
  *       200:
  *         description: Gets history of open loans and loan borrow value
@@ -351,20 +411,67 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
  */
 router.get('/LoanBorrow', async (req: Request, res: Response) => {
   try {
-    const cacheKey = '/api/history/LoanBorrow';
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/LoanBorrow-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => HistoricalDataController.GetLoanBorrow(getMarketIdFromRequest(req)),
+      () => HistoricalDataController.GetLoanBorrow(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/history/CreditMultiplier:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Gets the credit multiplier history
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
+ *     responses:
+ *       200:
+ *         description:  Gets the credit multiplier history
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ */
+router.get('/CreditMultiplier', async (req: Request, res: Response) => {
+  try {
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/CreditMultiplier-market_${marketId}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetCreditMultiplierHistory(marketId),
+      HISTORICAL_CACHE_DURATION
+    );
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
 
 function getMarketIdFromRequest(req: Request) {
-  let marketId = Number(req.params.marketId);
+  let marketId = Number(req.query.marketId);
   if (!marketId || Number.isNaN(marketId)) {
     marketId = 1;
   }

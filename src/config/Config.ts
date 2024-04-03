@@ -48,7 +48,7 @@ async function LoadTokens() {
 export interface TokenConfig {
   address: string;
   // usefull to get price from true mainnet tokens
-  // only used is APP_ENV != mainnet
+  // only used if available
   mainnetAddress?: string;
   symbol: string;
   decimals: number;
