@@ -6,9 +6,11 @@ import {
   blockQuote
 } from 'discord.js';
 import path from 'path';
-import { DATA_DIR } from '../../../utils/Constants';
+import fs from 'fs';
+import { GLOBAL_DATA_DIR } from '../../../utils/Constants';
 import { ReadJSON } from '../../../utils/Utils';
-import { LoansFileStructure } from '../../../model/Loan';
+import { Loan, LoansFileStructure } from '../../../model/Loan';
+import { GetMarketsDirectories } from '../../../utils/MultiMarketHelper';
 
 export class LoanDetailsCommand {
   static cmd: ApplicationCommandData = {
@@ -30,15 +32,22 @@ export class LoanDetailsCommand {
       return 'Cannot find loanId in parameters';
     }
 
-    const loansFilename = path.join(DATA_DIR, 'loans.json');
-    const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
-
-    const loan = loanFileData.loans.find((_) => _.id == (loanId.value as string));
-    if (!loan) {
-      return 'Cannot find loanId in loans';
+    let loan: Loan | undefined = undefined;
+    for (const marketDir of GetMarketsDirectories()) {
+      const loansFilename = path.join(marketDir, 'loans.json');
+      const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
+      loan = loanFileData.loans.find((_) => _.id == (loanId.value as string));
+      if (loan) {
+        // loan found, can skip market search
+        break;
+      }
     }
 
-    return blockQuote(`\`\`\`json\n${JSON.stringify(loan, null, 2)}\`\`\``);
+    if (loan) {
+      return blockQuote(`\`\`\`json\n${JSON.stringify(loan, null, 2)}\`\`\``);
+    } else {
+      return 'Cannot find loanId in loans';
+    }
   }
 
   static async execute(interaction: CommandInteraction) {

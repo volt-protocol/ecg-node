@@ -1,6 +1,6 @@
 import { CommandInteraction, InteractionReplyOptions, ApplicationCommandData } from 'discord.js';
 import path from 'path';
-import { DATA_DIR } from '../../../utils/Constants';
+import { GLOBAL_DATA_DIR } from '../../../utils/Constants';
 import fs from 'fs';
 import { ReadJSON } from '../../../utils/Utils';
 import { DiscordUserSavedData } from '../../model/DiscordUserSavedData';
@@ -12,7 +12,7 @@ export class ListWalletsCommands {
   };
 
   static listWallets(userId: string): string {
-    const userFilePath = path.join(DATA_DIR, 'bot', 'users', `${userId}.json`);
+    const userFilePath = path.join(GLOBAL_DATA_DIR, 'bot', 'users', `${userId}.json`);
 
     let userData: DiscordUserSavedData = {
       addresses: []
