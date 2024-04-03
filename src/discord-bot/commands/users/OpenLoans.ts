@@ -5,12 +5,13 @@ import {
   ApplicationCommandOptionType
 } from 'discord.js';
 import path from 'path';
-import { DATA_DIR } from '../../../utils/Constants';
+import { GLOBAL_DATA_DIR } from '../../../utils/Constants';
 import fs from 'fs';
 import { ReadJSON, WriteJSON } from '../../../utils/Utils';
 import { DiscordUserSavedData } from '../../model/DiscordUserSavedData';
 import { ethers } from 'ethers';
 import { LoanStatus, LoansFileStructure } from '../../../model/Loan';
+import { GetMarketsDirectories } from '../../../utils/MultiMarketHelper';
 
 export class OpenLoansCommand {
   static cmd: ApplicationCommandData = {
@@ -19,7 +20,7 @@ export class OpenLoansCommand {
   };
 
   static fetchUserLoans(userId: string): string {
-    const userFilePath = path.join(DATA_DIR, 'bot', 'users', `${userId}.json`);
+    const userFilePath = path.join(GLOBAL_DATA_DIR, 'bot', 'users', `${userId}.json`);
 
     if (!fs.existsSync(userFilePath)) {
       return 'Cannot find any linked address with your username';
@@ -32,12 +33,17 @@ export class OpenLoansCommand {
     }
 
     // read all loans file
-    const loansFilename = path.join(DATA_DIR, 'loans.json');
-    const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
-    const allUsersLoanIds = loanFileData.loans
-      .filter((_) => _.status == LoanStatus.ACTIVE || _.status == LoanStatus.CALLED)
-      .filter((_) => userData.addresses.includes(_.borrowerAddress))
-      .map((_) => `${_.id} (status: ${_.status})`);
+    const allUsersLoanIds: string[] = [];
+    for (const marketDir of GetMarketsDirectories()) {
+      const loansFilename = path.join(marketDir, 'loans.json');
+      const loanFileData: LoansFileStructure = ReadJSON(loansFilename);
+      const allUsersLoanIdsForMarket = loanFileData.loans
+        .filter((_) => _.status == LoanStatus.ACTIVE || _.status == LoanStatus.CALLED)
+        .filter((_) => userData.addresses.includes(_.borrowerAddress))
+        .map((_) => `${_.id} (status: ${_.status})`);
+
+      allUsersLoanIds.push(...allUsersLoanIdsForMarket);
+    }
 
     if (allUsersLoanIds.length == 0) {
       return `You have no open loans. Checked address(es):\n ${userData.addresses.join('\n')} `;

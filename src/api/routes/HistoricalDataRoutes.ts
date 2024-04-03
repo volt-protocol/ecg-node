@@ -40,7 +40,7 @@ const HISTORICAL_CACHE_DURATION = 10 * 60 * 1000;
 router.get('/CreditSupply', async (req: Request, res: Response) => {
   try {
     const marketId = getMarketIdFromRequest(req);
-    const cacheKey = `/api/history/CreditSupply-market_${marketId}}`;
+    const cacheKey = `/api/history/CreditSupply-market_${marketId}`;
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => HistoricalDataController.GetCreditSupplyHistory(marketId),

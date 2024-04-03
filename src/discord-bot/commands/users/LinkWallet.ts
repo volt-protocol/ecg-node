@@ -5,7 +5,7 @@ import {
   ApplicationCommandOptionType
 } from 'discord.js';
 import path from 'path';
-import { DATA_DIR } from '../../../utils/Constants';
+import { GLOBAL_DATA_DIR } from '../../../utils/Constants';
 import fs from 'fs';
 import { ReadJSON, WriteJSON } from '../../../utils/Utils';
 import { DiscordUserSavedData } from '../../model/DiscordUserSavedData';
@@ -26,7 +26,7 @@ export class LinkWalletCommand {
   };
 
   static linkWallet(userId: string, interaction: CommandInteraction): string {
-    const userFilePath = path.join(DATA_DIR, 'bot', 'users', `${userId}.json`);
+    const userFilePath = path.join(GLOBAL_DATA_DIR, 'bot', 'users', `${userId}.json`);
 
     let userData: DiscordUserSavedData = {
       addresses: []
