@@ -6,15 +6,14 @@ import {
 } from '../../model/HistoricalData';
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR } from '../../utils/Constants';
+import { GLOBAL_DATA_DIR } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 
-const HISTORY_DIR = path.join(DATA_DIR, 'history');
 class HistoricalDataController {
   static async GetCreditSupplyHistory(marketId: number): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'credit-supply.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'credit-supply.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
@@ -28,9 +27,9 @@ class HistoricalDataController {
   }
 
   static async GetCreditTotalIssuance(marketId: number): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'credit-total-issuance.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'credit-total-issuance.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
@@ -44,9 +43,9 @@ class HistoricalDataController {
   }
 
   static async GetAverageInterestRate(marketId: number): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'average-interest-rate.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'average-interest-rate.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
@@ -60,9 +59,9 @@ class HistoricalDataController {
   }
 
   static async GetTVL(marketId: number): Promise<ApiHistoricalData> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'tvl.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'tvl.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalData = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
@@ -76,9 +75,9 @@ class HistoricalDataController {
   }
 
   static async GetLoanBorrow(marketId: number): Promise<ApiHistoricalDataMulti> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'loan-borrow.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'loan-borrow.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
       const times = Object.values(fullHistory.blockTimes);
@@ -99,9 +98,9 @@ class HistoricalDataController {
     marketId: number,
     termAddress: string
   ): Promise<ApiHistoricalDataMulti | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'debtceiling-issuance.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'debtceiling-issuance.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
       const keyDebtCeiling = `${termAddress}-debtCeiling`;
@@ -140,9 +139,9 @@ class HistoricalDataController {
   }
 
   static async GetGaugeWeight(marketId: number, termAddress: string): Promise<ApiHistoricalData | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'gauge-weight.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'gauge-weight.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
       const keyWeight = `${termAddress}-weight`;
@@ -175,9 +174,9 @@ class HistoricalDataController {
   }
 
   static async GetSurplusBuffer(marketId: number, termAddress: string): Promise<ApiHistoricalData | undefined> {
-    const historyFilename = path.join(HISTORY_DIR, `market_${marketId}`, 'surplus-buffer.json');
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'surplus-buffer.json');
     if (!fs.existsSync(historyFilename)) {
-      throw new Error(`CANNOT FIND ${historyFilename}`);
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     } else {
       const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
       const keySurplusBuffer = `${termAddress}-surplus-buffer`;
@@ -206,6 +205,22 @@ class HistoricalDataController {
       }
 
       return returnVal;
+    }
+  }
+
+  static async GetCreditMultiplierHistory(marketId: number): Promise<ApiHistoricalData> {
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'credit-multiplier.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    } else {
+      const fullHistory: HistoricalData = ReadJSON(historyFilename);
+      const times = Object.values(fullHistory.blockTimes);
+      const values = Object.values(fullHistory.values);
+
+      return {
+        timestamps: times,
+        values: values
+      };
     }
   }
 }

@@ -177,7 +177,6 @@ async function fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: Pr
 function getSyncData() {
   const syncDataPath = path.join(DATA_DIR, 'sync.json');
   if (!fs.existsSync(syncDataPath)) {
-    // Log(APP_ENV);
     // create the sync file
     const syncData: SyncData = {
       termSync: [],

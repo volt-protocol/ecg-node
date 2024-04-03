@@ -25,6 +25,9 @@ export function ReadJSON(filename: string) {
 }
 
 export function WriteJSON(filename: string, obj: any) {
+  if (!fs.existsSync(path.dirname(filename))) {
+    fs.mkdirSync(path.dirname(filename), { recursive: true });
+  }
   fs.writeFileSync(filename, JSON.stringify(obj, JsonBigIntReplacer, 2));
 }
 

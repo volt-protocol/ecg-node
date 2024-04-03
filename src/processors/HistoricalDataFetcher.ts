@@ -2,7 +2,7 @@ import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
@@ -33,7 +33,7 @@ import { GetGaugeForMarketId } from '../utils/ECGHelper';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
-const STEP_BLOCK = 277;
+const STEP_BLOCK = BLOCK_PER_HOUR;
 
 const web3Provider = GetWeb3Provider();
 /**
@@ -69,6 +69,7 @@ async function HistoricalDataFetcher() {
     await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
     await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
     await fetchLoansData(currentBlock, historicalDataDir, web3Provider);
+    await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
@@ -148,6 +149,46 @@ async function fetchCreditTotalIssuance(
       `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
       ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchCreditMultiplier(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'credit-multiplier.json');
+  let fullHistoricalData: HistoricalData = {
+    name: 'credit-multiplier',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    Log('fetchCreditMultiplier: data already up to date');
+    return;
+  }
+
+  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    const creditMultiplier = await retry(() => profitManagerContract.creditMultiplier({ blockTag: blockToFetch }), []);
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+    fullHistoricalData.values[blockToFetch] = norm(creditMultiplier);
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    Log(
+      `fetchCreditMultiplier: [${blockToFetch}] (${new Date(
+        blockData.timestamp * 1000
+      ).toISOString()}) credit multiplier: ${fullHistoricalData.values[blockToFetch]}`
     );
   }
 
