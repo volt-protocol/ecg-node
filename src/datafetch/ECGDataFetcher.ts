@@ -26,17 +26,17 @@ import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
+import { SendNotifications } from '../utils/Notifications';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
 let lastFetch = 0;
 
-const web3Provider = GetWeb3Provider();
-
 export async function FetchECGData() {
   await FileMutex.Lock();
   lastFetch = Date.now();
   try {
+    const web3Provider = GetWeb3Provider();
     const currentBlock = await web3Provider.getBlockNumber();
     Log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
@@ -53,6 +53,7 @@ export async function FetchECGData() {
   } catch (e) {
     Log('FetchECGData: unknown failure', e);
     lastFetch = 0;
+    await SendNotifications('Data Fetcher', 'Unknown exception when fetching data', JSON.stringify(e));
   } finally {
     await FileMutex.Unlock();
   }
@@ -221,33 +222,39 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
   // fetch & handle data
   const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
   // IncrementGaugeWeight(user, gauge, weight)
-  (await FetchAllEvents(guild, 'GuildToken', 'IncrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
-    gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
-      address: event.args.gauge,
-      weight: 0n,
-      lastLoss: 0,
-      users: {}
-    };
-    gaugesFile.gauges[event.args.gauge].weight += event.args.weight;
-
-    if (!gaugesFile.gauges[event.args.gauge].users[event.args.user]) {
-      gaugesFile.gauges[event.args.gauge].users[event.args.user] = {
-        address: event.args.user,
+  const incrementGaugeEvents = await FetchAllEvents(
+    guild,
+    'GuildToken',
+    'IncrementGaugeWeight',
+    sinceBlock,
+    currentBlock
+  );
+  for (const event of incrementGaugeEvents) {
+    {
+      gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
+        address: event.args.gauge,
         weight: 0n,
-        lastLossApplied: 0
+        lastLoss: 0,
+        users: {}
       };
+      gaugesFile.gauges[event.args.gauge].weight += event.args.weight;
+
+      if (!gaugesFile.gauges[event.args.gauge].users[event.args.user]) {
+        const block = await web3Provider.getBlock(event.blockNumber);
+        if (!block) {
+          throw new Error(`Cannot getBlock for ${event.blockNumber}`);
+        }
+        gaugesFile.gauges[event.args.gauge].users[event.args.user] = {
+          address: event.args.user,
+          weight: 0n,
+          lastLossApplied: block.timestamp // default timestamp when incrementing gauge is block.timestamp
+        };
+      }
+
+      gaugesFile.gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
     }
+  }
 
-    gaugesFile.gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
-
-    // note: this is not exactly correct, we should be fetching the event's timestamp,
-    // but this would require additional RPC calls, and we know we'll only be checking
-    // the user lastLossApplied against the gauge's lastLoss. GuildToken.incrementWeight
-    // would revert if there is an unapplied loss, so we know the user's lastLossApplied
-    // is at least the gauge's lastLoss when an IncrementGaugeWeight event is emitted.
-    gaugesFile.gauges[event.args.gauge].users[event.args.user].lastLossApplied =
-      gaugesFile.gauges[event.args.gauge].lastLoss;
-  });
   // DecrementGaugeWeight(user, gauge, weight)
   (await FetchAllEvents(guild, 'GuildToken', 'DecrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
     gaugesFile.gauges[event.args.gauge].weight -= event.args.weight;
