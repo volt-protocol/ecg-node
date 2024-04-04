@@ -1,18 +1,18 @@
-import { ethers, Contract, Interface } from 'ethers';
+import { Contract, Interface } from 'ethers';
 import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import { GetGuildTokenAddress } from '../config/Config';
 import { GuildToken__factory } from '../contracts/types';
-import { GetWeb3Provider } from '../utils/Web3Helper';
+import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { MARKET_ID } from '../utils/Constants';
 dotenv.config();
 
-const provider = GetWeb3Provider(15000);
+const provider = GetListenerWeb3Provider(15000);
 
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];

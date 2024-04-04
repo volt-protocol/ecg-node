@@ -1,4 +1,4 @@
-import { Contract, ethers, Interface, JsonRpcProvider } from 'ethers';
+import { Contract, Interface, JsonRpcProvider } from 'ethers';
 import { LendingTerm__factory } from '../contracts/types';
 import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
@@ -6,13 +6,13 @@ import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
 import { GetLendingTermOnboardingAddress, getTokenByAddress, LoadConfiguration, TokenConfig } from '../config/Config';
 import { sleep } from '../utils/Utils';
-import { GetWeb3Provider } from '../utils/Web3Helper';
+import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 dotenv.config();
 
 let onboardingContract: Contract | undefined;
 
-const web3Provider = GetWeb3Provider(15000);
+const web3Provider = GetListenerWeb3Provider(15000);
 
 async function TermOnboardingWatcher() {
   process.title = 'ECG_NODE_TERM_ONBOARDING_WATCHER';
