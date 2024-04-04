@@ -11,10 +11,10 @@ import path from 'path';
 import fs from 'fs';
 import { MarketMakerState } from '../model/MarketMakerState';
 import { Log } from '../utils/Logger';
+import { TestnetMarketMakerConfig } from '../model/NodeConfig';
 
 const RUN_EVERY_SEC = 120;
 
-const web3Provider = GetWeb3Provider();
 const NOTIFICATION_DELAY = 12 * 60 * 60 * 1000; // send notification every 12h
 const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.json');
 
@@ -38,9 +38,6 @@ async function TestnetMarketMaker() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    if (!process.env.ETH_PRIVATE_KEY) {
-      throw new Error('Cannot find ETH_PRIVATE_KEY in env');
-    }
 
     const processorsDataDir = path.join(DATA_DIR, 'processors');
 
@@ -48,142 +45,144 @@ async function TestnetMarketMaker() {
       fs.mkdirSync(processorsDataDir, { recursive: true });
     }
 
-    const marketMakerState: MarketMakerState = loadLastState();
-    const sendNotification = marketMakerState.lastNotification + NOTIFICATION_DELAY < Date.now();
+    await MakeMarket(config);
+    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
+    await sleep(RUN_EVERY_SEC * 1000);
+  }
+}
 
-    const fields: { fieldName: string; fieldValue: string }[] = [];
+async function MakeMarket(config: TestnetMarketMakerConfig) {
+  const marketMakerState: MarketMakerState = loadLastState();
+  const sendNotification = marketMakerState.lastNotification + NOTIFICATION_DELAY < Date.now();
 
-    const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-    for (let i = 0; i < config.uniswapPairs.length; i++) {
-      const token0 = getTokenBySymbol(config.uniswapPairs[i].path[0]);
-      const token1 = getTokenBySymbol(config.uniswapPairs[i].path[1]);
-      const threshold = config.threshold;
-      const pairAddress = config.uniswapPairs[i].poolAddress;
-      const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
-      Log(`checking pair ${token0.symbol}-${token1.symbol}`);
+  const fields: { fieldName: string; fieldValue: string; }[] = [];
+  const web3Provider = GetWeb3Provider();
+  if (!process.env.ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find ETH_PRIVATE_KEY in env');
+  }
+  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
+  for (let i = 0; i < config.uniswapPairs.length; i++) {
+    const token0 = getTokenBySymbol(config.uniswapPairs[i].path[0]);
+    const token1 = getTokenBySymbol(config.uniswapPairs[i].path[1]);
+    const threshold = config.threshold;
+    const pairAddress = config.uniswapPairs[i].poolAddress;
+    const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
+    Log(`checking pair ${token0.symbol}-${token1.symbol}`);
 
-      const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
-      const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
-      const targetRatio = priceToken1 / priceToken0;
-      const reserves = await uniswapPair.getReserves();
-      let spotRatio =
-        Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
-        Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
+    const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
+    const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
+    const targetRatio = priceToken1 / priceToken0;
+    const reserves = await uniswapPair.getReserves();
+    let spotRatio = Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+      Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
-      const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
-      Log(`price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`);
+    const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
+    Log(`price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`);
 
-      if (diff < threshold) {
-        Log(`pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`);
-      } else {
-        // if we have to swap token0 for token1
-        if (spotRatio < targetRatio) {
-          const step = 1n * BigInt(10 ** (token0.decimals - 2));
-          let amountIn = 0n;
-          let amountOut = 0n;
-          while (spotRatio < targetRatio) {
-            amountIn += step;
-            amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
-            const reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
-            spotRatio =
-              Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
-              Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
-          }
-          Log(
-            `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${
-              token1.symbol
-            }`
-          );
-
-          // approve token0 to the router
-          await swapExactTokensForTokens(
-            token0,
-            token1,
-            1 / targetRatio,
-            amountIn,
-            (amountOut * 995n) / 1000n, // max 0.5% slippage
-            [token0.address, token1.address],
-            signer.address,
-            Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-            signer
-          );
+    if (diff < threshold) {
+      Log(`pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`);
+    } else {
+      // if we have to swap token0 for token1
+      if (spotRatio < targetRatio) {
+        const step = 1n * BigInt(10 ** (token0.decimals - 2));
+        let amountIn = 0n;
+        let amountOut = 0n;
+        while (spotRatio < targetRatio) {
+          amountIn += step;
+          amountOut = getAmountOut(amountIn, reserves[0], reserves[1]);
+          const reservesAfter = [reserves[0] + amountIn, reserves[1] - amountOut];
+          spotRatio =
+            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
-        // if we have to swap token1 for token0
-        else {
-          const step = 1n * BigInt(10 ** (token1.decimals - 2));
-          let amountIn = 0n;
-          let amountOut = 0n;
-          while (spotRatio > targetRatio) {
-            amountIn += step;
-            amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
-            const reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
-            spotRatio =
-              Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
-              Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
-          }
-          Log(
-            `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${
-              token0.symbol
-            }`
-          );
+        Log(
+          `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${token1.symbol}`
+        );
 
-          await swapExactTokensForTokens(
-            token1,
-            token0,
-            targetRatio,
-            amountIn,
-            (amountOut * 995n) / 1000n, // max 0.5% slippage
-            [token1.address, token0.address],
-            signer.address,
-            Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
-            signer
-          );
-        }
+        // approve token0 to the router
+        await swapExactTokensForTokens(
+          token0,
+          token1,
+          1 / targetRatio,
+          amountIn,
+          (amountOut * 995n) / 1000n, // max 0.5% slippage
+          [token0.address, token1.address],
+          signer.address,
+          Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
+          signer
+        );
       }
 
-      if (sendNotification) {
-        const reserves = await uniswapPair.getReserves();
-        const spotRatio =
-          Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
-          Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
-
-        const ratioDiff = roundTo(Math.abs((targetRatio - spotRatio) / targetRatio) * 100, 2);
-        // const fields: { fieldName: string; fieldValue: string }[] = [];
-        if (targetRatio < 1) {
-          fields.push({
-            fieldName: `${token0.symbol}->${token1.symbol} real price`,
-            fieldValue: (1 / targetRatio).toString()
-          });
-          fields.push({
-            fieldName: `${token0.symbol}->${token1.symbol} univ2 price `,
-            fieldValue: `${1 / spotRatio} (${ratioDiff}% diff)`
-          });
-        } else {
-          fields.push({
-            fieldName: `${token1.symbol}->${token0.symbol} real price`,
-            fieldValue: targetRatio.toString()
-          });
-          fields.push({
-            fieldName: `${token1.symbol}->${token0.symbol} univ2 price`,
-            fieldValue: `${spotRatio} (${ratioDiff}% diff)`
-          });
+      // if we have to swap token1 for token0
+      else {
+        const step = 1n * BigInt(10 ** (token1.decimals - 2));
+        let amountIn = 0n;
+        let amountOut = 0n;
+        while (spotRatio > targetRatio) {
+          amountIn += step;
+          amountOut = getAmountOut(amountIn, reserves[1], reserves[0]);
+          const reservesAfter = [reserves[0] - amountOut, reserves[1] + amountIn];
+          spotRatio =
+            Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
+            Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
+        Log(
+          `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${token0.symbol}`
+        );
+
+        await swapExactTokensForTokens(
+          token1,
+          token0,
+          targetRatio,
+          amountIn,
+          (amountOut * 995n) / 1000n, // max 0.5% slippage
+          [token1.address, token0.address],
+          signer.address,
+          Math.floor(Date.now() / 1000) + 120, // 2 minutes deadline
+          signer
+        );
       }
     }
 
     if (sendNotification) {
-      fields.push({
-        fieldName: 'Next update: ',
-        fieldValue: `${new Date(Date.now() + NOTIFICATION_DELAY).toISOString()}`
-      });
-      await SendNotificationsList('MarketMaker', 'Market update', fields);
-      marketMakerState.lastNotification = Date.now();
-    }
+      const reserves = await uniswapPair.getReserves();
+      const spotRatio = Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+        Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
-    saveLastState(marketMakerState);
-    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
-    await sleep(RUN_EVERY_SEC * 1000);
+      const ratioDiff = roundTo(Math.abs((targetRatio - spotRatio) / targetRatio) * 100, 2);
+      // const fields: { fieldName: string; fieldValue: string }[] = [];
+      if (targetRatio < 1) {
+        fields.push({
+          fieldName: `${token0.symbol}->${token1.symbol} real price`,
+          fieldValue: (1 / targetRatio).toString()
+        });
+        fields.push({
+          fieldName: `${token0.symbol}->${token1.symbol} univ2 price `,
+          fieldValue: `${1 / spotRatio} (${ratioDiff}% diff)`
+        });
+      } else {
+        fields.push({
+          fieldName: `${token1.symbol}->${token0.symbol} real price`,
+          fieldValue: targetRatio.toString()
+        });
+        fields.push({
+          fieldName: `${token1.symbol}->${token0.symbol} univ2 price`,
+          fieldValue: `${spotRatio} (${ratioDiff}% diff)`
+        });
+      }
+    }
   }
+
+  if (sendNotification) {
+    fields.push({
+      fieldName: 'Next update: ',
+      fieldValue: `${new Date(Date.now() + NOTIFICATION_DELAY).toISOString()}`
+    });
+    await SendNotificationsList('MarketMaker', 'Market update', fields);
+    marketMakerState.lastNotification = Date.now();
+  }
+
+  saveLastState(marketMakerState);
 }
 
 function getAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint): bigint {

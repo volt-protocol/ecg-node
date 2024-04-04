@@ -34,8 +34,6 @@ dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = BLOCK_PER_HOUR;
-
-const web3Provider = GetWeb3Provider();
 /**
  * Fetches data historically since the protocol deployment, 1 data per hour for a selected data
  * Assumes 1 block = 13 seconds so fetches data for every 277 blocks
@@ -52,27 +50,33 @@ async function HistoricalDataFetcher() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    const currentBlock = await web3Provider.getBlockNumber();
-    Log(`fetching data up to block ${currentBlock}`);
 
-    const historicalDataDir = path.join(DATA_DIR, 'history');
-
-    if (!fs.existsSync(historicalDataDir)) {
-      fs.mkdirSync(historicalDataDir, { recursive: true });
-    }
-
-    await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
-    await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
-    await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
-    await fetchTVL(currentBlock, historicalDataDir, web3Provider);
-    await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
-    await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
-    await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
-    await fetchLoansData(currentBlock, historicalDataDir, web3Provider);
-    await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
+    await FetchHistoricalData();
 
     await WaitUntilScheduled(startDate, runEverySec);
   }
+}
+
+async function FetchHistoricalData() {
+  const web3Provider = GetWeb3Provider();
+  const currentBlock = await web3Provider.getBlockNumber();
+  Log(`fetching data up to block ${currentBlock}`);
+
+  const historicalDataDir = path.join(DATA_DIR, 'history');
+
+  if (!fs.existsSync(historicalDataDir)) {
+    fs.mkdirSync(historicalDataDir, { recursive: true });
+  }
+
+  await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
+  await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
+  await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
+  await fetchTVL(currentBlock, historicalDataDir, web3Provider);
+  await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+  await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
+  await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
+  await fetchLoansData(currentBlock, historicalDataDir, web3Provider);
+  await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
 }
 
 async function fetchCreditTotalSupply(
