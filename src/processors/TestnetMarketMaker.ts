@@ -55,7 +55,7 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
   const marketMakerState: MarketMakerState = loadLastState();
   const sendNotification = marketMakerState.lastNotification + NOTIFICATION_DELAY < Date.now();
 
-  const fields: { fieldName: string; fieldValue: string; }[] = [];
+  const fields: { fieldName: string; fieldValue: string }[] = [];
   const web3Provider = GetWeb3Provider();
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
@@ -73,7 +73,8 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
     const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
     const targetRatio = priceToken1 / priceToken0;
     const reserves = await uniswapPair.getReserves();
-    let spotRatio = Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+    let spotRatio =
+      Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
       Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
     const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
@@ -96,7 +97,9 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
         Log(
-          `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${token1.symbol}`
+          `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${
+            token1.symbol
+          }`
         );
 
         // approve token0 to the router
@@ -127,7 +130,9 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
         Log(
-          `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${token0.symbol}`
+          `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${
+            token0.symbol
+          }`
         );
 
         await swapExactTokensForTokens(
@@ -146,7 +151,8 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
 
     if (sendNotification) {
       const reserves = await uniswapPair.getReserves();
-      const spotRatio = Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
+      const spotRatio =
+        Number(reserves[0] * BigInt(10 ** (18 - token0.decimals))) /
         Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
       const ratioDiff = roundTo(Math.abs((targetRatio - spotRatio) / targetRatio) * 100, 2);

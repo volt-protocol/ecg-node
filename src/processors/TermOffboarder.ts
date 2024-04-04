@@ -8,8 +8,7 @@ import {
   GetLendingTermOffboardingAddress,
   GetPegTokenAddress,
   LoadConfiguration,
-  getTokenByAddress,
-  getTokenBySymbol
+  getTokenByAddress
 } from '../config/Config';
 import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
