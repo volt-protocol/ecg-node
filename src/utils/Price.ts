@@ -1,9 +1,10 @@
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import SimpleCacheService from './CacheService';
+import { NETWORK } from './Constants';
 import { HttpGet } from './HttpHelper';
 
 export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number> {
-  const tokenId = `ethereum:${tokenAddress}`;
+  const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
   const cacheKey = `GetTokenPriceAtTimestamp-${tokenId}-${timestamp}`;
   const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
 
@@ -17,7 +18,7 @@ export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: 
 }
 
 export async function GetTokenPrice(tokenAddress: string): Promise<number> {
-  const tokenId = `ethereum:${tokenAddress}`;
+  const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
   const cacheKey = `GetTokenPrice-${tokenId}`;
   const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
 
