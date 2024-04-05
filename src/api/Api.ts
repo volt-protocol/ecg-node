@@ -5,11 +5,13 @@ import helmet from 'helmet';
 import compression from 'compression';
 import loggerMiddleware from './middlewares/LoggerMiddleware';
 import historycalDataRoutes from './routes/HistoricalDataRoutes';
+import marketDataRoutes from './routes/MarketDataRoutes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import dotenv from 'dotenv';
 import { Log } from '../utils/Logger';
+import { LoadConfiguration } from '../config/Config';
 dotenv.config();
 const port = process.env.API_PORT || 17777;
 
@@ -42,9 +44,12 @@ const options = {
 
 const openapiSpecification = swaggerJsdoc(options);
 
+LoadConfiguration();
+
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpecification));
 
 app.use('/api/history/', historycalDataRoutes);
+app.use('/api/markets/', marketDataRoutes);
 
 app.listen(port, () => {
   Log(`⚡️[server]: Server is running. See doc: http://localhost:${port}/api-docs`);

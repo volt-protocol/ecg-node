@@ -68,6 +68,10 @@ export function getTokenBySymbol(symbol: string) {
   return token;
 }
 
+export function getAllTokens() {
+  return tokens;
+}
+
 /**
  * Get a token by its address, throw if not found
  * @param symbol
