@@ -2,6 +2,7 @@ import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import SimpleCacheService from './CacheService';
 import { NETWORK } from './Constants';
 import { HttpGet } from './HttpHelper';
+import { Log } from './Logger';
 
 export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number> {
   const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
@@ -14,6 +15,8 @@ export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: 
     cacheDurationMs
   );
 
+  Log(`GetTokenPriceAtTimestamp[${new Date(timestamp * 1000).toISOString()}]: ${tokenId} = $${price}`);
+
   return price;
 }
 
@@ -24,6 +27,7 @@ export async function GetTokenPrice(tokenAddress: string): Promise<number> {
 
   const price = await SimpleCacheService.GetAndCache(cacheKey, () => GetDefiLlamaPrice(tokenId), cacheDurationMs);
 
+  Log(`GetTokenPrice: ${tokenId} = $${price}`);
   return price;
 }
 

@@ -32,11 +32,11 @@ export default class SimpleCacheService {
   static async GetAndCache<T>(key: string, fct: () => Promise<T>, cacheDurationMs: number): Promise<T> {
     let cached = SimpleCacheService.Get<T>(key);
     if (!cached) {
-      Log(`CACHE MISS FOR ${key}`);
+      // Log(`CACHE MISS FOR ${key}`);
       cached = await fct();
       SimpleCacheService.Set<T>(key, cached, cacheDurationMs);
     } else {
-      Log(`CACHE HIT FOR ${key}`);
+      // Log(`CACHE HIT FOR ${key}`);
     }
 
     return cached;
