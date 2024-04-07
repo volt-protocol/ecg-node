@@ -22,6 +22,12 @@ or use nvm: https://github.com/nvm-sh/nvm
 
 `npm install`
 
+## Generating Contract Types
+
+Before building the project, you need to generate TypeScript typings for your smart contracts. This ensures that TypeScript can recognize and type-check the contract interactions within your code.
+
+`npm run typechain`
+
 ## Build
 
 `npm run build`
