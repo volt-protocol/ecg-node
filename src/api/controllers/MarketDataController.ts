@@ -9,6 +9,8 @@ import { getAllTokens, getTokenByAddress } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { HttpGet } from '../../utils/HttpHelper';
 import { DefiLlamaPriceResponse } from '../../model/DefiLlama';
+import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
+import { AuctionsFileStructure } from '../../model/Auction';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -45,6 +47,37 @@ class MarketDataController {
           minPartialRepayPercent: norm(term.minPartialRepayPercent),
           openingFee: norm(term.openingFee),
           status: term.status
+        });
+      }
+
+      return response;
+    }
+  }
+
+  static async GetAuctions(marketId: number): Promise<AuctionsApiReponse> {
+    const auctionsFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'auctions.json');
+    if (!fs.existsSync(auctionsFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    } else {
+      const auctionFile: AuctionsFileStructure = ReadJSON(auctionsFilename);
+
+      const response: AuctionsApiReponse = {
+        updated: auctionFile.updated,
+        updatedHuman: auctionFile.updatedHuman,
+        auctions: []
+      };
+
+      for (const auction of auctionFile.auctions) {
+        response.auctions.push({
+          auctionHouseAddress: auction.auctionHouseAddress,
+          callCreditMultiplier: auction.callCreditMultiplier,
+          callDebt: auction.callDebt,
+          collateralAmount: auction.collateralAmount,
+          endTime: auction.endTime,
+          lendingTermAddress: auction.lendingTermAddress,
+          loanId: auction.loanId,
+          startTime: auction.startTime,
+          status: auction.status
         });
       }
 
