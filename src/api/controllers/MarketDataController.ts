@@ -11,6 +11,7 @@ import { HttpGet } from '../../utils/HttpHelper';
 import { DefiLlamaPriceResponse } from '../../model/DefiLlama';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
+import { AuctionHousesFileStructure } from '../../model/AuctionHouse';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -56,33 +57,26 @@ class MarketDataController {
 
   static async GetAuctions(marketId: number): Promise<AuctionsApiReponse> {
     const auctionsFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'auctions.json');
+    const auctionHousesFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'auction-houses.json');
     if (!fs.existsSync(auctionsFilename)) {
       throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
-    } else {
-      const auctionFile: AuctionsFileStructure = ReadJSON(auctionsFilename);
-
-      const response: AuctionsApiReponse = {
-        updated: auctionFile.updated,
-        updatedHuman: auctionFile.updatedHuman,
-        auctions: []
-      };
-
-      for (const auction of auctionFile.auctions) {
-        response.auctions.push({
-          auctionHouseAddress: auction.auctionHouseAddress,
-          callCreditMultiplier: auction.callCreditMultiplier,
-          callDebt: auction.callDebt,
-          collateralAmount: auction.collateralAmount,
-          endTime: auction.endTime,
-          lendingTermAddress: auction.lendingTermAddress,
-          loanId: auction.loanId,
-          startTime: auction.startTime,
-          status: auction.status
-        });
-      }
-
-      return response;
     }
+
+    if (!fs.existsSync(auctionHousesFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    const auctionFile: AuctionsFileStructure = ReadJSON(auctionsFilename);
+    const auctionHousesFile: AuctionHousesFileStructure = ReadJSON(auctionHousesFilename);
+
+    const response: AuctionsApiReponse = {
+      updated: auctionFile.updated,
+      updatedHuman: auctionFile.updatedHuman,
+      auctions: auctionFile.auctions,
+      auctionHouses: auctionHousesFile.auctionHouses
+    };
+
+    return response;
   }
 
   static async GetTokensInfos(marketId: number): Promise<TokensApiInfo[]> {

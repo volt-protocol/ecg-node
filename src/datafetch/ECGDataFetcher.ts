@@ -1,6 +1,6 @@
 import { JsonRpcProvider, ethers } from 'ethers';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import fs from 'fs';
+import fs, { link } from 'fs';
 import path from 'path';
 import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
@@ -27,6 +27,7 @@ import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { SendNotifications } from '../utils/Notifications';
+import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -47,6 +48,7 @@ export async function FetchECGData() {
     const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
     const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
+    const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
 
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     Log('FetchECGData: finished fetching');
@@ -57,6 +59,41 @@ export async function FetchECGData() {
   } finally {
     await FileMutex.Unlock();
   }
+}
+
+async function fetchAndSaveAuctionHouses(web3Provider: JsonRpcProvider, terms: LendingTerm[]) {
+  let allAuctionHouses: AuctionHouseData[] = [];
+  const auctionHousesFilePath = path.join(DATA_DIR, 'auction-houses.json');
+  if (fs.existsSync(auctionHousesFilePath)) {
+    const auctionsFile: AuctionHousesFileStructure = ReadJSON(auctionHousesFilePath);
+    allAuctionHouses = auctionsFile.auctionHouses;
+  }
+
+  const allAuctionHousesFromTerms = new Set<string>(terms.map((_) => _.auctionHouseAddress));
+  for (const auctionHouseAddress of allAuctionHousesFromTerms) {
+    if (allAuctionHouses.find((_) => _.address == auctionHouseAddress)) {
+      // already known, not need to fetch data
+    } else {
+      const auctionHouseContract = AuctionHouse__factory.connect(auctionHouseAddress, web3Provider);
+      const auctionHouse: AuctionHouseData = {
+        address: auctionHouseAddress,
+        midPoint: Number(await auctionHouseContract.midPoint()),
+        duration: Number(await auctionHouseContract.auctionDuration())
+      };
+
+      allAuctionHouses.push(auctionHouse);
+    }
+  }
+
+  const endDate = Date.now();
+  const auctionsFile: AuctionHousesFileStructure = {
+    auctionHouses: allAuctionHouses,
+    updated: endDate,
+    updatedHuman: new Date(endDate).toISOString()
+  };
+
+  WriteJSON(auctionHousesFilePath, auctionsFile);
+  return allAuctionHouses;
 }
 
 async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
@@ -431,6 +468,7 @@ async function fetchAndSaveAuctions(
 
   const allNewLoansIds: { auctionHouseAddress: string; loanId: string }[] = [];
   const auctionsHouseAddresses = new Set<string>(terms.map((_) => _.auctionHouseAddress));
+  const allAuctionEndEvents = [];
   for (const auctionHouseAddress of auctionsHouseAddresses) {
     // check if we already have a sync data about this term
     const auctionSyncData = syncData.auctionSync?.find((_) => _.auctionHouseAddress == auctionHouseAddress);
@@ -449,6 +487,16 @@ async function fetchAndSaveAuctions(
       sinceBlock,
       currentBlock
     );
+
+    const auctionEndEvents = await FetchAllEvents(
+      auctionHouseContract,
+      auctionHouseAddress,
+      'AuctionEnd',
+      sinceBlock,
+      currentBlock
+    );
+
+    allAuctionEndEvents.push(...auctionEndEvents);
 
     allNewLoansIds.push(
       ...newLoanIds.map((_) => {
@@ -486,8 +534,27 @@ async function fetchAndSaveAuctions(
   }
 
   // fetch data for all auctions
-  const allUpdatedAuctions: Auction[] = await fetchAuctionsInfo(allLoanIds, web3Provider);
+  const allUpdatedAuctions: Auction[] = await fetchAuctionsInfo(allLoanIds, terms, web3Provider);
   updateAuctions.auctions.push(...allUpdatedAuctions);
+
+  // update auctions for all auctionEnd events
+  for (const auctionEndEvent of allAuctionEndEvents) {
+    const txHash = auctionEndEvent.transactionHash;
+    const collateralSold = auctionEndEvent.args['collateralSold'];
+    const debtRecovered = auctionEndEvent.args['debtRecovered'];
+    const loanId = auctionEndEvent.args['loanId'];
+
+    // find related auction
+    const index = updateAuctions.auctions.findIndex((_) => _.loanId == loanId);
+    if (index < 0) {
+      throw new Error(`Cannot find auction for loanId: ${loanId}`);
+    } else {
+      updateAuctions.auctions[index].bidTxHash = txHash;
+      updateAuctions.auctions[index].collateralSold = collateralSold.toString();
+      updateAuctions.auctions[index].debtRecovered = debtRecovered.toString();
+    }
+  }
+
   const endDate = Date.now();
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();
@@ -496,13 +563,14 @@ async function fetchAndSaveAuctions(
 
 async function fetchAuctionsInfo(
   allLoanIds: { auctionHouseAddress: string; loanId: string }[],
+  lendingTerms: LendingTerm[],
   web3Provider: JsonRpcProvider
 ): Promise<Auction[]> {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
   const promises: Promise<AuctionHouse.AuctionStructOutput>[] = [];
-  for (const auctionData of allLoanIds) {
-    const auctionHouseContract = AuctionHouse__factory.connect(auctionData.auctionHouseAddress, multicallProvider);
-    promises.push(auctionHouseContract.getAuction(auctionData.loanId));
+  for (const loansId of allLoanIds) {
+    const auctionHouseContract = AuctionHouse__factory.connect(loansId.auctionHouseAddress, multicallProvider);
+    promises.push(auctionHouseContract.getAuction(loansId.loanId));
   }
 
   Log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
@@ -513,6 +581,13 @@ async function fetchAuctionsInfo(
   const allAuctions: Auction[] = [];
   for (const loan of allLoanIds) {
     const auctionData = await promises[cursor++];
+
+    const lendingTermAddress = auctionData.lendingTerm;
+    const linkedLendingTerm = lendingTerms.find((_) => _.termAddress == auctionData.lendingTerm);
+    if (!linkedLendingTerm) {
+      throw new Error(`Cannot find lending term with address ${auctionData.lendingTerm}`);
+    }
+
     allAuctions.push({
       loanId: loan.loanId,
       auctionHouseAddress: loan.auctionHouseAddress,
@@ -522,7 +597,11 @@ async function fetchAuctionsInfo(
       callDebt: auctionData.callDebt.toString(10),
       collateralAmount: auctionData.collateralAmount.toString(10),
       lendingTermAddress: auctionData.lendingTerm,
-      status: Number(auctionData.endTime) > 0 ? AuctionStatus.CLOSED : AuctionStatus.ACTIVE
+      status: Number(auctionData.endTime) > 0 ? AuctionStatus.CLOSED : AuctionStatus.ACTIVE,
+      bidTxHash: '',
+      collateralSold: '0',
+      debtRecovered: '0',
+      collateralTokenAddress: linkedLendingTerm.collateralAddress
     });
   }
 

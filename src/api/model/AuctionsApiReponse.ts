@@ -8,6 +8,16 @@ export interface Auction {
   collateralAmount: string;
   callDebt: string;
   callCreditMultiplier: string;
+  collateralTokenAddress: string;
+  collateralSold: string;
+  debtRecovered: string;
+  bidTxHash: string;
+}
+
+export interface AuctionHouse {
+  address: string;
+  midPoint: number;
+  duration: number;
 }
 
 export enum AuctionStatus {
@@ -19,4 +29,5 @@ export interface AuctionsApiReponse {
   updated: number;
   updatedHuman: string;
   auctions: Auction[];
+  auctionHouses: AuctionHouse[];
 }
