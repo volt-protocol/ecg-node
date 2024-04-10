@@ -28,6 +28,8 @@ import { Log } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { SendNotifications } from '../utils/Notifications';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
+import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
+import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -43,8 +45,8 @@ export async function FetchECGData() {
 
     const syncData: SyncData = getSyncData();
     Log('FetchECGData: fetching');
-    const protocolData = await fetchAndSaveProtocolData(web3Provider);
-    const terms = await fetchAndSaveTerms(web3Provider, protocolData);
+    const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
+    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, protocolData);
     const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
     const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);

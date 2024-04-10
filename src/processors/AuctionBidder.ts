@@ -22,8 +22,10 @@ import { BidderSwapMode } from '../model/NodeConfig';
 import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
 import { OneInchSwapResponse } from '../model/OneInchApi';
 import { HttpGet } from '../utils/HttpHelper';
+import BigNumber from 'bignumber.js';
 
 const RUN_EVERY_SEC = 15;
+let lastCall1Inch = 0;
 
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
@@ -227,11 +229,17 @@ async function getSwap1Inch(
     '&disableEstimate=true'; // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
 
   Log(`getSwap1Inch: ${oneInchApiUrl}`);
+  const msToWait = 1000 - (Date.now() - lastCall1Inch);
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
   const oneInchSwapResponse = await HttpGet<OneInchSwapResponse>(oneInchApiUrl, {
     headers: {
       Authorization: `Bearer ${ONE_INCH_API_KEY}`
     }
   });
+
+  lastCall1Inch = Date.now();
 
   return {
     pegTokenReceivedWei: BigInt(oneInchSwapResponse.dstAmount),
@@ -284,13 +292,16 @@ async function processBid(
   }
   const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
   const gatewayContract = GatewayV1__factory.connect(GetGatewayAddress(), signer);
+  const minProfitWei = new BigNumber(minProfit)
+    .times(new BigNumber(10).pow(getTokenByAddress(GetPegTokenAddress()).decimals))
+    .toString(10);
   const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
     auction.loanId,
     auction.lendingTermAddress,
     GetPSMAddress(),
     term.collateralAddress, // collateralTokenAddress
     GetPegTokenAddress(), // pegTokenAddress
-    BigInt(minProfit) * 10n ** BigInt(getTokenByAddress(GetPegTokenAddress()).decimals),
+    minProfitWei,
     routerAddress,
     swapData,
     { gasLimit: 1_000_000 }
