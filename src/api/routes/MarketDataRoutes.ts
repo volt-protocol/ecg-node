@@ -4,7 +4,7 @@ import MarketDataController from '../controllers/MarketDataController';
 
 const router = express.Router();
 
-const CACHE_DURATION = 1 * 60 * 1000;
+const CACHE_DURATION = 10 * 1000;
 
 /**
  * @openapi
