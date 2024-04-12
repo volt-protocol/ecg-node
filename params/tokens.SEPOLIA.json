@@ -1,27 +1,27 @@
 [
 	{
-		"address": "0x7b8b4418990e4daf35f5c7f0165dc487b1963641",
+		"address": "0x7b8b4418990e4Daf35F5c7f0165DC487b1963641",
 		"mainnetAddress": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
 		"symbol": "USDC",
 		"decimals": 6,
 		"permitAllowed": true
 	},
 	{
-		"address": "0x1ced1eb530b5e71e6db9221a22c725e862fc0e60",
+		"address": "0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60",
 		"mainnetAddress": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
 		"symbol": "WBTC",
 		"decimals": 8,
 		"permitAllowed": true
 	},
 	{
-		"address": "0x9f07498d9f4903b10db57a3bd1d91b6b64aed61e",
+		"address": "0x9F07498d9f4903B10dB57a3Bd1D91b6B64AEd61e",
 		"mainnetAddress": "0x83f20f44975d03b1b09e64809b757c47f942beea",
 		"symbol": "sDAI",
 		"decimals": 18,
 		"permitAllowed": true
 	},
 	{
-		"address": "0xe910b8f7b8f27d95a97e9d204c36d3fa3fce80bd",
+		"address": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
 		"symbol": "gUSDC",
 		"decimals": 18,
 		"permitAllowed": true

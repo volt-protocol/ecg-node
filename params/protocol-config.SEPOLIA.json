@@ -1,14 +1,14 @@
 {
     "42": {
         "deployBlock": 5682500,
-        "pegTokenAddress": "0x7b8b4418990e4daf35f5c7f0165dc487b1963641",
-        "guildTokenAddress": "0x91806c9c67255064e5d0a333c23a6c469a8007a7",
-        "creditTokenAddress": "0xe910b8f7b8f27d95a97e9d204c36d3fa3fce80bd",
-        "profitManagerAddress": "0x467e0efa4053ec759a31883eebf88a37347159b1",
-        "psmAddress": "0xdacfde419629be343449a1ac23b29033c41f9222",
-        "lendingTermOnboardingAddress": "0x5447d9a5f03773bd2db67319f50103d44e31dd84",
-        "lendingTermOffboardingAddress": "0x5ae217de26f6ff5f481c6e10ec48b2cf2fc857c8",
-        "uniswapV2RouterAddress": "0xc532a74256d3db42d0bf7a0400fefdbad7694008",
+        "pegTokenAddress": "0x7b8b4418990e4Daf35F5c7f0165DC487b1963641",
+        "guildTokenAddress": "0x91806C9c67255064e5d0a333c23a6C469a8007a7",
+        "creditTokenAddress": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
+        "profitManagerAddress": "0x467e0eFA4053Ec759a31883eebF88a37347159B1",
+        "psmAddress": "0xdACFdE419629Be343449A1Ac23B29033c41F9222",
+        "lendingTermOnboardingAddress": "0x5447D9A5F03773BD2Db67319F50103d44e31dD84",
+        "lendingTermOffboardingAddress": "0x5ae217dE26f6Ff5F481C6e10ec48b2cf2fc857C8",
+        "uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
         "gatewayAddress": ""
     }
 }
