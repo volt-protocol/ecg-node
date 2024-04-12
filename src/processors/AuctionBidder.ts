@@ -255,7 +255,8 @@ async function getSwapOpenOcean(
   web3Provider: ethers.JsonRpcProvider
 ): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
   // when calling openocena, the amount must be normalzed
-  const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals);
+  const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals).toFixed(8);
+  Log(`getSwapOpenOcean: amount ${collateralAmountNorm}`);
 
   const chainCode = GetOpenOceanChainCodeByChainId((await web3Provider.getNetwork()).chainId);
   const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1; // avg gas price + 10%
@@ -304,14 +305,16 @@ async function processBid(
     minProfitWei,
     routerAddress,
     swapData,
-    { gasLimit: 1_000_000 }
+    { gasLimit: 2_000_000 }
   );
   await txReceipt.wait();
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
+
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
     await SendNotifications(
       'Auction Bidder',
       `Auction ${auction.loanId} fulfilled`,
-      `Estimated USDC profit: ${estimatedProfit}`
+      `Estimated ${estimatedProfit} ${pegToken.symbol} profit`
     );
   }
 }
