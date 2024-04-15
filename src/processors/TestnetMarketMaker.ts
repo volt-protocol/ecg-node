@@ -71,6 +71,10 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
 
     const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
     const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
+    if (!priceToken0 || !priceToken1) {
+      Log('Cannot market make because real price unknwon', priceToken0, priceToken1);
+      return;
+    }
     const targetRatio = priceToken1 / priceToken0;
     const reserves = await uniswapPair.getReserves();
     let spotRatio =

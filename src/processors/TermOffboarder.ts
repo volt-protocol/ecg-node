@@ -69,25 +69,34 @@ async function TermOffboarder() {
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
   const collateralToken = getTokenByAddress(term.collateralAddress);
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
+  if (!collateralRealPrice) {
+    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
+    return false;
+  }
   const pegToken = getTokenByAddress(GetPegTokenAddress());
   const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
+  if (!pegTokenRealPrice) {
+    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}`);
+    return false;
+  }
+
   Log(`[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
-  const normBorrowRatio = norm(term.borrowRatio) * norm(GetProtocolData().creditMultiplier);
+  const normBorrowRatio = norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals);
   Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
   // find the min overcollateralization config for this token
   const tokenConfig = offboarderConfig.tokens[collateralToken.symbol];
-  if (!tokenConfig) {
-    Warn(`Cannot find ${collateralToken.symbol} in offboarder config`);
-    return false;
+  let minOvercollateralization = offboarderConfig.defaultMinOvercollateralization;
+  if (tokenConfig) {
+    minOvercollateralization = tokenConfig.minOvercollateralization;
   }
 
   const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
   Log(
-    `[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${tokenConfig.minOvercollateralization}`
+    `[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}`
   );
 
-  if (currentOvercollateralization < tokenConfig.minOvercollateralization) {
+  if (currentOvercollateralization < minOvercollateralization) {
     return true;
   } else {
     return false;

@@ -4,7 +4,18 @@ import { NETWORK } from './Constants';
 import { HttpGet } from './HttpHelper';
 import { Log } from './Logger';
 
-export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number> {
+export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number | undefined> {
+  // fake prices for sepolia tokens VORIAN and BEEF
+  if (NETWORK == 'SEPOLIA') {
+    if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
+      // VORIAN token
+      return 1_000_000_000;
+    }
+    if (tokenAddress == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
+      // BEEF token
+      return 40_000_000_000;
+    }
+  }
   const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
   const cacheKey = `GetTokenPriceAtTimestamp-${tokenId}-${timestamp}`;
   const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
@@ -20,7 +31,18 @@ export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: 
   return price;
 }
 
-export async function GetTokenPrice(tokenAddress: string): Promise<number> {
+export async function GetTokenPrice(tokenAddress: string): Promise<number | undefined> {
+  // fake prices for sepolia tokens VORIAN and BEEF
+  if (NETWORK == 'SEPOLIA') {
+    if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
+      // VORIAN token
+      return 1_000_000_000;
+    }
+    if (tokenAddress == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
+      // BEEF token
+      return 40_000_000_000;
+    }
+  }
   const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
   const cacheKey = `GetTokenPrice-${tokenId}`;
   const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
@@ -34,11 +56,17 @@ export async function GetTokenPrice(tokenAddress: string): Promise<number> {
 async function GetDefiLlamaPrice(tokenId: string) {
   const apiUrl = `https://coins.llama.fi/prices/current/${tokenId}?searchWidth=4h`;
   const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
+  if (!resp.coins || !resp.coins[tokenId]) {
+    return undefined;
+  }
   return resp.coins[tokenId].price;
 }
 
 async function GetDefiLlamaPriceAtTimestamp(tokenId: string, timestampSec: number) {
   const apiUrl = `https://coins.llama.fi/prices/historical/${timestampSec}/${tokenId}?searchWidth=4h`;
   const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
+  if (!resp.coins || !resp.coins[tokenId]) {
+    return undefined;
+  }
   return resp.coins[tokenId].price;
 }

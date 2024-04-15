@@ -18,6 +18,7 @@ export interface ProcessorConfig {
 
 export interface TermOffboarderConfig extends ProcessorConfig {
   performCleanup?: boolean; // default to false
+  defaultMinOvercollateralization: number;
   tokens: { [tokenSymbol: string]: TermOffboarderConfigToken };
 }
 

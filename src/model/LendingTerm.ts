@@ -6,8 +6,7 @@ export default interface LendingTerm {
   permitAllowed: boolean;
   hardCap: string;
   interestRate: string;
-  borrowRatio: string;
-  maxDebtPerCollateralToken: string;
+  maxDebtPerCollateralToken: string; // in pegToken with (36-collateral decimals) decimals
   availableDebt: string;
   currentDebt: string;
   openingFee: string;

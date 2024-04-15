@@ -56,7 +56,6 @@ export default class LendingTermsFetcher {
         termAddress: lendingTermAddress,
         collateralAddress: termParameters.collateralToken,
         interestRate: termParameters.interestRate.toString(10),
-        borrowRatio: termParameters.maxDebtPerCollateralToken.toString(10),
         maxDebtPerCollateralToken: termParameters.maxDebtPerCollateralToken.toString(10),
         currentDebt: issuance.toString(10),
         hardCap: termParameters.hardCap.toString(10),
@@ -82,14 +81,10 @@ export default class LendingTermsFetcher {
       lendingTerm.collateralDecimals = collateralToken.decimals;
       lendingTerm.permitAllowed = collateralToken.permitAllowed;
 
-      lendingTerm.borrowRatio = (
-        (BigInt(lendingTerm.borrowRatio) * 10n ** BigInt(lendingTerm.collateralDecimals)) /
-        creditMultiplier
-      ).toString(10);
       lendingTerm.label = `${lendingTerm.collateralSymbol}-${roundTo(
         norm(lendingTerm.interestRate) * 100,
         2
-      )}%-${roundTo(norm(lendingTerm.borrowRatio), 2)}`;
+      )}%-${roundTo(norm(lendingTerm.maxDebtPerCollateralToken, 36 - collateralToken.decimals), 2)}`;
     }
 
     // update status by calling deprecated gauges

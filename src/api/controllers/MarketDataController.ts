@@ -32,7 +32,7 @@ class MarketDataController {
         response.terms.push({
           address: term.termAddress,
           availableDebt: norm(term.availableDebt),
-          borrowRatio: norm(term.borrowRatio),
+          borrowRatio: norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
           collateral: {
             address: term.collateralAddress,
             decimals: collateralToken.decimals,

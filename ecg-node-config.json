@@ -6,10 +6,8 @@
         "TERM_OFFBOARDER": {
             "enabled": false,
             "performCleanup": true,
+            "defaultMinOvercollateralization": 1.2,
             "tokens": {
-                "WBTC": {
-                    "minOvercollateralization": 1.2
-                },
                 "sDAI": {
                     "minOvercollateralization": 1.035
                 }

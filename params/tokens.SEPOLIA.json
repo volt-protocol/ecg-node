@@ -21,6 +21,24 @@
 		"permitAllowed": true
 	},
 	{
+		"address": "0x50fdf954f95934c7389d304dE2AC961EA14e917E",
+		"symbol": "VORIAN",
+		"decimals": 18,
+		"permitAllowed": true
+	},
+	{
+		"address": "0x723211B8E1eF2E2CD7319aF4f74E7dC590044733",
+		"symbol": "BEEF",
+		"decimals": 18,
+		"permitAllowed": true
+	},
+	{
+		"address": "0x391163Dda1f29e0f17fB2B703C9Afd11bf35B780",
+		"symbol": "ESWAK",
+		"decimals": 18,
+		"permitAllowed": true
+	},
+	{
 		"address": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
 		"symbol": "gUSDC",
 		"decimals": 18,
