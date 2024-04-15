@@ -39,7 +39,11 @@
 		"address": "0x9bEcd6b4Fb076348A455518aea23d3799361FE95",
 		"symbol": "PT-weETH-25APR2024",
 		"decimals": 18,
-		"permitAllowed": true
+		"permitAllowed": true,
+		"pendleConfiguration": {
+			"market": "0xE11f9786B06438456b044B3E21712228ADcAA0D1",
+			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
+		}
 	},
 	{
 		"address": "0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8",

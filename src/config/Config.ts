@@ -53,8 +53,13 @@ export interface TokenConfig {
   symbol: string;
   decimals: number;
   permitAllowed: boolean;
+  pendleConfiguration?: PendleConfig;
 }
 
+export interface PendleConfig {
+  market: string;
+  syTokenOut: string;
+}
 /**
  * Get a token by its symbol, throw if not found
  * @param symbol

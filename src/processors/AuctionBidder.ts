@@ -135,18 +135,23 @@ async function checkBidProfitability(
   const pegToken = getTokenByAddress(GetPegTokenAddress());
 
   let getSwapFunction;
-  switch (swapMode) {
-    default:
-      throw new Error(`${swapMode} not implemented`);
-    case BidderSwapMode.ONE_INCH:
-      getSwapFunction = getSwap1Inch;
-      break;
-    case BidderSwapMode.OPEN_OCEAN:
-      getSwapFunction = getSwapOpenOcean;
-      break;
-    case BidderSwapMode.UNISWAPV2:
-      getSwapFunction = getSwapUniv2;
-      break;
+  // specific case for pendle, use pendle amm
+  if (collateralToken.pendleConfiguration) {
+    getSwapFunction = getSwapPendle(collateralToken, pegToken, bidDetail.collateralReceived, web3Provider);
+  } else {
+    switch (swapMode) {
+      default:
+        throw new Error(`${swapMode} not implemented`);
+      case BidderSwapMode.ONE_INCH:
+        getSwapFunction = getSwap1Inch;
+        break;
+      case BidderSwapMode.OPEN_OCEAN:
+        getSwapFunction = getSwapOpenOcean;
+        break;
+      case BidderSwapMode.UNISWAPV2:
+        getSwapFunction = getSwapUniv2;
+        break;
+    }
   }
 
   const getSwapResult = await getSwapFunction(collateralToken, pegToken, bidDetail.collateralReceived, web3Provider);
