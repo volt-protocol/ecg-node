@@ -82,7 +82,7 @@ class MarketDataController {
   static async GetTokensInfos(marketId: number): Promise<TokensApiInfo[]> {
     const coinDetails: TokensApiInfo[] = [];
 
-    const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'eth';
+    const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
 
     const tokenIds = getAllTokens()
       .map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`)
@@ -93,8 +93,8 @@ class MarketDataController {
     const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
 
     for (const token of getAllTokens()) {
-      const llamaPrice = priceResponse.coins[`${llamaNetwork}:${token.address}`]
-        ? priceResponse.coins[`${llamaNetwork}:${token.address}`].price
+      const llamaPrice = priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`]
+        ? priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`].price
         : 0;
 
       coinDetails.push({
