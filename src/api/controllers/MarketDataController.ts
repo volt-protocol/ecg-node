@@ -85,7 +85,7 @@ class MarketDataController {
     const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'eth';
 
     const tokenIds = getAllTokens()
-      .map((_) => `${llamaNetwork}:${_.address}`)
+      .map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`)
       .join(',');
 
     const llamaUrl = `https://coins.llama.fi/prices/current/${tokenIds}?searchWidth=4h`;
