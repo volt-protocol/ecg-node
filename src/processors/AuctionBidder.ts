@@ -23,9 +23,11 @@ import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../m
 import { OneInchSwapResponse } from '../model/OneInchApi';
 import { HttpGet } from '../utils/HttpHelper';
 import BigNumber from 'bignumber.js';
+import { PendleSwapResponse } from '../model/PendleApi';
 
 const RUN_EVERY_SEC = 15;
 let lastCall1Inch = 0;
+let lastCallPendle = 0;
 
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
@@ -135,18 +137,23 @@ async function checkBidProfitability(
   const pegToken = getTokenByAddress(GetPegTokenAddress());
 
   let getSwapFunction;
-  switch (swapMode) {
-    default:
-      throw new Error(`${swapMode} not implemented`);
-    case BidderSwapMode.ONE_INCH:
-      getSwapFunction = getSwap1Inch;
-      break;
-    case BidderSwapMode.OPEN_OCEAN:
-      getSwapFunction = getSwapOpenOcean;
-      break;
-    case BidderSwapMode.UNISWAPV2:
-      getSwapFunction = getSwapUniv2;
-      break;
+  // specific case for pendle, use pendle amm
+  if (collateralToken.pendleConfiguration) {
+    getSwapFunction = getSwapPendle;
+  } else {
+    switch (swapMode) {
+      default:
+        throw new Error(`${swapMode} not implemented`);
+      case BidderSwapMode.ONE_INCH:
+        getSwapFunction = getSwap1Inch;
+        break;
+      case BidderSwapMode.OPEN_OCEAN:
+        getSwapFunction = getSwapOpenOcean;
+        break;
+      case BidderSwapMode.UNISWAPV2:
+        getSwapFunction = getSwapUniv2;
+        break;
+    }
   }
 
   const getSwapResult = await getSwapFunction(collateralToken, pegToken, bidDetail.collateralReceived, web3Provider);
@@ -203,6 +210,44 @@ async function getSwapUniv2(
     pegTokenReceivedWei: amountsOut[1],
     swapData,
     routerAddress: univ2RouterAddress
+  };
+}
+
+async function getSwapPendle(
+  collateralToken: TokenConfig,
+  pegToken: TokenConfig,
+  collateralReceivedWei: bigint,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
+  const chainId = (await web3Provider.getNetwork()).chainId;
+  const pendleConf = collateralToken.pendleConfiguration;
+  if (!pendleConf) {
+    throw new Error(`Cannot find pendle configuration for token ${collateralToken.address} ${collateralToken.symbol}`);
+  }
+
+  const pendleHostedSdkUrl =
+    'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+    `chainId=${chainId}` +
+    `&receiverAddr=${GetGatewayAddress()}` +
+    `&marketAddr=${pendleConf.market}` +
+    `&amountPtIn=${collateralReceivedWei.toString()}` +
+    `&tokenOutAddr=${pegToken.address}` +
+    `&syTokenOutAddr=${pendleConf.syTokenOut}` +
+    '&slippage=0.05';
+
+  Log(`pendle url: ${pendleHostedSdkUrl}`);
+  const msToWait = 6000 - (Date.now() - lastCallPendle); // 1 call every 6 seconds
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
+  const pendleSwapResponse = await HttpGet<PendleSwapResponse>(pendleHostedSdkUrl);
+
+  lastCallPendle = Date.now();
+
+  return {
+    pegTokenReceivedWei: BigInt(pendleSwapResponse.data.amountTokenOut),
+    swapData: pendleSwapResponse.transaction.data,
+    routerAddress: pendleSwapResponse.transaction.to
   };
 }
 
