@@ -328,7 +328,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
         tokenConf.mainnetAddress || tokenConf.address,
         blockData.timestamp
       );
-      const termTvl = priceAtTimestamp ?? 0 * balanceNorm;
+      const termTvl = (priceAtTimestamp ?? 0) * balanceNorm;
       tvlInUsd += termTvl;
     }
 
