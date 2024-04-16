@@ -134,7 +134,7 @@ async function getLoanActivity(
       loanActivities.push({
         termAddress: term.termAddress,
         block: loanClose.blockNumber,
-        userAddress: loanClose.args.address,
+        userAddress: term.termAddress,
         category: 'loan',
         type: 'closing',
         txHash: loanClose.transactionHash,
@@ -172,7 +172,7 @@ async function getMintRedeemActivity(
     const amountIn = norm(mint.args.amountIn, pegToken.decimals);
     const amountOut = norm(mint.args.amountOut, creditToken.decimals);
     mintRedeemActivities.push({
-      termAddress: '-',
+      termAddress: '',
       block: mint.blockNumber,
       userAddress: mint.args.to,
       category: 'mintRedeem',
@@ -192,7 +192,7 @@ async function getMintRedeemActivity(
     const amountIn = norm(redeem.args.amountIn, creditToken.decimals);
     const amountOut = norm(redeem.args.amountOut, pegToken.decimals);
     mintRedeemActivities.push({
-      termAddress: '-',
+      termAddress: '',
       block: redeem.blockNumber,
       userAddress: redeem.args.to,
       category: 'mintRedeem',
@@ -292,7 +292,7 @@ async function getGovernorActivities(
 
   for (const vote of votes) {
     activities.push({
-      termAddress: '-',
+      termAddress: '',
       block: vote.blockNumber,
       userAddress: vote.args.voter,
       category: 'vote',
