@@ -30,6 +30,7 @@ import { SendNotifications } from '../utils/Notifications';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
 import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
+import LastActivityFetcher from './fetchers/LastActivityFetcher';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -51,6 +52,13 @@ export async function FetchECGData() {
     const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
     const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
+    const activity = await LastActivityFetcher.fetchAndSaveActivity(
+      syncData,
+      web3Provider,
+      currentBlock,
+      protocolData,
+      terms
+    );
 
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     Log('FetchECGData: finished fetching');
