@@ -2,10 +2,15 @@ export interface SyncData {
   termSync: TermSyncData[];
   gaugeSync: GaugeSyncData;
   auctionSync: AuctionSyncData[];
+  activitySync?: ActivitySyncData;
 }
 
 export interface TermSyncData {
   termAddress: string;
+  lastBlockFetched: number;
+}
+
+export interface ActivitySyncData {
   lastBlockFetched: number;
 }
 

@@ -9,4 +9,6 @@ export interface ProtocolConstants {
   uniswapV2RouterAddress: string;
   gatewayAddress: string;
   psmAddress: string;
+  daoGovernorGuildAddress: string;
+  daoVetoGuildAddress: string;
 }

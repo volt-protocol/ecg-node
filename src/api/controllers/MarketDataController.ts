@@ -12,6 +12,8 @@ import { DefiLlamaPriceResponse } from '../../model/DefiLlama';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
 import { AuctionHousesFileStructure } from '../../model/AuctionHouse';
+import { LastActivityFileStructure } from '../../model/LastActivity';
+import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -50,6 +52,19 @@ class MarketDataController {
           status: term.status
         });
       }
+
+      return response;
+    }
+  }
+
+  static async GetActivity(marketId: number): Promise<LastActivityApiResponse> {
+    const activityFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'last-activity.json');
+    if (!fs.existsSync(activityFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    } else {
+      const activityFile: LastActivityFileStructure = ReadJSON(activityFilename);
+
+      const response: LastActivityApiResponse = activityFile;
 
       return response;
     }

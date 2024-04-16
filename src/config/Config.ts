@@ -129,3 +129,11 @@ export function GetGatewayAddress() {
 export function GetPSMAddress() {
   return configuration.psmAddress;
 }
+
+export function GetDaoGovernorGuildAddress() {
+  return configuration.daoGovernorGuildAddress;
+}
+
+export function GetDaoVetoGuildAddress() {
+  return configuration.daoVetoGuildAddress;
+}
