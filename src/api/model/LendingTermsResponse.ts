@@ -17,6 +17,12 @@ export type LendingTerms = {
   maxDelayBetweenPartialRepay: number;
   status: 'deprecated' | 'live';
   label: string;
+  gaugeWeight: number;
+  totalTypeWeight: number;
+  issuance: number;
+  debtCeiling: number;
+  termSurplusBuffer: number;
+  activeLoans: number;
 };
 
 export interface LendingTermsApiResponse {

@@ -12,6 +12,9 @@ export interface Loan {
   debtWhenSeized: string;
   bidTime: number; // unix timestamp ms
   lastPartialRepay: number; // unix timestamp ms
+  borrowCreditMultiplier: string;
+  txHashOpen: string;
+  txHashClose: string;
 }
 
 export enum LoanStatus {

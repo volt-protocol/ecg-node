@@ -16,6 +16,11 @@ export default interface LendingTerm {
   label: string; // WBTC-3%-16666.67
   status: LendingTermStatus;
   auctionHouseAddress: string;
+  gaugeWeight: string;
+  totalWeightForMarket: string;
+  issuance: string;
+  debtCeiling: string;
+  termSurplusBuffer: string;
 }
 
 export enum LendingTermStatus {

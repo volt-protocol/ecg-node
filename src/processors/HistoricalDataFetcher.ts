@@ -617,7 +617,10 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
           lendingTermAddress: termAddress,
           status: Number(loanData.closeTime) == 0 ? LoanStatus.ACTIVE : LoanStatus.CLOSED,
           originationTime: Number(loanData.borrowTime) * 1000,
-          lastPartialRepay: Number(loanData.lastPartialRepay) * 1000
+          lastPartialRepay: Number(loanData.lastPartialRepay) * 1000,
+          borrowCreditMultiplier: '0',
+          txHashClose: '',
+          txHashOpen: ''
         });
       }
     }

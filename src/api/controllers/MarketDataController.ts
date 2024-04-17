@@ -14,47 +14,111 @@ import { AuctionsFileStructure } from '../../model/Auction';
 import { AuctionHousesFileStructure } from '../../model/AuctionHouse';
 import { LastActivityFileStructure } from '../../model/LastActivity';
 import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
+import { LoanStatus, LoansFileStructure } from '../../model/Loan';
+import { LoansApiResponse } from '../model/LoansApiResponse';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
     const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
+    const loansFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
     if (!fs.existsSync(termsFileName)) {
       throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
-    } else {
-      const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
-
-      const response: LendingTermsApiResponse = {
-        updated: termsFile.updated,
-        updatedHuman: termsFile.updatedHuman,
-        terms: []
-      };
-
-      for (const term of termsFile.terms) {
-        const collateralToken = getTokenByAddress(term.collateralAddress);
-        response.terms.push({
-          address: term.termAddress,
-          availableDebt: norm(term.availableDebt),
-          borrowRatio: norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
-          collateral: {
-            address: term.collateralAddress,
-            decimals: collateralToken.decimals,
-            logo: `/img/crypto-logos/${collateralToken.symbol.toLowerCase()}.png`,
-            name: collateralToken.symbol,
-            symbol: collateralToken.symbol
-          },
-          currentDebt: norm(term.currentDebt),
-          interestRate: norm(term.interestRate),
-          label: term.label,
-          maxDebtPerCollateralToken: norm(term.maxDebtPerCollateralToken),
-          maxDelayBetweenPartialRepay: term.maxDelayBetweenPartialRepay,
-          minPartialRepayPercent: norm(term.minPartialRepayPercent),
-          openingFee: norm(term.openingFee),
-          status: term.status
-        });
-      }
-
-      return response;
     }
+
+    if (!fs.existsSync(loansFileName)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+    const loansFile: LoansFileStructure = ReadJSON(loansFileName);
+
+    const response: LendingTermsApiResponse = {
+      updated: termsFile.updated,
+      updatedHuman: termsFile.updatedHuman,
+      terms: []
+    };
+
+    for (const term of termsFile.terms) {
+      const collateralToken = getTokenByAddress(term.collateralAddress);
+      const loansForTerm = loansFile.loans.filter((_) => _.lendingTermAddress == term.termAddress);
+      response.terms.push({
+        address: term.termAddress,
+        availableDebt: norm(term.availableDebt),
+        borrowRatio: norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
+        collateral: {
+          address: term.collateralAddress,
+          decimals: collateralToken.decimals,
+          logo: `/img/crypto-logos/${collateralToken.symbol.toLowerCase()}.png`,
+          name: collateralToken.symbol,
+          symbol: collateralToken.symbol
+        },
+        currentDebt: norm(term.currentDebt),
+        interestRate: norm(term.interestRate),
+        label: term.label,
+        maxDebtPerCollateralToken: norm(term.maxDebtPerCollateralToken),
+        maxDelayBetweenPartialRepay: term.maxDelayBetweenPartialRepay,
+        minPartialRepayPercent: norm(term.minPartialRepayPercent),
+        openingFee: norm(term.openingFee),
+        status: term.status,
+        debtCeiling: norm(term.debtCeiling),
+        gaugeWeight: norm(term.gaugeWeight),
+        issuance: norm(term.issuance),
+        totalTypeWeight: norm(term.totalWeightForMarket),
+        termSurplusBuffer: norm(term.termSurplusBuffer),
+        activeLoans: loansForTerm.filter((_) => _.status != LoanStatus.CLOSED).length
+      });
+    }
+
+    return response;
+  }
+
+  static async GetLoans(marketId: number): Promise<LoansApiResponse> {
+    const loansFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
+    const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
+
+    if (!fs.existsSync(loansFileName)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    if (!fs.existsSync(termsFileName)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    const loansFile: LoansFileStructure = ReadJSON(loansFileName);
+    const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+    const response: LoansApiResponse = {
+      updated: loansFile.updated,
+      updatedHuman: loansFile.updatedHuman,
+      loans: []
+    };
+
+    for (const loan of loansFile.loans) {
+      const termForLoan = termsFile.terms.find((_) => _.termAddress == loan.lendingTermAddress);
+      if (!termForLoan) {
+        throw new Error(`Data mismatch with term ${loan.lendingTermAddress} for loan ${loan.id}`);
+      }
+      const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
+
+      response.loans.push({
+        borrowAmount: norm(loan.borrowAmount),
+        borrowCreditMultiplier: norm(loan.borrowCreditMultiplier),
+        borrower: loan.borrowerAddress,
+        closeTime: loan.closeTime,
+        callTime: loan.callTime,
+        id: loan.id,
+        collateral: termForLoan.collateralSymbol,
+        interestRate: norm(termForLoan.interestRate, 18),
+        borrowRatio: norm(termForLoan.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
+        termAddress: loan.lendingTermAddress,
+        collateralAmount: norm(loan.collateralAmount, collateralToken.decimals),
+        borrowTime: loan.originationTime,
+        txHashClose: loan.txHashClose,
+        callDebt: norm(loan.debtWhenSeized),
+        txHashOpen: loan.txHashOpen
+      });
+    }
+
+    return response;
   }
 
   static async GetActivity(marketId: number): Promise<LastActivityApiResponse> {

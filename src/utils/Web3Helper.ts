@@ -84,6 +84,14 @@ export async function GetAvgGasPrice() {
   return avgGasPriceWei;
 }
 
+export interface DefaultLog {
+  transactionHash: string;
+  blockHash: string;
+  blockNumber: number;
+  transactionIndex: number;
+  args: { [argName: string]: any };
+}
+
 export async function FetchAllEvents(
   contract: BaseContract,
   contractName: string,
@@ -91,8 +99,8 @@ export async function FetchAllEvents(
   startBlock: number,
   targetBlock: number,
   blockStepLimit?: number
-): Promise<any[]> {
-  const extractedArray: any[] = [];
+): Promise<DefaultLog[]> {
+  const extractedArray: DefaultLog[] = [];
 
   const initBlockStep = 100_000;
   //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
@@ -128,7 +136,7 @@ export async function FetchAllEvents(
     if (events.length != 0) {
       for (const e of events) {
         if (e instanceof EventLog) {
-          const obj: any = {
+          const obj: DefaultLog = {
             transactionHash: e.transactionHash,
             blockHash: e.blockHash,
             blockNumber: e.blockNumber,

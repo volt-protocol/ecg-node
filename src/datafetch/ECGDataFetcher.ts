@@ -31,6 +31,7 @@ import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHo
 import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
 import LastActivityFetcher from './fetchers/LastActivityFetcher';
+import LoansFetcher from './fetchers/LoansFetcher';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -49,7 +50,7 @@ export async function FetchECGData() {
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
     const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, protocolData);
     const gauges = await fetchAndSaveGauges(web3Provider, syncData, currentBlock);
-    const loans = await fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
+    const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
     const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
     const activity = await LastActivityFetcher.fetchAndSaveActivity(
@@ -104,27 +105,6 @@ async function fetchAndSaveAuctionHouses(web3Provider: JsonRpcProvider, terms: L
 
   WriteJSON(auctionHousesFilePath, auctionsFile);
   return allAuctionHouses;
-}
-
-async function fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
-  const creditMultiplier = await profitManagerContract.creditMultiplier();
-
-  const data: ProtocolData = {
-    creditMultiplier: creditMultiplier
-  };
-
-  const protocolDataPath = path.join(DATA_DIR, 'protocol-data.json');
-  const fetchDate = Date.now();
-  const protocolFileData: ProtocolDataFileStructure = {
-    updated: fetchDate,
-    updatedHuman: new Date(fetchDate).toISOString(),
-    data: data
-  };
-
-  WriteJSON(protocolDataPath, protocolFileData);
-
-  return data;
 }
 
 function getSyncData() {
@@ -234,131 +214,6 @@ async function fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncD
   syncData.gaugeSync.lastBlockFetched = currentBlock;
 
   Log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
-}
-
-async function fetchAndSaveLoans(
-  web3Provider: JsonRpcProvider,
-  terms: LendingTerm[],
-  syncData: SyncData,
-  currentBlock: number
-) {
-  let alreadySavedLoans: Loan[] = [];
-  const loansFilePath = path.join(DATA_DIR, 'loans.json');
-  if (fs.existsSync(loansFilePath)) {
-    const loansFile: LoansFileStructure = ReadJSON(loansFilePath);
-    alreadySavedLoans = loansFile.loans;
-  }
-
-  const updateLoans: LoansFileStructure = {
-    loans: alreadySavedLoans.filter((_) => _.status == LoanStatus.CLOSED),
-    updated: Date.now(),
-    updatedHuman: new Date(Date.now()).toISOString()
-  };
-
-  const allNewLoansIds: { termAddress: string; loanId: string }[] = [];
-  for (const term of terms) {
-    // check if we already have a sync data about this term
-    const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
-    let sinceBlock = GetDeployBlock();
-    if (termSyncData) {
-      sinceBlock = termSyncData.lastBlockFetched + 1;
-    }
-
-    const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
-
-    const newLoanIds = await FetchAllEventsAndExtractStringArray(
-      termContract,
-      term.label,
-      'LoanOpen',
-      ['loanId'],
-      sinceBlock,
-      currentBlock
-    );
-
-    allNewLoansIds.push(
-      ...newLoanIds.map((_) => {
-        return { termAddress: term.termAddress, loanId: _ };
-      })
-    );
-    // update term sync data
-    if (!termSyncData) {
-      syncData.termSync.push({
-        lastBlockFetched: currentBlock,
-        termAddress: term.termAddress
-      });
-    } else {
-      termSyncData.lastBlockFetched = currentBlock;
-    }
-  }
-
-  // only get the loan ids from the previously known loans
-  // that are not with the status closed, no use in updating loans
-  // that are closed
-  const allLoanIds = alreadySavedLoans
-    .filter((_) => _.status != LoanStatus.CLOSED)
-    .map((_) => {
-      return { termAddress: _.lendingTermAddress, loanId: _.id };
-    });
-
-  // add all new loansId (from the newly fetched files)
-  for (const newLoanId of allNewLoansIds) {
-    if (!allLoanIds.some((_) => _.loanId == newLoanId.loanId && _.termAddress == newLoanId.termAddress)) {
-      allLoanIds.push(newLoanId);
-    }
-  }
-
-  // fetch data for all loans
-  const allUpdatedLoans: Loan[] = await fetchLoansInfo(allLoanIds, web3Provider);
-  updateLoans.loans.push(...allUpdatedLoans);
-  const endDate = Date.now();
-  updateLoans.updated = endDate;
-  updateLoans.updatedHuman = new Date(endDate).toISOString();
-  WriteJSON(loansFilePath, updateLoans);
-}
-
-async function fetchLoansInfo(
-  allLoanIds: { termAddress: string; loanId: string }[],
-  web3Provider: JsonRpcProvider
-): Promise<Loan[]> {
-  const multicallProvider = MulticallWrapper.wrap(web3Provider);
-  const promises: Promise<LendingTermNamespace.LoanStructOutput>[] = [];
-  for (const loanData of allLoanIds) {
-    const lendingTermContract = LendingTerm__factory.connect(loanData.termAddress, multicallProvider);
-    promises.push(lendingTermContract.getLoan(loanData.loanId));
-  }
-
-  Log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
-  await Promise.all(promises);
-  Log('FetchECGData[Loans]: end multicall');
-
-  let cursor = 0;
-  const allLoans: Loan[] = [];
-  for (const loan of allLoanIds) {
-    const loanData = await promises[cursor++];
-    allLoans.push({
-      id: loan.loanId,
-      bidTime: Number(loanData.closeTime) * 1000,
-      borrowerAddress: loanData.borrower,
-      borrowAmount: loanData.borrowAmount.toString(10),
-      callerAddress: loanData.caller,
-      callTime: Number(loanData.callTime) * 1000,
-      closeTime: Number(loanData.closeTime) * 1000,
-      collateralAmount: loanData.collateralAmount.toString(10),
-      debtWhenSeized: loanData.callDebt.toString(10),
-      lendingTermAddress: loan.termAddress,
-      status: Number(loanData.closeTime) == 0 ? LoanStatus.ACTIVE : LoanStatus.CLOSED,
-      originationTime: Number(loanData.borrowTime) * 1000,
-      lastPartialRepay: Number(loanData.lastPartialRepay) * 1000
-    });
-  }
-
-  for (const loan of allLoans.filter((_) => _.status == LoanStatus.ACTIVE)) {
-    if (loan.callTime > 0) {
-      loan.status = LoanStatus.CALLED;
-    }
-  }
-
-  return allLoans;
 }
 
 async function fetchAndSaveAuctions(

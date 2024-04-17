@@ -25,6 +25,7 @@ export default class LendingTermsFetcher {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const promises: any[] = [];
     promises.push(profitManagerContract.minBorrow());
+    promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of gauges) {
       Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
       const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
@@ -32,6 +33,8 @@ export default class LendingTermsFetcher {
       promises.push(lendingTermContract.issuance());
       promises.push(lendingTermContract['debtCeiling()']());
       promises.push(lendingTermContract.auctionHouse());
+      promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
+      promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
     }
 
     // wait the promises
@@ -42,13 +45,15 @@ export default class LendingTermsFetcher {
     const lendingTerms: LendingTerm[] = [];
     let cursor = 0;
     const minBorrow: bigint = await promises[cursor++];
-    const creditMultiplier: bigint = protocolData.creditMultiplier;
+    const totalTypeWeight: bigint = await promises[cursor++];
     for (const lendingTermAddress of gauges) {
       // read promises in the same order as the multicall
       const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
       const issuance: bigint = await promises[cursor++];
       const debtCeiling: bigint = await promises[cursor++];
       const auctionHouseAddress: string = await promises[cursor++];
+      const gaugeWeight: bigint = await promises[cursor++];
+      const termSurplusBuffer: bigint = await promises[cursor++];
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
@@ -69,7 +74,12 @@ export default class LendingTermsFetcher {
         collateralSymbol: '',
         collateralDecimals: 0,
         permitAllowed: false,
-        auctionHouseAddress: auctionHouseAddress
+        auctionHouseAddress: auctionHouseAddress,
+        debtCeiling: debtCeiling.toString(10),
+        gaugeWeight: gaugeWeight.toString(10),
+        issuance: issuance.toString(10),
+        totalWeightForMarket: totalTypeWeight.toString(10),
+        termSurplusBuffer: termSurplusBuffer.toString(10)
       });
     }
 
