@@ -15,6 +15,7 @@ export interface Loan {
   borrowCreditMultiplier: string;
   txHashOpen: string;
   txHashClose: string;
+  loanDebt: string;
 }
 
 export enum LoanStatus {

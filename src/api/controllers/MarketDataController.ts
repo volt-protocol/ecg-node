@@ -114,7 +114,8 @@ class MarketDataController {
         borrowTime: loan.originationTime,
         txHashClose: loan.txHashClose,
         callDebt: norm(loan.debtWhenSeized),
-        txHashOpen: loan.txHashOpen
+        txHashOpen: loan.txHashOpen,
+        loanDebt: norm(loan.loanDebt)
       });
     }
 

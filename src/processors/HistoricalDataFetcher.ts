@@ -620,7 +620,8 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
           lastPartialRepay: Number(loanData.lastPartialRepay) * 1000,
           borrowCreditMultiplier: '0',
           txHashClose: '',
-          txHashOpen: ''
+          txHashOpen: '',
+          loanDebt: '0'
         });
       }
     }

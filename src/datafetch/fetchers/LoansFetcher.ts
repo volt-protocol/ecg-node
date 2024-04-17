@@ -11,7 +11,7 @@ import LendingTerm from '../../model/LendingTerm';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { Loan, LoanStatus, LoansFileStructure } from '../../model/Loan';
-import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../../utils/Web3Helper';
+import { FetchAllEvents } from '../../utils/Web3Helper';
 
 export default class LoansFetcher {
   static async fetchAndSaveLoans(
@@ -119,10 +119,11 @@ async function fetchLoansInfo(
   web3Provider: JsonRpcProvider
 ): Promise<Loan[]> {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
-  const promises: Promise<LendingTermNamespace.LoanStructOutput>[] = [];
+  const promises = [];
   for (const loanData of allLoanIds) {
     const lendingTermContract = LendingTerm__factory.connect(loanData.termAddress, multicallProvider);
     promises.push(lendingTermContract.getLoan(loanData.loanId));
+    promises.push(lendingTermContract.getLoanDebt(loanData.loanId));
   }
 
   Log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
@@ -132,7 +133,8 @@ async function fetchLoansInfo(
   let cursor = 0;
   const allLoans: Loan[] = [];
   for (const loan of allLoanIds) {
-    const loanData = await promises[cursor++];
+    const loanData = (await promises[cursor++]) as LendingTermNamespace.LoanStructOutput;
+    const loanDebt = (await promises[cursor++]) as bigint;
     allLoans.push({
       id: loan.loanId,
       bidTime: Number(loanData.closeTime) * 1000,
@@ -149,7 +151,8 @@ async function fetchLoansInfo(
       lastPartialRepay: Number(loanData.lastPartialRepay) * 1000,
       borrowCreditMultiplier: loanData.borrowCreditMultiplier.toString(10),
       txHashOpen: loan.txHashOpen,
-      txHashClose: ''
+      txHashClose: '',
+      loanDebt: loanDebt.toString(10)
     });
   }
 
