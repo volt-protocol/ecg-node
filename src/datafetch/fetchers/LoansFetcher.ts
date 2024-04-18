@@ -152,7 +152,8 @@ async function fetchLoansInfo(
       borrowCreditMultiplier: loanData.borrowCreditMultiplier.toString(10),
       txHashOpen: loan.txHashOpen,
       txHashClose: '',
-      loanDebt: loanDebt.toString(10)
+      loanDebt: loanDebt.toString(10),
+      debtRepaid: '0'
     });
   }
 
@@ -186,6 +187,7 @@ async function fetchClosedEventsAndUpdateLoans(
 
     for (const loanCloseEvent of loanCloseEvents) {
       const loanId = loanCloseEvent.args['loanId'].toString();
+      const debtRepaid = loanCloseEvent.args['debtRepaid'].toString(10);
       // find the loan
       const loan = loans.find((_) => _.id == loanId);
       if (!loan) {
@@ -193,6 +195,7 @@ async function fetchClosedEventsAndUpdateLoans(
       }
       const txHash = loanCloseEvent.transactionHash;
       loan.txHashClose = txHash;
+      loan.debtRepaid = debtRepaid;
     }
   }
 }

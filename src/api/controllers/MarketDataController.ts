@@ -115,7 +115,8 @@ class MarketDataController {
         txHashClose: loan.txHashClose,
         callDebt: norm(loan.debtWhenSeized),
         txHashOpen: loan.txHashOpen,
-        loanDebt: norm(loan.loanDebt)
+        loanDebt: norm(loan.loanDebt),
+        debtRepaid: norm(loan.debtRepaid)
       });
     }
 

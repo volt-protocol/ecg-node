@@ -621,7 +621,8 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
           borrowCreditMultiplier: '0',
           txHashClose: '',
           txHashOpen: '',
-          loanDebt: '0'
+          loanDebt: '0',
+          debtRepaid: '0'
         });
       }
     }

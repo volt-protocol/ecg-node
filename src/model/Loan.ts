@@ -16,6 +16,7 @@ export interface Loan {
   txHashOpen: string;
   txHashClose: string;
   loanDebt: string;
+  debtRepaid: string;
 }
 
 export enum LoanStatus {
