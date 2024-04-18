@@ -85,10 +85,9 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
   Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
   // find the min overcollateralization config for this token
-  const tokenConfig = offboarderConfig.tokens[collateralToken.symbol];
   let minOvercollateralization = offboarderConfig.defaultMinOvercollateralization;
-  if (tokenConfig) {
-    minOvercollateralization = tokenConfig.minOvercollateralization;
+  if (offboarderConfig.tokens[collateralToken.symbol]) {
+    minOvercollateralization = offboarderConfig.tokens[collateralToken.symbol].minOvercollateralization;
   }
 
   const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
