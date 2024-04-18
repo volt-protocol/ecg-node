@@ -49,7 +49,7 @@ export async function FetchECGData() {
     const syncData: SyncData = getSyncData();
     Log('FetchECGData: fetching');
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
-    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, protocolData);
+    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider);
     const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
     const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);

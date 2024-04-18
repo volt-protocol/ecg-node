@@ -17,7 +17,7 @@ import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
 
 export default class LendingTermsFetcher {
-  static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, protocolData: ProtocolData) {
+  static async fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
@@ -57,11 +57,18 @@ export default class LendingTermsFetcher {
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
+      const collateralToken = getTokenByAddress(termParameters.collateralToken);
+      const interestRate = termParameters.interestRate.toString(10);
+      const maxDebtPerCol = termParameters.maxDebtPerCollateralToken.toString(10);
+      const label =
+        `${collateralToken.symbol}` +
+        `-${roundTo(norm(interestRate) * 100, 2)}%` +
+        `-${roundTo(norm(maxDebtPerCol, 36 - collateralToken.decimals), 2)}`;
       lendingTerms.push({
         termAddress: lendingTermAddress,
         collateralAddress: termParameters.collateralToken,
-        interestRate: termParameters.interestRate.toString(10),
-        maxDebtPerCollateralToken: termParameters.maxDebtPerCollateralToken.toString(10),
+        interestRate: interestRate,
+        maxDebtPerCollateralToken: maxDebtPerCol,
         currentDebt: issuance.toString(10),
         hardCap: termParameters.hardCap.toString(10),
         availableDebt: availableDebt.toString(10),
@@ -70,10 +77,10 @@ export default class LendingTermsFetcher {
         maxDelayBetweenPartialRepay: Number(termParameters.maxDelayBetweenPartialRepay.toString(10)),
         minBorrow: minBorrow.toString(10),
         status: LendingTermStatus.LIVE,
-        label: '',
-        collateralSymbol: '',
-        collateralDecimals: 0,
-        permitAllowed: false,
+        label: label,
+        collateralSymbol: collateralToken.symbol,
+        collateralDecimals: collateralToken.decimals,
+        permitAllowed: collateralToken.permitAllowed,
         auctionHouseAddress: auctionHouseAddress,
         debtCeiling: debtCeiling.toString(10),
         gaugeWeight: gaugeWeight.toString(10),
@@ -81,20 +88,6 @@ export default class LendingTermsFetcher {
         totalWeightForMarket: totalTypeWeight.toString(10),
         termSurplusBuffer: termSurplusBuffer.toString(10)
       });
-    }
-
-    // update data like collateral token symbol and decimals
-    // and recompute borrowRatio
-    for (const lendingTerm of lendingTerms) {
-      const collateralToken = getTokenByAddress(lendingTerm.collateralAddress);
-      lendingTerm.collateralSymbol = collateralToken.symbol;
-      lendingTerm.collateralDecimals = collateralToken.decimals;
-      lendingTerm.permitAllowed = collateralToken.permitAllowed;
-
-      lendingTerm.label = `${lendingTerm.collateralSymbol}-${roundTo(
-        norm(lendingTerm.interestRate) * 100,
-        2
-      )}%-${roundTo(norm(lendingTerm.maxDebtPerCollateralToken, 36 - collateralToken.decimals), 2)}`;
     }
 
     // update status by calling deprecated gauges
