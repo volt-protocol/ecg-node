@@ -54,14 +54,10 @@ export async function FetchECGData() {
     const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
     const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
-    const activity = await LastActivityFetcher.fetchAndSaveActivity(
-      syncData,
-      web3Provider,
-      currentBlock,
-      protocolData,
-      terms
-    );
+    // unlock before fetching activities as it's not required for the node
+    await FileMutex.Unlock();
 
+    // await LastActivityFetcher.fetchAndSaveActivity(syncData, web3Provider, currentBlock, protocolData, terms);
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     Log('FetchECGData: finished fetching');
   } catch (e) {
@@ -74,6 +70,7 @@ export async function FetchECGData() {
 }
 
 async function fetchAndSaveAuctionHouses(web3Provider: JsonRpcProvider, terms: LendingTerm[]) {
+  Log('FetchECGData[AuctionHouse]: starting');
   let allAuctionHouses: AuctionHouseData[] = [];
   const auctionHousesFilePath = path.join(DATA_DIR, 'auction-houses.json');
   if (fs.existsSync(auctionHousesFilePath)) {
@@ -105,6 +102,7 @@ async function fetchAndSaveAuctionHouses(web3Provider: JsonRpcProvider, terms: L
   };
 
   WriteJSON(auctionHousesFilePath, auctionsFile);
+  Log('FetchECGData[AuctionHouse]: ending');
   return allAuctionHouses;
 }
 
@@ -135,6 +133,7 @@ async function fetchAndSaveAuctions(
   syncData: SyncData,
   currentBlock: number
 ) {
+  Log('FetchECGData[Auctions]: starting');
   let alreadySavedAuctions: Auction[] = [];
   const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
   if (fs.existsSync(auctionsFilePath)) {
@@ -242,6 +241,7 @@ async function fetchAndSaveAuctions(
   updateAuctions.updated = endDate;
   updateAuctions.updatedHuman = new Date(endDate).toISOString();
   WriteJSON(auctionsFilePath, updateAuctions);
+  Log('FetchECGData[Auctions]: ending');
 }
 
 async function fetchAuctionsInfo(

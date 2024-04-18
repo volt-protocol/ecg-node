@@ -1,6 +1,6 @@
-import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
+import { GetProtocolData, ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
-import fs from 'fs';
+import fs, { stat } from 'fs';
 import path from 'path';
 import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
@@ -30,6 +30,9 @@ import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataState } from '../model/HistoricalDataState';
 import { Log } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
+import LastActivityFetcher from '../datafetch/fetchers/LastActivityFetcher';
+import { LendingTermsFileStructure } from '../model/LendingTerm';
+import { SyncData } from '../model/SyncData';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -51,13 +54,25 @@ async function HistoricalDataFetcher() {
       throw new Error('Cannot find RPC_URL in env');
     }
 
-    await FetchHistoricalData();
+    let historicalDataState: HistoricalDataState = {
+      openLoans: {},
+      lastBlockActivityFetched: GetDeployBlock()
+    };
 
+    const historicalDataStateFile = path.join(DATA_DIR, 'processors', 'historical-data-state.json');
+    if (fs.existsSync(historicalDataStateFile)) {
+      historicalDataState = ReadJSON(historicalDataStateFile);
+    }
+
+    await FetchHistoricalData(historicalDataState);
+
+    // save state file
+    WriteJSON(historicalDataStateFile, historicalDataState);
     await WaitUntilScheduled(startDate, runEverySec);
   }
 }
 
-async function FetchHistoricalData() {
+async function FetchHistoricalData(state: HistoricalDataState) {
   const web3Provider = GetWeb3Provider();
   const currentBlock = await web3Provider.getBlockNumber();
   Log(`fetching data up to block ${currentBlock}`);
@@ -75,8 +90,44 @@ async function FetchHistoricalData() {
   await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
   await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
   await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
-  await fetchLoansData(currentBlock, historicalDataDir, web3Provider);
+  await fetchLoansData(currentBlock, historicalDataDir, web3Provider, state);
   await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
+  // await fetchLastActivity(state, web3Provider, currentBlock);
+}
+
+async function fetchLastActivity(
+  state: HistoricalDataState,
+  web3Provider: ethers.JsonRpcProvider,
+  currentBlock: number
+) {
+  const termsFileName = path.join(DATA_DIR, 'terms.json');
+
+  if (!fs.existsSync(termsFileName)) {
+    throw new Error(`Could not find file ${termsFileName}`);
+  }
+
+  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+
+  const syncDataFake: SyncData = {
+    activitySync: {
+      lastBlockFetched: state.lastBlockActivityFetched
+    },
+    auctionSync: [],
+    gaugeSync: {
+      lastBlockFetched: 0
+    },
+    termSync: []
+  };
+
+  await LastActivityFetcher.fetchAndSaveActivity(
+    syncDataFake,
+    web3Provider,
+    currentBlock,
+    GetProtocolData(),
+    termsFile.terms
+  );
+
+  state.lastBlockActivityFetched = currentBlock;
 }
 
 async function fetchCreditTotalSupply(
@@ -528,7 +579,12 @@ async function fetchSurplusBuffer(
   WriteJSON(historyFilename, fullHistoricalData);
 }
 
-async function fetchLoansData(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+async function fetchLoansData(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider,
+  historicalDataState: HistoricalDataState
+) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
   let startBlock = GetDeployBlock();
@@ -548,15 +604,6 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
   if (startBlock > currentBlock) {
     Log('fetchLoansData: data already up to date');
     return;
-  }
-
-  let historicalDataState: HistoricalDataState = {
-    openLoans: {}
-  };
-
-  const historicalDataStateFile = path.join(DATA_DIR, 'processors', 'historical-data-state.json');
-  if (fs.existsSync(historicalDataStateFile)) {
-    historicalDataState = ReadJSON(historicalDataStateFile);
   }
 
   const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
@@ -653,9 +700,6 @@ async function fetchLoansData(currentBlock: number, historicalDataDir: string, w
       ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowUSDC}`
     );
   }
-
-  // save state file
-  WriteJSON(historicalDataStateFile, historicalDataState);
 
   WriteJSON(historyFilename, fullHistoricalData);
 }

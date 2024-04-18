@@ -5,7 +5,7 @@ import { LastActivity, LastActivityFileStructure } from '../../model/LastActivit
 import { BLOCK_PER_HOUR, DATA_DIR } from '../../utils/Constants';
 import path from 'path';
 import fs from 'fs';
-import { ReadJSON, WriteJSON } from '../../utils/Utils';
+import { ReadJSON, WriteJSON, sleep } from '../../utils/Utils';
 import LendingTerm from '../../model/LendingTerm';
 import {
   GuildGovernor__factory,
@@ -29,6 +29,10 @@ import {
 import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
 
+////////////////////////////////////////////////////////////
+/// THIS ONE IS STARTED BY THE HISTORICAL DATA FETCHER /////
+//////////////// THIS IS A HACK FOR NOW ////////////////////
+////////////////////////////////////////////////////////////
 export default class LastActivityFetcher {
   static async fetchAndSaveActivity(
     syncData: SyncData,
@@ -98,7 +102,9 @@ async function getLoanActivity(
 
   const promises: Promise<LastActivity[]>[] = [];
   for (const term of terms) {
-    promises.push(fetchLoanActivityForTerm(term, web3Provider, fromBlock, currentBlock));
+    const promise = fetchLoanActivityForTerm(term, web3Provider, fromBlock, currentBlock);
+    promises.push(promise);
+    await promise; // disable parallel fetching
   }
 
   const results = await Promise.all(promises);

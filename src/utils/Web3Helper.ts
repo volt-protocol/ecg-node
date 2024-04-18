@@ -118,7 +118,8 @@ export async function FetchAllEvents(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      // Log(`query filter error: ${e.toString()}`);
+      Log('all query filter error:', e);
+
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -214,7 +215,7 @@ export async function FetchAllEventsAndExtractStringArray(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      // Log(`query filter error: ${e.toString()}`);
+      Log('query filter error:', e);
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;

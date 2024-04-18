@@ -5,7 +5,7 @@ import fs from 'fs';
 import { LendingTerm__factory } from '../../contracts/types';
 import { DATA_DIR } from '../../utils/Constants';
 import path from 'path';
-import { ReadJSON, WriteJSON } from '../../utils/Utils';
+import { ReadJSON, WriteJSON, sleep } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import LendingTerm from '../../model/LendingTerm';
 import { Log } from '../../utils/Logger';
@@ -80,6 +80,7 @@ export default class LoansFetcher {
     updateLoans.updated = endDate;
     updateLoans.updatedHuman = new Date(endDate).toISOString();
     WriteJSON(loansFilePath, updateLoans);
+    Log('FetchECGData[Loans]: ending');
   }
 }
 
@@ -89,11 +90,14 @@ async function fetchNewLoanOpen(
   web3Provider: JsonRpcProvider,
   currentBlock: number
 ): Promise<{ termAddress: string; loanId: string; txHash: string }[]> {
+  Log('FetchECGData[Loans]: fetchNewLoanOpen starting');
+
   const allNewLoansIds: { termAddress: string; loanId: string; txHash: string }[] = [];
   const promises = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
     promises.push(fetchNewLoanOpenForTerm(syncData, term, web3Provider, currentBlock));
+    await sleep(10);
   }
 
   const results = await Promise.all(promises);
@@ -102,6 +106,7 @@ async function fetchNewLoanOpen(
     allNewLoansIds.push(...r);
   }
 
+  Log('FetchECGData[Loans]: fetchNewLoanOpen ending');
   return allNewLoansIds;
 }
 
@@ -194,11 +199,14 @@ async function fetchClosedEventsAndUpdateLoans(
   syncData: SyncData,
   currentBlock: number
 ) {
+  Log('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans starting');
+
   const promises = [];
   const loanCloseEvents = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
     promises.push(getLoanCloseEventsForTerm(syncData, term, web3Provider, currentBlock));
+    await sleep(10);
   }
 
   const results = await Promise.all(promises);
@@ -218,6 +226,8 @@ async function fetchClosedEventsAndUpdateLoans(
     loan.txHashClose = txHash;
     loan.debtRepaid = debtRepaid;
   }
+
+  Log('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans ending');
 }
 async function getLoanCloseEventsForTerm(
   syncData: SyncData,
