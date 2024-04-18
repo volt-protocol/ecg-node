@@ -50,4 +50,10 @@
 		"decimals": 18,
 		"permitAllowed": true
 	}
+	{
+		"address": "0xD5FD8456aa96aAA07c23605e9a8d2ce5f737F145",
+		"symbol": "gUSDC-1",
+		"decimals": 18,
+		"permitAllowed": true
+	}
 ]
