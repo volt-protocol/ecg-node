@@ -9,7 +9,11 @@ import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
-import { MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import path from 'path';
+import fs from 'fs';
+import { ReadJSON } from '../utils/Utils';
+import { LendingTermsFileStructure } from '../model/LendingTerm';
 dotenv.config();
 
 const provider = GetListenerWeb3Provider(15000);
@@ -46,10 +50,6 @@ export function StartGuildTokenListener() {
       return;
     }
 
-    if (parsed.name.toLowerCase() == 'addgauge') {
-      StartLendingTermListener();
-    }
-
     EventQueue.push({
       txHash: event.log.transactionHash,
       eventName: parsed.name,
@@ -69,35 +69,43 @@ export function StartLendingTermListener() {
   Log('Started the event listener');
   const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), MulticallWrapper.wrap(provider));
 
+  const termsFileName = path.join(DATA_DIR, 'terms.json');
+
+  if (!fs.existsSync(termsFileName)) {
+    throw new Error(`Could not find file ${termsFileName}`);
+  }
+
+  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+  const termsWithDebtCeiling = termsFile.terms.filter((_) => _.debtCeiling != '0');
+  Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
   // get all lending terms (gauges) from the guild token to start a listener on each one
-  GetGaugeForMarketId(guildTokenContract, MARKET_ID, true).then((terms) => {
-    for (const lendingTermAddress of terms) {
-      const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
-      termsContracts.push(termContract);
-      Log(`Starting listener on term ${lendingTermAddress}`);
-      const iface = new Interface(LendingTermAbi);
 
-      termContract.removeAllListeners();
+  for (const lendingTermAddress of termsWithDebtCeiling.map((_) => _.termAddress)) {
+    const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
+    termsContracts.push(termContract);
+    Log(`Starting listener on term ${lendingTermAddress}`);
+    const iface = new Interface(LendingTermAbi);
 
-      termContract.on('*', (event) => {
-        // The `event.log` has the entire EventLog
-        const parsed = iface.parseLog(event.log);
+    termContract.removeAllListeners();
 
-        if (!parsed) {
-          Log('Could not parse event', { event });
-          return;
-        }
+    termContract.on('*', (event) => {
+      // The `event.log` has the entire EventLog
+      const parsed = iface.parseLog(event.log);
 
-        EventQueue.push({
-          txHash: event.log.transactionHash,
-          eventName: parsed.name,
-          block: event.log.blockNumber,
-          originArgs: parsed.args,
-          sourceContract: 'LendingTerm'
-        });
+      if (!parsed) {
+        Log('Could not parse event', { event });
+        return;
+      }
+
+      EventQueue.push({
+        txHash: event.log.transactionHash,
+        eventName: parsed.name,
+        block: event.log.blockNumber,
+        originArgs: parsed.args,
+        sourceContract: 'LendingTerm'
       });
-    }
-  });
+    });
+  }
 }
 
 // StartEventListener();

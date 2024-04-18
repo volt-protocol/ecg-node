@@ -3,6 +3,7 @@ import { buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
 import { SendNotifications } from '../utils/Notifications';
 import { Log } from '../utils/Logger';
+import { StartEventListener } from './EventWatcher';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
@@ -28,6 +29,11 @@ async function ProcessAsync(event: EventData) {
     if (lastBlockFetched < event.block) {
       await FetchECGData();
       lastBlockFetched = event.block;
+
+      const restartListenerEvents = ['incrementgaugeweight', 'addgauge', 'decrementgaugeweight'];
+      if (restartListenerEvents.includes(event.eventName.toLowerCase())) {
+        StartEventListener();
+      }
     }
 
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
