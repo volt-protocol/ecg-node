@@ -48,7 +48,7 @@ export default class LastActivityFetcher {
     }
 
     // clean too old activities
-    const minBlockToKeep = currentBlock - 8 * 24 * BLOCK_PER_HOUR;
+    const minBlockToKeep = currentBlock - 7 * 24 * BLOCK_PER_HOUR;
     const activitiesToSave = alreadySavedActivities.filter((_) => _.block >= minBlockToKeep);
 
     // fetch new activities
@@ -89,63 +89,83 @@ async function getLoanActivity(
   currentBlock: number,
   terms: LendingTerm[]
 ): Promise<LastActivity[]> {
-  const loanActivities: LastActivity[] = [];
+  Log('FetchECGData[LastActivity]: starting getLoanActivity');
+  const allLoanActivities: LastActivity[] = [];
 
   const fromBlock = syncData.activitySync
     ? syncData.activitySync.lastBlockFetched + 1
-    : currentBlock - 8 * 24 * BLOCK_PER_HOUR;
+    : currentBlock - 7 * 24 * BLOCK_PER_HOUR;
 
+  const promises: Promise<LastActivity[]>[] = [];
   for (const term of terms) {
-    const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
-    const allLoanOpen = await FetchAllEvents(
-      termContract,
-      `term-${term.termAddress}`,
-      'LoanOpen',
-      fromBlock,
-      currentBlock
-    );
+    promises.push(fetchLoanActivityForTerm(term, web3Provider, fromBlock, currentBlock));
+  }
 
-    for (const loanOpen of allLoanOpen) {
-      loanActivities.push({
-        termAddress: term.termAddress,
-        block: loanOpen.blockNumber,
-        userAddress: loanOpen.args.borrower,
-        category: 'loan',
-        type: 'opening',
-        txHash: loanOpen.transactionHash,
-        txHashOpen: loanOpen.transactionHash,
-        txHashClose: '',
-        description: 'Opened Loan',
-        amountIn: 0,
-        amountOut: 0,
-        vote: ''
-      });
-    }
+  const results = await Promise.all(promises);
+  for (const r of results) {
+    allLoanActivities.push(...r);
+  }
 
-    const allLoanClose = await FetchAllEvents(
-      termContract,
-      `term-${term.termAddress}`,
-      'LoanClose',
-      fromBlock,
-      currentBlock
-    );
+  Log('FetchECGData[LastActivity]: ending getLoanActivity');
+  return allLoanActivities;
+}
 
-    for (const loanClose of allLoanClose) {
-      loanActivities.push({
-        termAddress: term.termAddress,
-        block: loanClose.blockNumber,
-        userAddress: term.termAddress,
-        category: 'loan',
-        type: 'closing',
-        txHash: loanClose.transactionHash,
-        txHashClose: loanClose.transactionHash,
-        txHashOpen: '',
-        description: 'Closed Loan',
-        amountIn: 0,
-        amountOut: 0,
-        vote: ''
-      });
-    }
+async function fetchLoanActivityForTerm(
+  term: LendingTerm,
+  web3Provider: JsonRpcProvider,
+  fromBlock: number,
+  currentBlock: number
+) {
+  const loanActivities: LastActivity[] = [];
+  const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
+  const allLoanOpen = await FetchAllEvents(
+    termContract,
+    `term-${term.termAddress}`,
+    'LoanOpen',
+    fromBlock,
+    currentBlock
+  );
+
+  for (const loanOpen of allLoanOpen) {
+    loanActivities.push({
+      termAddress: term.termAddress,
+      block: loanOpen.blockNumber,
+      userAddress: loanOpen.args.borrower,
+      category: 'loan',
+      type: 'opening',
+      txHash: loanOpen.transactionHash,
+      txHashOpen: loanOpen.transactionHash,
+      txHashClose: '',
+      description: 'Opened Loan',
+      amountIn: 0,
+      amountOut: 0,
+      vote: ''
+    });
+  }
+
+  const allLoanClose = await FetchAllEvents(
+    termContract,
+    `term-${term.termAddress}`,
+    'LoanClose',
+    fromBlock,
+    currentBlock
+  );
+
+  for (const loanClose of allLoanClose) {
+    loanActivities.push({
+      termAddress: term.termAddress,
+      block: loanClose.blockNumber,
+      userAddress: term.termAddress,
+      category: 'loan',
+      type: 'closing',
+      txHash: loanClose.transactionHash,
+      txHashClose: loanClose.transactionHash,
+      txHashOpen: '',
+      description: 'Closed Loan',
+      amountIn: 0,
+      amountOut: 0,
+      vote: ''
+    });
   }
 
   return loanActivities;
@@ -160,7 +180,7 @@ async function getMintRedeemActivity(
 
   const fromBlock = syncData.activitySync
     ? syncData.activitySync.lastBlockFetched + 1
-    : currentBlock - 8 * 24 * BLOCK_PER_HOUR;
+    : currentBlock - 7 * 24 * BLOCK_PER_HOUR;
 
   const psmContract = SimplePSM__factory.connect(GetPSMAddress(), web3Provider);
 
@@ -219,7 +239,7 @@ async function getVoteActivities(
 
   const fromBlock = syncData.activitySync
     ? syncData.activitySync.lastBlockFetched + 1
-    : currentBlock - 8 * 24 * BLOCK_PER_HOUR;
+    : currentBlock - 7 * 24 * BLOCK_PER_HOUR;
 
   const offboardingContract = LendingTermOffboarding__factory.connect(GetLendingTermOffboardingAddress(), web3Provider);
 

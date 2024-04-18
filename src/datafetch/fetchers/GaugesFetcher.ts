@@ -12,6 +12,7 @@ import { GaugesFileStructure } from '../../model/Gauge';
 
 export default class GaugesFetcher {
   static async fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
+    Log('FetchECGData[Gauges]: starting');
     let sinceBlock = GetDeployBlock();
     if (syncData.gaugeSync) {
       sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;
@@ -21,8 +22,6 @@ export default class GaugesFetcher {
         fs.rmSync(path.join(DATA_DIR, 'gauges.json'));
       }
     }
-
-    Log('FetchECGData[Gauges]: getting gauges infos');
 
     // load existing gauges from file if it exists
     let gaugesFile: GaugesFileStructure = {

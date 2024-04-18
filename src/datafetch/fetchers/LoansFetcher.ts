@@ -20,6 +20,8 @@ export default class LoansFetcher {
     syncData: SyncData,
     currentBlock: number
   ) {
+    Log('FetchECGData[Loans]: starting');
+
     let alreadySavedLoans: Loan[] = [];
     const loansFilePath = path.join(DATA_DIR, 'loans.json');
     if (fs.existsSync(loansFilePath)) {
@@ -88,27 +90,46 @@ async function fetchNewLoanOpen(
   currentBlock: number
 ): Promise<{ termAddress: string; loanId: string; txHash: string }[]> {
   const allNewLoansIds: { termAddress: string; loanId: string; txHash: string }[] = [];
+  const promises = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
-    const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
-    let sinceBlock = GetDeployBlock();
-    if (termSyncData) {
-      sinceBlock = termSyncData.lastBlockFetched + 1;
-    }
+    promises.push(fetchNewLoanOpenForTerm(syncData, term, web3Provider, currentBlock));
+  }
 
-    const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
+  const results = await Promise.all(promises);
 
-    const loanOpenEvents = await FetchAllEvents(termContract, term.label, 'LoanOpen', sinceBlock, currentBlock);
+  for (const r of results) {
+    allNewLoansIds.push(...r);
+  }
 
-    for (const loanOpenEvent of loanOpenEvents) {
-      const loanId = loanOpenEvent.args['loanId'].toString();
-      const txHash = loanOpenEvent.transactionHash;
-      allNewLoansIds.push({
-        loanId: loanId,
-        termAddress: term.termAddress,
-        txHash: txHash
-      });
-    }
+  return allNewLoansIds;
+}
+
+async function fetchNewLoanOpenForTerm(
+  syncData: SyncData,
+  term: LendingTerm,
+  web3Provider: JsonRpcProvider,
+  currentBlock: number
+) {
+  const allNewLoansIds: { termAddress: string; loanId: string; txHash: string }[] = [];
+  const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
+  let sinceBlock = GetDeployBlock();
+  if (termSyncData) {
+    sinceBlock = termSyncData.lastBlockFetched + 1;
+  }
+
+  const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
+
+  const loanOpenEvents = await FetchAllEvents(termContract, term.label, 'LoanOpen', sinceBlock, currentBlock);
+
+  for (const loanOpenEvent of loanOpenEvents) {
+    const loanId = loanOpenEvent.args['loanId'].toString();
+    const txHash = loanOpenEvent.transactionHash;
+    allNewLoansIds.push({
+      loanId: loanId,
+      termAddress: term.termAddress,
+      txHash: txHash
+    });
   }
 
   return allNewLoansIds;
@@ -173,29 +194,45 @@ async function fetchClosedEventsAndUpdateLoans(
   syncData: SyncData,
   currentBlock: number
 ) {
+  const promises = [];
+  const loanCloseEvents = [];
   for (const term of terms) {
     // check if we already have a sync data about this term
-    const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
-    let sinceBlock = GetDeployBlock();
-    if (termSyncData) {
-      sinceBlock = termSyncData.lastBlockFetched + 1;
-    }
-
-    const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
-
-    const loanCloseEvents = await FetchAllEvents(termContract, term.label, 'LoanClose', sinceBlock, currentBlock);
-
-    for (const loanCloseEvent of loanCloseEvents) {
-      const loanId = loanCloseEvent.args['loanId'].toString();
-      const debtRepaid = loanCloseEvent.args['debtRepaid'].toString(10);
-      // find the loan
-      const loan = loans.find((_) => _.id == loanId);
-      if (!loan) {
-        throw new Error(`Data mismatch for loan id ${loanId}`);
-      }
-      const txHash = loanCloseEvent.transactionHash;
-      loan.txHashClose = txHash;
-      loan.debtRepaid = debtRepaid;
-    }
+    promises.push(getLoanCloseEventsForTerm(syncData, term, web3Provider, currentBlock));
   }
+
+  const results = await Promise.all(promises);
+  for (const r of results) {
+    loanCloseEvents.push(...r);
+  }
+
+  for (const loanCloseEvent of loanCloseEvents) {
+    const loanId = loanCloseEvent.args['loanId'].toString();
+    const debtRepaid = loanCloseEvent.args['debtRepaid'].toString(10);
+    // find the loan
+    const loan = loans.find((_) => _.id == loanId);
+    if (!loan) {
+      throw new Error(`Data mismatch for loan id ${loanId}`);
+    }
+    const txHash = loanCloseEvent.transactionHash;
+    loan.txHashClose = txHash;
+    loan.debtRepaid = debtRepaid;
+  }
+}
+async function getLoanCloseEventsForTerm(
+  syncData: SyncData,
+  term: LendingTerm,
+  web3Provider: JsonRpcProvider,
+  currentBlock: number
+) {
+  const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
+  let sinceBlock = GetDeployBlock();
+  if (termSyncData) {
+    sinceBlock = termSyncData.lastBlockFetched + 1;
+  }
+
+  const termContract = LendingTerm__factory.connect(term.termAddress, web3Provider);
+
+  const loanCloseEvents = await FetchAllEvents(termContract, term.label, 'LoanClose', sinceBlock, currentBlock);
+  return loanCloseEvents;
 }

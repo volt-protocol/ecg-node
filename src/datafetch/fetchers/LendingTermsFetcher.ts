@@ -18,6 +18,7 @@ import { Log } from '../../utils/Logger';
 
 export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
+    Log('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
@@ -27,7 +28,7 @@ export default class LendingTermsFetcher {
     promises.push(profitManagerContract.minBorrow());
     promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of gauges) {
-      Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
+      // Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
       const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
       promises.push(lendingTermContract.getParameters());
       promises.push(lendingTermContract.issuance());
