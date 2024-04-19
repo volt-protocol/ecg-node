@@ -32,7 +32,7 @@ async function ProcessAsync(event: EventData) {
 
       const restartListenerEvents = ['incrementgaugeweight', 'addgauge', 'decrementgaugeweight'];
       if (restartListenerEvents.includes(event.eventName.toLowerCase())) {
-        StartEventListener();
+        StartEventListener(true);
       }
     }
 

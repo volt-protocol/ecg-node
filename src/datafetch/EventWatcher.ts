@@ -16,13 +16,13 @@ import { ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 dotenv.config();
 
-const provider = GetListenerWeb3Provider(15000);
+const provider = GetListenerWeb3Provider(5000);
 
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
-export function StartEventListener() {
+export function StartEventListener(onlyTerms = false) {
   Log('Starting/restarting events listener');
-  StartGuildTokenListener();
+  if (!onlyTerms) StartGuildTokenListener();
   StartLendingTermListener();
 }
 
@@ -67,14 +67,10 @@ export function StartLendingTermListener() {
   }
   termsContracts = [];
   Log('Started the event listener');
-  const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), MulticallWrapper.wrap(provider));
-
   const termsFileName = path.join(DATA_DIR, 'terms.json');
-
   if (!fs.existsSync(termsFileName)) {
     throw new Error(`Could not find file ${termsFileName}`);
   }
-
   const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
   const termsWithDebtCeiling = termsFile.terms.filter((_) => _.debtCeiling != '0');
   Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
