@@ -1,36 +1,22 @@
-import { JsonRpcProvider, ethers } from 'ethers';
+import { JsonRpcProvider } from 'ethers';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import fs, { link } from 'fs';
+import fs from 'fs';
 import path from 'path';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR } from '../utils/Constants';
 import { SyncData } from '../model/SyncData';
-import {
-  AuctionHouse,
-  AuctionHouse__factory,
-  GuildToken__factory,
-  LendingTerm as LendingTermType,
-  LendingTerm__factory,
-  ProfitManager__factory
-} from '../contracts/types';
+import { AuctionHouse, AuctionHouse__factory } from '../contracts/types';
 
-import { LendingTerm as LendingTermNamespace } from '../contracts/types/LendingTerm';
-import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { norm } from '../utils/TokenUtils';
-import { GetDeployBlock, GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../config/Config';
-import { ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
-import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
-import { GaugesFileStructure } from '../model/Gauge';
+import LendingTerm from '../model/LendingTerm';
+import { GetDeployBlock } from '../config/Config';
+import { ReadJSON, WriteJSON } from '../utils/Utils';
 import { FetchAllEvents, FetchAllEventsAndExtractStringArray, GetWeb3Provider } from '../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
-import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
-import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { SendNotifications } from '../utils/Notifications';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
 import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
-import LastActivityFetcher from './fetchers/LastActivityFetcher';
 import LoansFetcher from './fetchers/LoansFetcher';
 import GaugesFetcher from './fetchers/GaugesFetcher';
 
@@ -42,26 +28,38 @@ export async function FetchECGData() {
   await FileMutex.Lock();
   lastFetch = Date.now();
   try {
-    const dtStart = Date.now();
+    const dtStart = performance.now();
     const web3Provider = GetWeb3Provider();
     const currentBlock = await web3Provider.getBlockNumber();
     Log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
     const syncData: SyncData = getSyncData();
-    Log('FetchECGData: fetching');
+    Log('FetchECGData: start fetching');
+    let fetchStart = performance.now();
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
+    Log(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
     const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider);
+    Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
     const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
+    Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
     const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
+    Log(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
     const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
+    Log(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
     const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
+    Log(`FetchECGData: auction house data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     // unlock before fetching activities as it's not required for the node
     await FileMutex.Unlock();
 
     // await LastActivityFetcher.fetchAndSaveActivity(syncData, web3Provider, currentBlock, protocolData, terms);
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
-    Log('FetchECGData: finished fetching');
-    const durationMs = Date.now() - dtStart;
+    const durationMs = performance.now() - dtStart;
+    Log(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
   } catch (e) {
     Log('FetchECGData: unknown failure', e);
     lastFetch = 0;
