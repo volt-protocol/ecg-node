@@ -1,4 +1,4 @@
-import { Contract, Interface } from 'ethers';
+import { Contract, Interface, JsonRpcProvider } from 'ethers';
 import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
@@ -16,19 +16,18 @@ import { ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 dotenv.config();
 
-const provider = GetListenerWeb3Provider(5000);
-
 let guildTokenContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
 export function StartEventListener(onlyTerms = false) {
-  Log('Starting/restarting events listener');
-  if (!onlyTerms) StartGuildTokenListener();
-  StartLendingTermListener();
+  const provider = GetListenerWeb3Provider(5000);
+  Log(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
+  if (!onlyTerms) StartGuildTokenListener(provider);
+  StartLendingTermListener(provider);
 }
 
-setInterval(StartEventListener, 30 * 60 * 1000); // restart listener every X minutes
+setInterval(() => StartEventListener(false), 30 * 60 * 1000); // restart listener every X minutes
 
-export function StartGuildTokenListener() {
+export function StartGuildTokenListener(provider: JsonRpcProvider) {
   if (guildTokenContract) {
     guildTokenContract.removeAllListeners();
   }
@@ -60,7 +59,7 @@ export function StartGuildTokenListener() {
   });
 }
 
-export function StartLendingTermListener() {
+export function StartLendingTermListener(provider: JsonRpcProvider) {
   // cleanup all listeners
   for (const termContract of termsContracts) {
     termContract.removeAllListeners();

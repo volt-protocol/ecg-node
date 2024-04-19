@@ -27,6 +27,7 @@ export enum LoanStatus {
 
 export interface LoansFileStructure {
   updated: number;
+  updateBlock: number;
   updatedHuman: string;
   loans: Loan[];
 }

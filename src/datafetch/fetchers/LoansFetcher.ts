@@ -32,6 +32,7 @@ export default class LoansFetcher {
     const updateLoans: LoansFileStructure = {
       loans: alreadySavedLoans.filter((_) => _.status == LoanStatus.CLOSED),
       updated: Date.now(),
+      updateBlock: currentBlock,
       updatedHuman: new Date(Date.now()).toISOString()
     };
 

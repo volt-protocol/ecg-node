@@ -21,6 +21,7 @@ export enum AuctionStatus {
 
 export interface AuctionsFileStructure {
   updated: number;
+  updateBlock: number;
   updatedHuman: string;
   auctions: Auction[];
 }

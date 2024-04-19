@@ -88,6 +88,7 @@ class MarketDataController {
     const loansFile: LoansFileStructure = ReadJSON(loansFileName);
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
     const response: LoansApiResponse = {
+      updateBlock: loansFile.updateBlock,
       updated: loansFile.updated,
       updatedHuman: loansFile.updatedHuman,
       loans: []
@@ -153,6 +154,7 @@ class MarketDataController {
 
     const response: AuctionsApiReponse = {
       updated: auctionFile.updated,
+      updateBlock: auctionFile.updateBlock,
       updatedHuman: auctionFile.updatedHuman,
       auctions: auctionFile.auctions,
       auctionHouses: auctionHousesFile.auctionHouses

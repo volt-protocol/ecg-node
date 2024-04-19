@@ -1,3 +1,4 @@
+import { MARKET_ID } from './Constants';
 import { SendDiscordMessage, SendDiscordMessageList } from './DiscordHelper';
 import { SendTelegramMessage } from './TelegramHelper';
 import { retry } from './Utils';
@@ -17,6 +18,7 @@ export async function SendNotifications(sender: string, title: string, msg: stri
     discordHookUrl = process.env.DISCORD_WEBHOOK_URL;
   }
 
+  sender = `MARKET ${MARKET_ID} | ${sender}`;
   // both channels
   if (tgBotId && tgChatId && discordHookUrl) {
     await Promise.all([
@@ -43,6 +45,7 @@ export async function SendNotificationsList(
   let tgBotId = undefined;
   let tgChatId = undefined;
   let discordHookUrl = undefined;
+  sender = `MARKET ${MARKET_ID} | ${sender}`;
 
   if (isWatcher) {
     tgBotId = process.env.WATCHER_TG_BOT_ID;

@@ -26,6 +26,7 @@ export enum LoanStatus {
 
 export interface LoansApiResponse {
   updated: number;
+  updateBlock: number;
   updatedHuman: string;
   loans: Loan[];
 }

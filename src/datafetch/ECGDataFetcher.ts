@@ -145,6 +145,7 @@ async function fetchAndSaveAuctions(
     // keep the closed options here
     auctions: alreadySavedAuctions.filter((_) => _.status == AuctionStatus.CLOSED),
     updated: Date.now(),
+    updateBlock: currentBlock,
     updatedHuman: new Date(Date.now()).toISOString()
   };
 

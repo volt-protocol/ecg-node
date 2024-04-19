@@ -65,6 +65,7 @@ function guildTokenMustUpdate(event: EventData): boolean {
       Log(`GuildToken ${event.eventName} is not important`);
       return false;
     case 'addgauge':
+    case 'removegauge':
     case 'incrementgaugeweight':
     case 'decrementgaugeweight':
       Log(`GuildToken ${event.eventName} must force an update`);
