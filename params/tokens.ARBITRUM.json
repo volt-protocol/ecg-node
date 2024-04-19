@@ -46,6 +46,26 @@
 		}
 	},
 	{
+		"address": "0x1c27Ad8a19Ba026ADaBD615F6Bc77158130cfBE4",
+		"symbol": "PT-weETH-27JUN2024",
+		"decimals": 18,
+		"permitAllowed": true,
+		"pendleConfiguration": {
+			"market": "0x952083cde7aaa11ab8449057f7de23a970aa8472",
+			"syTokenOut": "0x35751007a407ca6feffe80b3cb397736d2cf4dbe"
+		}
+	},
+	{
+		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
+		"symbol": "PT-rsETH-27JUN2024",
+		"decimals": 18,
+		"permitAllowed": true,
+		"pendleConfiguration": {
+			"market": "0x6ae79089b2cf4be441480801bb741a531d94312b",
+			"syTokenOut": "0x4186bfc76e2e237523cbc30fd220fe055156b41f"
+		}
+	},
+	{
 		"address": "0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8",
 		"symbol": "PENDLE",
 		"decimals": 18,
