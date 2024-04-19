@@ -26,6 +26,7 @@ export type LendingTerms = {
 };
 
 export interface LendingTermsApiResponse {
+  updateBlock: number;
   updated: number;
   updatedHuman: string;
   terms: LendingTerms[];

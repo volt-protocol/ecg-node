@@ -30,6 +30,7 @@ export enum LendingTermStatus {
 
 export interface LendingTermsFileStructure {
   updated: number;
+  updateBlock: number;
   updatedHuman: string;
   terms: LendingTerm[];
 }

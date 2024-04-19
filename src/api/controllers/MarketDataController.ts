@@ -33,6 +33,7 @@ class MarketDataController {
     const loansFile: LoansFileStructure = ReadJSON(loansFileName);
 
     const response: LendingTermsApiResponse = {
+      updateBlock: termsFile.updateBlock,
       updated: termsFile.updated,
       updatedHuman: termsFile.updatedHuman,
       terms: []

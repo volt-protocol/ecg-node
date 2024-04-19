@@ -17,7 +17,7 @@ import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
 
 export default class LendingTermsFetcher {
-  static async fetchAndSaveTerms(web3Provider: JsonRpcProvider) {
+  static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
     Log('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
@@ -102,6 +102,7 @@ export default class LendingTermsFetcher {
     const lendingTermsPath = path.join(DATA_DIR, 'terms.json');
     const fetchData = Date.now();
     const termFileData: LendingTermsFileStructure = {
+      updateBlock: currentBlock,
       updated: fetchData,
       updatedHuman: new Date(fetchData).toISOString(),
       terms: lendingTerms

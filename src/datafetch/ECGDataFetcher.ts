@@ -39,7 +39,7 @@ export async function FetchECGData() {
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
     Log(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
-    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider);
+    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, currentBlock);
     Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
