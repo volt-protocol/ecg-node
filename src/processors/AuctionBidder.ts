@@ -238,6 +238,7 @@ async function getSwapPendle(
   Log(`pendle url: ${pendleHostedSdkUrl}`);
   const msToWait = 6000 - (Date.now() - lastCallPendle); // 1 call every 6 seconds
   if (msToWait > 0) {
+    Log(`Waiting ${msToWait} ms before calling pendle api`);
     await sleep(msToWait);
   }
   const pendleSwapResponse = await HttpGet<PendleSwapResponse>(pendleHostedSdkUrl);

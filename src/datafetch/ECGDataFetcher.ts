@@ -229,7 +229,9 @@ async function fetchAndSaveAuctions(
     // find related auction
     const index = updateAuctions.auctions.findIndex((_) => _.loanId == loanId);
     if (index < 0) {
-      throw new Error(`Cannot find auction for loanId: ${loanId}`);
+      // if not found, it means it might be on another market
+      Log(`Ignoring auction end for loan ${loanId}`);
+      continue;
     } else {
       updateAuctions.auctions[index].bidTxHash = txHash;
       updateAuctions.auctions[index].collateralSold = collateralSold.toString();
@@ -265,10 +267,11 @@ async function fetchAuctionsInfo(
   for (const loan of allLoanIds) {
     const auctionData = await promises[cursor++];
 
-    const lendingTermAddress = auctionData.lendingTerm;
     const linkedLendingTerm = lendingTerms.find((_) => _.termAddress == auctionData.lendingTerm);
     if (!linkedLendingTerm) {
-      throw new Error(`Cannot find lending term with address ${auctionData.lendingTerm}`);
+      // if not found, it means it might be on another market
+      Log(`Ignoring auction for loan ${loan.loanId} and lending term ${auctionData.lendingTerm}`);
+      continue;
     }
 
     allAuctions.push({
