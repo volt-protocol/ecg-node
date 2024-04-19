@@ -92,5 +92,11 @@
 		"symbol": "gUSDC-1",
 		"decimals": 18,
 		"permitAllowed": true
+	},
+	{
+		"address": "0xaFBe44E79E9affB25CEd16D971933219d1d6EC8d",
+		"symbol": "gWETH-3",
+		"decimals": 18,
+		"permitAllowed": true
 	}
 ]
