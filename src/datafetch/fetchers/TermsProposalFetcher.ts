@@ -11,8 +11,8 @@ import {
   LendingTerm as LendingTermType,
   LendingTermOnboarding__factory
 } from '../../contracts/types';
-import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../../utils/Constants';
-import { ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
+import { BLOCK_PER_HOUR, DATA_DIR, EXPLORER_URI, MARKET_ID } from '../../utils/Constants';
+import { GetNodeConfig, ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
@@ -21,6 +21,8 @@ import { Proposal, ProposalStatus, ProposalsFileStructure } from '../../model/Pr
 import { norm } from '../../utils/TokenUtils';
 import path from 'path';
 import fs from 'fs';
+import { SendNotificationsList } from '../../utils/Notifications';
+const nodeConfig = GetNodeConfig();
 
 export default class TermsProposalFetcher {
   static async fetchProposals(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
@@ -99,6 +101,7 @@ async function fetchNewCreatedLendingTerms(
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }
+
   const filter = lendingTermFactory.filters.TermCreated(undefined, MARKET_ID, undefined, undefined);
 
   const createdTermEvents = await FetchAllEvents(
@@ -142,6 +145,7 @@ async function fetchNewCreatedLendingTerms(
       `${collateralToken.symbol}` + `-${roundTo(norm(interestRate) * 100, 2)}%` + `-${roundTo(borrowRatio, 2)}`;
     allCreated.push({
       termAddress: termAddress,
+      maxDebtPerCollateralToken: maxDebtPerCol,
       borrowRatio: borrowRatio,
       collateralTokenAddress: collateralTokenAddress,
       collateralTokenDecimals: collateralToken.decimals,
@@ -222,6 +226,48 @@ async function fetchProposalEvents(
       foundProposal.status = ProposalStatus.PROPOSED;
       const quorum = await lendingTermOnboarding.quorum(proposalId);
       foundProposal.quorum = quorum.toString();
+
+      // send notification only if it's been proposed less than 12 hours ago
+      if (
+        nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled &&
+        proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR
+      ) {
+        SendNotificationsList(
+          'TermOnboardingWatcher',
+          'New term is proposed',
+          [
+            {
+              fieldName: 'Lending term',
+              fieldValue: `${EXPLORER_URI}/address/${foundProposal.termAddress}`
+            },
+            {
+              fieldName: 'Proposal Id',
+              fieldValue: proposalId.toString(10)
+            },
+            {
+              fieldName: 'Proposer',
+              fieldValue: proposer
+            },
+            {
+              fieldName: 'Collateral',
+              fieldValue: foundProposal.collateralTokenSymbol
+            },
+            {
+              fieldName: 'Hard Cap',
+              fieldValue: foundProposal.hardCap
+            },
+            {
+              fieldName: 'Interest rate',
+              fieldValue: norm(foundProposal.interestRate).toString()
+            },
+            {
+              fieldName: 'maxDebtPerCollateralToken',
+              fieldValue: foundProposal.maxDebtPerCollateralToken
+            }
+          ],
+          true
+        );
+      }
     } else {
       const proposalId = proposalEvent.args.proposalId as bigint;
 

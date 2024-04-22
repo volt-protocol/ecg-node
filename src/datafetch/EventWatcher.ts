@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
-import { GetGuildTokenAddress } from '../config/Config';
+import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
 import { GuildToken__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
@@ -17,12 +17,20 @@ import { LendingTermsFileStructure } from '../model/LendingTerm';
 dotenv.config();
 
 let guildTokenContract: Contract | undefined = undefined;
+let onboardingContract: Contract | undefined = undefined;
+let termFactoryContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
 export function StartEventListener(onlyTerms = false) {
   const provider = GetListenerWeb3Provider(5000);
   Log(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
-  if (!onlyTerms) StartGuildTokenListener(provider);
-  StartLendingTermListener(provider);
+  if (onlyTerms) {
+    StartLendingTermListener(provider);
+  } else {
+    StartGuildTokenListener(provider);
+    StartLendingTermListener(provider);
+    StartOnboardingListener(provider);
+    StartTermFactoryListener(provider);
+  }
 }
 
 setInterval(() => StartEventListener(false), 30 * 60 * 1000); // restart listener every X minutes
@@ -55,6 +63,66 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
       block: event.log.blockNumber,
       originArgs: parsed.args,
       sourceContract: 'GuildToken'
+    });
+  });
+}
+
+export function StartOnboardingListener(provider: JsonRpcProvider) {
+  if (onboardingContract) {
+    onboardingContract.removeAllListeners();
+  }
+
+  Log('Started the event listener');
+  onboardingContract = new Contract(GetLendingTermOnboardingAddress(), GuildTokenAbi, provider);
+  Log(`Starting listener on onboarding ${GetLendingTermOnboardingAddress()}`);
+
+  onboardingContract.removeAllListeners();
+
+  onboardingContract.on('*', (event) => {
+    // The `event.log` has the entire EventLog
+    const parsed = onboardingContract?.interface.parseLog(event.log);
+
+    if (!parsed) {
+      Log('Could not parse event', { event });
+      return;
+    }
+
+    EventQueue.push({
+      txHash: event.log.transactionHash,
+      eventName: parsed.name,
+      block: event.log.blockNumber,
+      originArgs: parsed.args,
+      sourceContract: 'Onboarding'
+    });
+  });
+}
+
+export function StartTermFactoryListener(provider: JsonRpcProvider) {
+  if (termFactoryContract) {
+    termFactoryContract.removeAllListeners();
+  }
+
+  Log('Started the event listener');
+  termFactoryContract = new Contract(GetLendingTermFactoryAddress(), GuildTokenAbi, provider);
+  Log(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
+
+  termFactoryContract.removeAllListeners();
+
+  termFactoryContract.on('*', (event) => {
+    // The `event.log` has the entire EventLog
+    const parsed = termFactoryContract?.interface.parseLog(event.log);
+
+    if (!parsed) {
+      Log('Could not parse event', { event });
+      return;
+    }
+
+    EventQueue.push({
+      txHash: event.log.transactionHash,
+      eventName: parsed.name,
+      block: event.log.blockNumber,
+      originArgs: parsed.args,
+      sourceContract: 'TermFactory'
     });
   });
 }

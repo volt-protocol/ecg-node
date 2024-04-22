@@ -56,6 +56,10 @@ function mustUpdateProtocol(event: EventData): boolean {
       return guildTokenMustUpdate(event);
     case 'lendingterm':
       return lendingTermMustUpdate(event);
+    case 'termfactory':
+      return termFactoryMustUpdate(event);
+    case 'onboarding':
+      return onboardingMustUpdate(event);
   }
 }
 
@@ -85,6 +89,31 @@ function lendingTermMustUpdate(event: EventData): boolean {
     case 'loancall':
     case 'setauctionhouse':
       Log(`LendingTerm ${event.eventName} must force an update`);
+      return true;
+  }
+}
+
+function termFactoryMustUpdate(event: EventData): boolean {
+  switch (event.eventName.toLowerCase()) {
+    default:
+      Log(`TermFactory ${event.eventName} is not important`);
+      return false;
+    case 'termcreated':
+      Log(`TermFactory ${event.eventName} must force an update`);
+      return true;
+  }
+}
+
+function onboardingMustUpdate(event: EventData): boolean {
+  switch (event.eventName.toLowerCase()) {
+    default:
+      Log(`Onboarding ${event.eventName} is not important`);
+      return false;
+    case 'proposalcreated':
+    case 'proposalexecuted':
+    case 'proposalqueued':
+    case 'proposalcanceled':
+      Log(`Onboarding ${event.eventName} must force an update`);
       return true;
   }
 }

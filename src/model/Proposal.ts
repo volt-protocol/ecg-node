@@ -10,6 +10,7 @@ export interface Proposal {
   openingFee: string;
   interestRate: string;
   borrowRatio: number;
+  maxDebtPerCollateralToken: string;
   maxDelayBetweenPartialRepay: number;
   minPartialRepayPercent: number;
   hardCap: string;
