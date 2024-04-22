@@ -1,5 +1,6 @@
 export interface Proposal {
   status: ProposalStatus;
+  createdBlock: number;
   termAddress: string;
   collateralTokenAddress: string;
   collateralTokenSymbol: string;
@@ -12,6 +13,12 @@ export interface Proposal {
   maxDelayBetweenPartialRepay: number;
   minPartialRepayPercent: number;
   hardCap: string;
+  proposalId: string;
+  description: string;
+  proposer: string;
+  voteStart: number;
+  voteEnd: number;
+  quorum: string;
 }
 
 export enum ProposalStatus {
@@ -21,7 +28,7 @@ export enum ProposalStatus {
   ACTIVE = 'active' // validated, the term is added to the gauges
 }
 
-export interface ProposalFileStructure {
+export interface ProposalsFileStructure {
   updated: number;
   updateBlock: number;
   updatedHuman: string;

@@ -30,6 +30,20 @@ export function GetWeb3Provider(pollingIntervalMs = 15000): JsonRpcProvider {
 
   return web3Provider;
 }
+/**
+ * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
+ * @returns {JsonRpcProvider}
+ */
+export function GetL1Web3Provider(pollingIntervalMs = 15000): JsonRpcProvider {
+  const rpcURL = process.env.RPC_URL_L1;
+  if (!rpcURL) {
+    throw new Error('Cannot find RPC_URL_L1 in env');
+  }
+  const web3Provider = new JsonRpcProvider(rpcURL, undefined, { staticNetwork: true });
+  web3Provider.pollingInterval = pollingIntervalMs;
+
+  return web3Provider;
+}
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
