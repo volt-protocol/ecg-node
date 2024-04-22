@@ -16,12 +16,7 @@ import { ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
-import {
-  FetchAllEvents,
-  FetchAllEventsAndExtractStringArray,
-  GetERC20Infos,
-  GetL1Web3Provider
-} from '../../utils/Web3Helper';
+import { FetchAllEvents, GetERC20Infos, GetL1Web3Provider } from '../../utils/Web3Helper';
 import { Proposal, ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
 import { norm } from '../../utils/TokenUtils';
 import path from 'path';
@@ -42,10 +37,10 @@ export default class TermsProposalFetcher {
 
     allProposals.push(...createdProposals);
 
-    await fetchNewProposedProposals(web3Provider, syncData, currentBlock, allProposals);
-    await fetchNewQueuedProposals(web3Provider, syncData, currentBlock, allProposals);
-    await fetchNewExecutedProposals(web3Provider, syncData, currentBlock, allProposals);
-    await fetchNewCanceledProposals(web3Provider, syncData, currentBlock, allProposals);
+    await fetchProposalEvents(web3Provider, syncData, currentBlock, allProposals);
+    // await fetchNewQueuedProposals(web3Provider, syncData, currentBlock, allProposals);
+    // await fetchNewExecutedProposals(web3Provider, syncData, currentBlock, allProposals);
+    // await fetchNewCanceledProposals(web3Provider, syncData, currentBlock, allProposals);
 
     // reset all 'PROPOSED' proposals with voteEnd elapsed
     // BE CAREFULL FOR ARBITRUM VOTE END IS IN L1 BLOCK NUMBER NOT ARBITRUM BLOCK NUMBER
@@ -172,7 +167,7 @@ async function fetchNewCreatedLendingTerms(
   return allCreated;
 }
 
-async function fetchNewProposedProposals(
+async function fetchProposalEvents(
   web3Provider: JsonRpcProvider,
   syncData: SyncData,
   currentBlock: number,
@@ -184,154 +179,74 @@ async function fetchNewProposedProposals(
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }
-  const filter = lendingTermOnboarding.filters.ProposalCreated();
+  //   const filter = lendingTermOnboarding.filters.ProposalCreated();
 
-  const proposalCreatedEvents = await FetchAllEvents(
+  const filter = [
+    (await lendingTermOnboarding.filters.ProposalCreated().getTopicFilter()).toString(),
+    (await lendingTermOnboarding.filters.ProposalExecuted().getTopicFilter()).toString(),
+    (await lendingTermOnboarding.filters.ProposalQueued().getTopicFilter()).toString(),
+    (await lendingTermOnboarding.filters.ProposalCanceled().getTopicFilter()).toString()
+  ];
+  const proposalEvents = await FetchAllEvents(
     lendingTermOnboarding,
     'lendingTermOnboarding',
-    filter,
+    [filter],
     startBlock,
     currentBlock
   );
 
-  for (const proposalCreated of proposalCreatedEvents) {
-    const proposalId = proposalCreated.args.proposalId as bigint;
-    const proposer = proposalCreated.args.proposer as string;
-    const description = proposalCreated.args.description as string;
-    const voteStart = proposalCreated.args.voteStart as bigint;
-    const voteEnd = proposalCreated.args.voteEnd as bigint;
-    const termAddressFromDescription = proposalCreated.args.description.split(' Enable term ')[1];
+  for (const proposalEvent of proposalEvents) {
+    if (proposalEvent.logName == 'ProposalCreated') {
+      const proposalCreated = proposalEvent;
+      const proposalId = proposalCreated.args.proposalId as bigint;
+      const proposer = proposalCreated.args.proposer as string;
+      const description = proposalCreated.args.description as string;
+      const voteStart = proposalCreated.args.voteStart as bigint;
+      const voteEnd = proposalCreated.args.voteEnd as bigint;
+      const termAddressFromDescription = proposalCreated.args.description.split(' Enable term ')[1];
 
-    const foundProposal = allProposals.find(
-      (_) => _.termAddress.toLowerCase() == termAddressFromDescription.toLowerCase()
-    );
+      const foundProposal = allProposals.find(
+        (_) => _.termAddress.toLowerCase() == termAddressFromDescription.toLowerCase()
+      );
 
-    if (!foundProposal) {
-      // ignore, it may be for other market
-      continue;
+      if (!foundProposal) {
+        // ignore, it may be for other market
+        continue;
+      }
+
+      foundProposal.proposalId = proposalId.toString(10);
+      foundProposal.proposer = proposer;
+      foundProposal.description = description;
+      foundProposal.voteStart = Number(voteStart);
+      foundProposal.voteEnd = Number(voteEnd);
+      foundProposal.status = ProposalStatus.PROPOSED;
+      const quorum = await lendingTermOnboarding.quorum(proposalId);
+      foundProposal.quorum = quorum.toString();
+    } else {
+      const proposalId = proposalEvent.args.proposalId as bigint;
+
+      const foundProposal = allProposals.find((_) => _.proposalId == proposalId.toString());
+
+      if (!foundProposal) {
+        // ignore, it may be for other market
+        continue;
+      }
+
+      if (proposalEvent.logName == 'ProposalQueued') {
+        foundProposal.status = ProposalStatus.QUEUED;
+      }
+      if (proposalEvent.logName == 'ProposalExecuted') {
+        foundProposal.status = ProposalStatus.ACTIVE;
+      }
+      if (proposalEvent.logName == 'ProposalCanceled') {
+        foundProposal.status = ProposalStatus.CREATED;
+        foundProposal.proposalId = '';
+        foundProposal.description = '';
+        foundProposal.proposer = '';
+        foundProposal.quorum = '';
+        foundProposal.voteEnd = 0;
+        foundProposal.voteStart = 0;
+      }
     }
-
-    foundProposal.proposalId = proposalId.toString(10);
-    foundProposal.proposer = proposer;
-    foundProposal.description = description;
-    foundProposal.voteStart = Number(voteStart);
-    foundProposal.voteEnd = Number(voteEnd);
-    foundProposal.status = ProposalStatus.PROPOSED;
-    const quorum = await lendingTermOnboarding.quorum(proposalId);
-    foundProposal.quorum = quorum.toString();
-  }
-}
-
-async function fetchNewQueuedProposals(
-  web3Provider: JsonRpcProvider,
-  syncData: SyncData,
-  currentBlock: number,
-  allProposals: Proposal[]
-) {
-  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
-
-  let startBlock = GetDeployBlock();
-  if (syncData.proposalSync) {
-    startBlock = syncData.proposalSync.lastBlockFetched + 1;
-  }
-  const filter = lendingTermOnboarding.filters.ProposalQueued();
-
-  const proposalQueuedEvents = await FetchAllEvents(
-    lendingTermOnboarding,
-    'lendingTermOnboarding',
-    filter,
-    startBlock,
-    currentBlock
-  );
-
-  for (const proposalQueued of proposalQueuedEvents) {
-    const proposalId = proposalQueued.args.proposalId as bigint;
-
-    const foundProposal = allProposals.find((_) => _.proposalId == proposalId.toString());
-
-    if (!foundProposal) {
-      // ignore, it may be for other market
-      continue;
-    }
-
-    foundProposal.status = ProposalStatus.QUEUED;
-  }
-}
-
-async function fetchNewExecutedProposals(
-  web3Provider: JsonRpcProvider,
-  syncData: SyncData,
-  currentBlock: number,
-  allProposals: Proposal[]
-) {
-  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
-
-  let startBlock = GetDeployBlock();
-  if (syncData.proposalSync) {
-    startBlock = syncData.proposalSync.lastBlockFetched + 1;
-  }
-  const filter = lendingTermOnboarding.filters.ProposalExecuted();
-
-  const proposalExecutedEvents = await FetchAllEvents(
-    lendingTermOnboarding,
-    'lendingTermOnboarding',
-    filter,
-    startBlock,
-    currentBlock
-  );
-
-  for (const proposalExecuted of proposalExecutedEvents) {
-    const proposalId = proposalExecuted.args.proposalId as bigint;
-
-    const foundProposal = allProposals.find((_) => _.proposalId == proposalId.toString());
-
-    if (!foundProposal) {
-      // ignore, it may be for other market
-      continue;
-    }
-
-    foundProposal.status = ProposalStatus.ACTIVE;
-  }
-}
-
-async function fetchNewCanceledProposals(
-  web3Provider: JsonRpcProvider,
-  syncData: SyncData,
-  currentBlock: number,
-  allProposals: Proposal[]
-) {
-  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
-
-  let startBlock = GetDeployBlock();
-  if (syncData.proposalSync) {
-    startBlock = syncData.proposalSync.lastBlockFetched + 1;
-  }
-  const filter = lendingTermOnboarding.filters.ProposalCanceled();
-
-  const proposalCanceledEvents = await FetchAllEvents(
-    lendingTermOnboarding,
-    'lendingTermOnboarding',
-    filter,
-    startBlock,
-    currentBlock
-  );
-
-  for (const proposalCanceled of proposalCanceledEvents) {
-    const proposalId = proposalCanceled.args.proposalId as bigint;
-
-    const foundProposal = allProposals.find((_) => _.proposalId == proposalId.toString());
-
-    if (!foundProposal) {
-      // ignore, it may be for other market
-      continue;
-    }
-
-    foundProposal.status = ProposalStatus.CREATED;
-    foundProposal.proposalId = '';
-    foundProposal.description = '';
-    foundProposal.proposer = '';
-    foundProposal.quorum = '';
-    foundProposal.voteEnd = 0;
-    foundProposal.voteStart = 0;
   }
 }
