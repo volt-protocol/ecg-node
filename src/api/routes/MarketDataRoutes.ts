@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import SimpleCacheService from '../../utils/CacheService';
 import MarketDataController from '../controllers/MarketDataController';
+import { param, query, validationResult } from 'express-validator';
 
 const router = express.Router();
 
@@ -26,23 +27,31 @@ const CACHE_DURATION = 10 * 1000;
  *       404:
  *         description: market id not found
  */
-router.get('/:marketId/terms', async (req: Request, res: Response) => {
-  try {
-    const marketId = Number(req.params.marketId);
-    const cacheKey = `/markets/${marketId}/terms`;
-    const history = await SimpleCacheService.GetAndCache(
-      cacheKey,
-      () => MarketDataController.GetTermsInfo(marketId),
-      CACHE_DURATION
-    );
-    if (!history) {
-      res.status(404).json({ error: `Cannot find market ${marketId}` });
+router.get(
+  '/:marketId/terms',
+  [param('marketId').isNumeric().withMessage('marketId must be a number')],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+      const marketId = Number(req.params.marketId);
+      const cacheKey = `/markets/${marketId}/terms`;
+      const history = await SimpleCacheService.GetAndCache(
+        cacheKey,
+        () => MarketDataController.GetTermsInfo(marketId),
+        CACHE_DURATION
+      );
+      if (!history) {
+        res.status(404).json({ error: `Cannot find market ${marketId}` });
+      }
+      res.status(200).json(history);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
     }
-    res.status(200).json(history);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
-});
+);
 
 /**
  * @openapi
