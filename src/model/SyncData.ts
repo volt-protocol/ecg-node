@@ -3,6 +3,7 @@ export interface SyncData {
   gaugeSync: GaugeSyncData;
   auctionSync: AuctionSyncData[];
   activitySync?: ActivitySyncData;
+  proposalSync?: ProposalSyncData;
 }
 
 export interface TermSyncData {
@@ -20,5 +21,9 @@ export interface GaugeSyncData {
 
 export interface AuctionSyncData {
   auctionHouseAddress: string;
+  lastBlockFetched: number;
+}
+
+export interface ProposalSyncData {
   lastBlockFetched: number;
 }

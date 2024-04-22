@@ -119,47 +119,10 @@
 				"type": "address"
 			},
 			{
-				"components": [
-					{
-						"internalType": "address",
-						"name": "collateralToken",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "maxDebtPerCollateralToken",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "interestRate",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "maxDelayBetweenPartialRepay",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "minPartialRepayPercent",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "openingFee",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "hardCap",
-						"type": "uint256"
-					}
-				],
 				"indexed": false,
-				"internalType": "struct LendingTerm.LendingTermParams",
+				"internalType": "bytes",
 				"name": "params",
-				"type": "tuple"
+				"type": "bytes"
 			}
 		],
 		"name": "TermCreated",
@@ -270,46 +233,9 @@
 				"type": "address"
 			},
 			{
-				"components": [
-					{
-						"internalType": "address",
-						"name": "collateralToken",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "maxDebtPerCollateralToken",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "interestRate",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "maxDelayBetweenPartialRepay",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "minPartialRepayPercent",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "openingFee",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "hardCap",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct LendingTerm.LendingTermParams",
-				"name": "params",
-				"type": "tuple"
+				"internalType": "bytes",
+				"name": "lendingTermParams",
+				"type": "bytes"
 			}
 		],
 		"name": "createTerm",
@@ -436,6 +362,11 @@
 				"internalType": "address",
 				"name": "creditToken",
 				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "psm",
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -504,6 +435,11 @@
 					{
 						"internalType": "address",
 						"name": "creditToken",
+						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "psm",
 						"type": "address"
 					}
 				],

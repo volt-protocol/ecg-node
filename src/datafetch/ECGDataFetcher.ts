@@ -19,6 +19,7 @@ import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
 import LoansFetcher from './fetchers/LoansFetcher';
 import GaugesFetcher from './fetchers/GaugesFetcher';
+import TermsProposalFetcher from './fetchers/TermsProposalFetcher';
 
 // amount of seconds between two fetches if no events on the protocol
 const SECONDS_BETWEEN_FETCHES = 30 * 60;
@@ -36,23 +37,26 @@ export async function FetchECGData() {
     const syncData: SyncData = getSyncData();
     Log('FetchECGData: start fetching');
     let fetchStart = performance.now();
-    const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
-    Log(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
+    // Log(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // fetchStart = performance.now();
+    // const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, currentBlock);
+    // Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // fetchStart = performance.now();
+    // const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
+    // Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // fetchStart = performance.now();
+    // const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
+    // Log(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // fetchStart = performance.now();
+    // const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
+    // Log(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    // fetchStart = performance.now();
+    // const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
+    // Log(`FetchECGData: auction house data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
-    const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, currentBlock);
-    Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
-    fetchStart = performance.now();
-    const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
-    Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
-    fetchStart = performance.now();
-    const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
-    Log(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
-    fetchStart = performance.now();
-    const auctions = await fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
-    Log(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
-    fetchStart = performance.now();
-    const auctionsHouses = await fetchAndSaveAuctionHouses(web3Provider, terms);
-    Log(`FetchECGData: auction house data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    const proposals = await TermsProposalFetcher.fetchProposals(web3Provider, syncData, currentBlock);
+    Log(`FetchECGData: fetchProposals data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     // unlock before fetching activities as it's not required for the node
     await FileMutex.Unlock();
 

@@ -90,6 +90,14 @@ export function getTokenByAddress(address: string) {
   return token;
 }
 
+/**
+ * Get a token by its address, return undefined if not found
+ * @param symbol
+ */
+export function getTokenByAddressNoError(address: string) {
+  return tokens.find((_) => _.address == address);
+}
+
 export function GetDeployBlock() {
   return configuration.deployBlock;
 }
@@ -136,4 +144,8 @@ export function GetDaoGovernorGuildAddress() {
 
 export function GetDaoVetoGuildAddress() {
   return configuration.daoVetoGuildAddress;
+}
+
+export function GetLendingTermFactoryAddress() {
+  return configuration.lendingTermFactoryAddress;
 }

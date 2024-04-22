@@ -12,6 +12,9 @@ import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import { Log } from './Logger';
 import { HttpPost } from './HttpHelper';
+import { TokenConfig } from '../config/Config';
+import { ERC20__factory } from '../contracts/types';
+import { MulticallWrapper } from 'ethers-multicall-provider';
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -302,6 +305,85 @@ export async function FetchAllEvents(
   return extractedArray;
 }
 
+export async function FetchAllEventsTyped<T>(
+  contract: BaseContract,
+  topicFilter: TopicFilter,
+  startBlock: number,
+  targetBlock: number,
+  blockStepLimit?: number
+): Promise<T[]> {
+  const allEvents: T[] = [];
+
+  const initBlockStep = 100_000;
+  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
+  let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
+  let fromBlock = startBlock;
+  let toBlock = 0;
+  let cptError = 0;
+  while (toBlock < targetBlock) {
+    toBlock = fromBlock + blockStep - 1;
+    if (toBlock > targetBlock) {
+      toBlock = targetBlock;
+    }
+
+    let events: T[];
+    try {
+      events = (await contract.queryFilter(topicFilter, fromBlock, toBlock)) as T[];
+    } catch (e) {
+      Log('all query filter error:', e);
+
+      blockStep = Math.round(blockStep / 2);
+      if (blockStep < 1000) {
+        blockStep = 1000;
+      }
+      toBlock = 0;
+      cptError++;
+      if (cptError >= 15) {
+        Log(`getPastEvents error: ${e}`);
+        throw e;
+      }
+      await sleep(5000);
+      continue;
+    }
+
+    if (events.length != 0) {
+      allEvents.push(...events);
+
+      // try to find the blockstep to reach 8000 events per call as the RPC limit is 10 000,
+      // this try to change the blockstep by increasing it when the pool is not very used
+      // or decreasing it when the pool is very used
+      // in any case, should not set the new blockstep to more than 2 times the old one
+      const newBlockStep = Math.min(10_000_000, Math.round((blockStep * 8000) / events.length));
+      if (newBlockStep > blockStep * 2) {
+        blockStep = blockStep * 2;
+      } else {
+        blockStep = newBlockStep;
+      }
+    } else {
+      // if 0 events, multiply blockstep by 2
+      blockStep = blockStep * 2;
+    }
+
+    /*Log(
+      `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
+        toBlock - fromBlock + 1
+      } blocks). Current results: ${extractedArray.length}`
+    );*/
+
+    cptError = 0;
+    fromBlock = toBlock + 1;
+
+    if (blockStepLimit && blockStep > blockStepLimit) {
+      blockStep = blockStepLimit;
+    }
+  }
+
+  /*Log(
+    `${logPrefix}: found ${extractedArray.length} events in range [${startBlock} ${targetBlock}]`
+  );*/
+  return allEvents;
+}
+
 export async function FetchAllEventsAndExtractStringArray(
   contract: BaseContract,
   contractName: string,
@@ -314,6 +396,7 @@ export async function FetchAllEventsAndExtractStringArray(
   const extractedArray: Set<string> = new Set<string>();
 
   const initBlockStep = 100_000;
+  const logPrefix = `${contractName}`;
   //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
@@ -372,11 +455,11 @@ export async function FetchAllEventsAndExtractStringArray(
       blockStep = blockStep * 2;
     }
 
-    /*Log(
+    Log(
       `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
         toBlock - fromBlock + 1
       } blocks). Current results: ${extractedArray.size}`
-    );*/
+    );
 
     cptError = 0;
     fromBlock = toBlock + 1;
@@ -390,4 +473,16 @@ export async function FetchAllEventsAndExtractStringArray(
     `${logPrefix}: found ${extractedArray.size} ${argNames.join(',')} in range [${startBlock} ${targetBlock}]`
   );*/
   return Array.from(extractedArray);
+}
+
+export async function GetERC20Infos(web3Provider: JsonRpcProvider, tokenAddress: string): Promise<TokenConfig> {
+  const erc20Contract = ERC20__factory.connect(tokenAddress, MulticallWrapper.wrap(web3Provider));
+  const erc20Data = await Promise.all([erc20Contract.symbol(), erc20Contract.name(), erc20Contract.decimals()]);
+
+  return {
+    address: tokenAddress,
+    symbol: erc20Data[0],
+    permitAllowed: false,
+    decimals: Number(erc20Data[2])
+  };
 }
