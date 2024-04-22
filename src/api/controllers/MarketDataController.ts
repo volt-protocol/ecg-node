@@ -16,6 +16,8 @@ import { LastActivityFileStructure } from '../../model/LastActivity';
 import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
 import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
+import { ProposalsFileStructure } from '../../model/Proposal';
+import { ProposalsApiResponse } from '../model/ProposalApiResponse';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -158,6 +160,24 @@ class MarketDataController {
       updatedHuman: auctionFile.updatedHuman,
       auctions: auctionFile.auctions,
       auctionHouses: auctionHousesFile.auctionHouses
+    };
+
+    return response;
+  }
+
+  static async GetProposals(marketId: number): Promise<ProposalsApiResponse> {
+    const proposalsFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'proposals.json');
+    if (!fs.existsSync(proposalsFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    const proposalsFile: ProposalsFileStructure = ReadJSON(proposalsFilename);
+
+    const response: ProposalsApiResponse = {
+      updated: proposalsFile.updated,
+      updateBlock: proposalsFile.updateBlock,
+      updatedHuman: proposalsFile.updatedHuman,
+      proposals: proposalsFile.proposals
     };
 
     return response;
