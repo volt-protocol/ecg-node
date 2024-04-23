@@ -185,16 +185,34 @@ class MarketDataController {
     const coinDetails: TokensApiInfo[] = [];
 
     const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
+    const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
 
-    const tokenIds = getAllTokens()
-      .map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`)
-      .join(',');
+    if (!fs.existsSync(termsFileName)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+    const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+
+    const allTokens = getAllTokens(); // all tokens from the config
+    // add all tokens from lending terms that might be unknown
+
+    for (const term of termsFile.terms) {
+      if (!allTokens.some((_) => _.address.toLowerCase() == term.collateralAddress)) {
+        allTokens.push({
+          address: term.collateralAddress,
+          symbol: term.collateralSymbol,
+          decimals: term.collateralDecimals,
+          permitAllowed: false
+        });
+      }
+    }
+
+    const tokenIds = allTokens.map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`).join(',');
 
     const llamaUrl = `https://coins.llama.fi/prices/current/${tokenIds}?searchWidth=4h`;
 
     const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
 
-    for (const token of getAllTokens()) {
+    for (const token of allTokens) {
       const llamaPrice = priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`]
         ? priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`].price
         : 0;
