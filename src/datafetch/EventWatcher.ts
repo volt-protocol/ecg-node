@@ -4,7 +4,7 @@ import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
-import { GuildToken__factory } from '../contracts/types';
+import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 import { MulticallWrapper } from 'ethers-multicall-provider';
@@ -105,10 +105,14 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
   Log('Started the event listener');
   termFactoryContract = new Contract(GetLendingTermFactoryAddress(), GuildTokenAbi, provider);
   Log(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
+  const termFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), provider);
 
   termFactoryContract.removeAllListeners();
 
-  termFactoryContract.on('*', (event) => {
+  // only listen to term created for the current node market
+  const filter = termFactory.filters.TermCreated(undefined, MARKET_ID, undefined, undefined);
+
+  termFactoryContract.on(filter, (event) => {
     // The `event.log` has the entire EventLog
     const parsed = termFactoryContract?.interface.parseLog(event.log);
 
