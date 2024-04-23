@@ -4,9 +4,15 @@ import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
 import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
-import { GetLendingTermOnboardingAddress, getTokenByAddress, LoadConfiguration, TokenConfig } from '../config/Config';
+import {
+  GetLendingTermOnboardingAddress,
+  getTokenByAddress,
+  getTokenByAddressNoError,
+  LoadConfiguration,
+  TokenConfig
+} from '../config/Config';
 import { sleep } from '../utils/Utils';
-import { GetListenerWeb3Provider } from '../utils/Web3Helper';
+import { GetERC20Infos, GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
 dotenv.config();
 
@@ -75,12 +81,10 @@ async function processEvent(event: any, web3Provider: JsonRpcProvider, iface: In
   const params = await lendingTerm.getParameters();
 
   let collateralTokenStr = params.collateralToken;
-  let foundToken: TokenConfig | undefined = undefined;
 
-  try {
-    foundToken = getTokenByAddress(collateralTokenStr);
-  } catch (e) {
-    Log(`Cannot find token with address: ${collateralTokenStr}`);
+  let foundToken = getTokenByAddressNoError(collateralTokenStr);
+  if (!foundToken) {
+    foundToken = await GetERC20Infos(web3Provider, collateralTokenStr);
   }
 
   if (foundToken) {

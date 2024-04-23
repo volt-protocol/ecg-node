@@ -10,14 +10,15 @@ import {
   GetUniswapV2RouterAddress,
   LoadConfiguration,
   TokenConfig,
-  getTokenByAddress
+  getTokenByAddress,
+  getTokenByAddressNoError
 } from '../config/Config';
 import { JsonRpcProvider, ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
-import { GetAvgGasPrice, GetWeb3Provider } from '../utils/Web3Helper';
-import { Log } from '../utils/Logger';
+import { GetAvgGasPrice, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { Log, Warn } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
 import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
 import { OneInchSwapResponse } from '../model/OneInchApi';
@@ -133,7 +134,14 @@ async function checkBidProfitability(
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-  const collateralToken = getTokenByAddress(term.collateralAddress);
+  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  if (!collateralToken) {
+    collateralToken = await GetERC20Infos(web3Provider, term.collateralAddress);
+    Warn(
+      `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
+    );
+  }
+
   const pegToken = getTokenByAddress(GetPegTokenAddress());
 
   let getSwapFunction;

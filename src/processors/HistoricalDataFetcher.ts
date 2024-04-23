@@ -10,7 +10,8 @@ import {
   GetGuildTokenAddress,
   GetProfitManagerAddress,
   LoadConfiguration,
-  getTokenByAddress
+  getTokenByAddress,
+  getTokenByAddressNoError
 } from '../config/Config';
 import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
 import {
@@ -23,12 +24,12 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { FetchAllEventsAndExtractStringArray, GetBlock, GetWeb3Provider } from '../utils/Web3Helper';
+import { FetchAllEventsAndExtractStringArray, GetBlock, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataState } from '../model/HistoricalDataState';
-import { Log } from '../utils/Logger';
+import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import LastActivityFetcher from '../datafetch/fetchers/LastActivityFetcher';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
@@ -373,7 +374,14 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
     cursor = 0;
     let tvlInUsd = 0;
     for (const collateralAddress of collateralResults) {
-      const tokenConf = getTokenByAddress(collateralAddress);
+      let tokenConf = getTokenByAddressNoError(collateralAddress);
+      if (!tokenConf) {
+        tokenConf = await GetERC20Infos(web3Provider, collateralAddress);
+        Warn(
+          `Token ${collateralAddress} not found in config. ERC20 infos: ${tokenConf.symbol} / ${tokenConf.decimals} decimals`
+        );
+      }
+
       const balanceNorm = norm(balanceOfResults[cursor++], tokenConf.decimals);
       const priceAtTimestamp = await GetTokenPriceAtTimestamp(
         tokenConf.mainnetAddress || tokenConf.address,

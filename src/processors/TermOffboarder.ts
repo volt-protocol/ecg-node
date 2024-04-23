@@ -8,14 +8,15 @@ import {
   GetLendingTermOffboardingAddress,
   GetPegTokenAddress,
   LoadConfiguration,
-  getTokenByAddress
+  getTokenByAddress,
+  getTokenByAddressNoError
 } from '../config/Config';
 import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
 import { SendNotifications } from '../utils/Notifications';
-import { GetWeb3Provider } from '../utils/Web3Helper';
+import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
 
@@ -67,7 +68,19 @@ async function TermOffboarder() {
 }
 
 async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
-  const collateralToken = getTokenByAddress(term.collateralAddress);
+  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  if (!collateralToken) {
+    collateralToken = {
+      address: term.collateralAddress,
+      decimals: term.collateralDecimals,
+      symbol: term.collateralSymbol,
+      permitAllowed: false
+    };
+    Warn(
+      `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
+    );
+  }
+
   const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
   if (!collateralRealPrice) {
     Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);

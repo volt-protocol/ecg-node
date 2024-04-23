@@ -45,6 +45,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
   Log('Started the event listener');
   guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
   Log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
+  const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
 
   const iface = new Interface(GuildTokenAbi);
 
@@ -59,13 +60,37 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
       return;
     }
 
-    EventQueue.push({
-      txHash: event.log.transactionHash,
-      eventName: parsed.name,
-      block: event.log.blockNumber,
-      originArgs: parsed.args,
-      sourceContract: 'GuildToken'
-    });
+    if (parsed.name.toLowerCase() == 'addgauge') {
+      if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
+        Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+        return;
+      }
+    }
+
+    if (['removegauge', 'incrementgaugeweight', 'decrementgaugeweight'].includes(parsed.name.toLowerCase())) {
+      const gaugeAddress = parsed.args.gauge;
+      guildToken.gaugeType(gaugeAddress).then((gaugeType: bigint) => {
+        if (Number(gaugeType) == MARKET_ID) {
+          EventQueue.push({
+            txHash: event.log.transactionHash,
+            eventName: parsed.name,
+            block: event.log.blockNumber,
+            originArgs: parsed.args,
+            sourceContract: 'GuildToken'
+          });
+        } else {
+          Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+        }
+      });
+    } else {
+      EventQueue.push({
+        txHash: event.log.transactionHash,
+        eventName: parsed.name,
+        block: event.log.blockNumber,
+        originArgs: parsed.args,
+        sourceContract: 'GuildToken'
+      });
+    }
   });
 }
 

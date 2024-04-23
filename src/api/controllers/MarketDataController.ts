@@ -100,7 +100,6 @@ class MarketDataController {
       if (!termForLoan) {
         throw new Error(`Data mismatch with term ${loan.lendingTermAddress} for loan ${loan.id}`);
       }
-      const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
 
       response.loans.push({
         borrowAmount: norm(loan.borrowAmount),
@@ -111,9 +110,9 @@ class MarketDataController {
         id: loan.id,
         collateral: termForLoan.collateralSymbol,
         interestRate: norm(termForLoan.interestRate, 18),
-        borrowRatio: norm(termForLoan.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
+        borrowRatio: norm(termForLoan.maxDebtPerCollateralToken, 36 - termForLoan.collateralDecimals),
         termAddress: loan.lendingTermAddress,
-        collateralAmount: norm(loan.collateralAmount, collateralToken.decimals),
+        collateralAmount: norm(loan.collateralAmount, termForLoan.collateralDecimals),
         borrowTime: loan.originationTime,
         txHashClose: loan.txHashClose,
         callDebt: norm(loan.debtWhenSeized),

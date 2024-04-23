@@ -4,6 +4,10 @@ import { FetchECGData } from './ECGDataFetcher';
 import { SendNotifications } from '../utils/Notifications';
 import { Log } from '../utils/Logger';
 import { StartEventListener } from './EventWatcher';
+import { MARKET_ID } from '../utils/Constants';
+import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
+import { GetWeb3Provider } from '../utils/Web3Helper';
+import { GetGuildTokenAddress } from '../config/Config';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
@@ -72,7 +76,6 @@ function guildTokenMustUpdate(event: EventData): boolean {
     case 'removegauge':
     case 'incrementgaugeweight':
     case 'decrementgaugeweight':
-      Log(`GuildToken ${event.eventName} must force an update`);
       return true;
   }
 }
@@ -109,8 +112,8 @@ function onboardingMustUpdate(event: EventData): boolean {
     default:
       Log(`Onboarding ${event.eventName} is not important`);
       return false;
+    // case 'proposalexecuted': // dont check proposal executed as it will add a gauge anyway which is already fetched
     case 'proposalcreated':
-    case 'proposalexecuted':
     case 'proposalqueued':
     case 'proposalcanceled':
       Log(`Onboarding ${event.eventName} must force an update`);
