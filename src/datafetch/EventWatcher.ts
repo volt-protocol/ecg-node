@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import { EventQueue } from '../utils/EventQueue';
 import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
+import LendingTermFactoryAbi from '../contracts/abi/LendingTermFactory.json';
+import LendingTermOnbardingAbi from '../contracts/abi/LendingTermOnboarding.json';
 import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
 import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
@@ -73,7 +75,7 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
   }
 
   Log('Started the event listener');
-  onboardingContract = new Contract(GetLendingTermOnboardingAddress(), GuildTokenAbi, provider);
+  onboardingContract = new Contract(GetLendingTermOnboardingAddress(), LendingTermOnbardingAbi, provider);
   Log(`Starting listener on onboarding ${GetLendingTermOnboardingAddress()}`);
 
   onboardingContract.removeAllListeners();
@@ -103,7 +105,7 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
   }
 
   Log('Started the event listener');
-  termFactoryContract = new Contract(GetLendingTermFactoryAddress(), GuildTokenAbi, provider);
+  termFactoryContract = new Contract(GetLendingTermFactoryAddress(), LendingTermFactoryAbi, provider);
   Log(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
   const termFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), provider);
 

@@ -17,7 +17,7 @@ import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
 import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalsFileStructure } from '../../model/Proposal';
-import { ProposalsApiResponse } from '../model/ProposalApiResponse';
+import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {

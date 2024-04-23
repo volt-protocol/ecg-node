@@ -62,13 +62,15 @@ export default class TermsProposalFetcher {
     }
 
     // remove all proposal with status CREATED and older than 7 days
-    const proposalsToSave = allProposals.filter(
-      (_) =>
-        // keep only those with status different than CREATE
-        _.status != ProposalStatus.CREATED ||
-        // of with status created but created less than 7 days ago
-        (_.status == ProposalStatus.CREATED && _.createdBlock < currentBlock - 7 * BLOCK_PER_HOUR * 24)
-    );
+    // EDIT FOR NOW KEEP ALL
+    const proposalsToSave = allProposals;
+    // const proposalsToSave = allProposals.filter(
+    //   (_) =>
+    //     // keep only those with status different than CREATE
+    //     _.status != ProposalStatus.CREATED ||
+    //     // of with status created but created less than 7 days ago
+    //     (_.status == ProposalStatus.CREATED && _.createdBlock > currentBlock - 7 * BLOCK_PER_HOUR * 24)
+    // );
 
     const fileToUpdate: ProposalsFileStructure = {
       proposals: proposalsToSave,

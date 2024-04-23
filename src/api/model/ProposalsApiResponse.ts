@@ -1,5 +1,3 @@
-import { ProposalStatus } from '../../model/Proposal';
-
 export interface Proposal {
   status: ProposalStatus;
   createdBlock: number;
@@ -22,6 +20,13 @@ export interface Proposal {
   voteStart: number;
   voteEnd: number;
   quorum: string;
+}
+
+export enum ProposalStatus {
+  CREATED = 'created', // term is created
+  PROPOSED = 'proposed', // term is proposed (onboarding)
+  QUEUED = 'queued', // term is queued to be added, can still be vetoed
+  ACTIVE = 'active' // validated, the term is added to the gauges
 }
 
 export interface ProposalsApiResponse {
