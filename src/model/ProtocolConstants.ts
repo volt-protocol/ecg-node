@@ -11,4 +11,5 @@ export interface ProtocolConstants {
   psmAddress: string;
   daoGovernorGuildAddress: string;
   daoVetoGuildAddress: string;
+  lendingTermFactoryAddress: string;
 }

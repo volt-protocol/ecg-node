@@ -30,15 +30,15 @@ router.get('/:marketId/terms', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
     const cacheKey = `/markets/${marketId}/terms`;
-    const history = await SimpleCacheService.GetAndCache(
+    const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetTermsInfo(marketId),
       CACHE_DURATION
     );
-    if (!history) {
+    if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });
     }
-    res.status(200).json(history);
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
@@ -68,15 +68,15 @@ router.get('/:marketId/loans', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
     const cacheKey = `/markets/${marketId}/loans`;
-    const history = await SimpleCacheService.GetAndCache(
+    const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetLoans(marketId),
       CACHE_DURATION
     );
-    if (!history) {
+    if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });
     }
-    res.status(200).json(history);
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
@@ -106,15 +106,53 @@ router.get('/:marketId/auctions', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
     const cacheKey = `/markets/${marketId}/auctions`;
-    const history = await SimpleCacheService.GetAndCache(
+    const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetAuctions(marketId),
       CACHE_DURATION
     );
-    if (!history) {
+    if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });
     }
-    res.status(200).json(history);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/markets/{marketId}/proposals:
+ *   get:
+ *     tags:
+ *      - market
+ *     description: Get all proposals for a marketid (active and closed)
+ *     parameters:
+ *       - in: path
+ *         name: marketId
+ *         schema:
+ *           type: number
+ *         required: true
+ *         description: The market id
+ *     responses:
+ *       200:
+ *         description: Get all proposals for a marketid (active and closed)
+ *       404:
+ *         description: market id not found
+ */
+router.get('/:marketId/proposals', async (req: Request, res: Response) => {
+  try {
+    const marketId = Number(req.params.marketId);
+    const cacheKey = `/markets/${marketId}/proposals`;
+    const data = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => MarketDataController.GetProposals(marketId),
+      CACHE_DURATION
+    );
+    if (!data) {
+      res.status(404).json({ error: `Cannot find market ${marketId}` });
+    }
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
@@ -144,15 +182,15 @@ router.get('/:marketId/tokens', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
     const cacheKey = `/markets/${marketId}/tokens`;
-    const history = await SimpleCacheService.GetAndCache(
+    const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetTokensInfos(marketId),
       CACHE_DURATION
     );
-    if (!history) {
+    if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });
     }
-    res.status(200).json(history);
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
@@ -182,15 +220,15 @@ router.get('/:marketId/activity', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
     const cacheKey = `/markets/${marketId}/activity`;
-    const history = await SimpleCacheService.GetAndCache(
+    const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetActivity(marketId),
       CACHE_DURATION
     );
-    if (!history) {
+    if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });
     }
-    res.status(200).json(history);
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }

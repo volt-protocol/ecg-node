@@ -12,6 +12,11 @@ import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import { Log } from './Logger';
 import { HttpPost } from './HttpHelper';
+import { TokenConfig } from '../config/Config';
+import { ERC20__factory } from '../contracts/types';
+import { MulticallWrapper } from 'ethers-multicall-provider';
+import { NETWORK } from './Constants';
+const initBlockStep = NETWORK == 'ARBITRUM' ? 500_000 : 100_000;
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
@@ -21,6 +26,20 @@ export function GetWeb3Provider(pollingIntervalMs = 15000): JsonRpcProvider {
   const rpcURL = process.env.RPC_URL;
   if (!rpcURL) {
     throw new Error('Cannot find RPC_URL in env');
+  }
+  const web3Provider = new JsonRpcProvider(rpcURL, undefined, { staticNetwork: true });
+  web3Provider.pollingInterval = pollingIntervalMs;
+
+  return web3Provider;
+}
+/**
+ * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
+ * @returns {JsonRpcProvider}
+ */
+export function GetL1Web3Provider(pollingIntervalMs = 15000): JsonRpcProvider {
+  const rpcURL = process.env.RPC_URL_L1;
+  if (!rpcURL) {
+    throw new Error('Cannot find RPC_URL_L1 in env');
   }
   const web3Provider = new JsonRpcProvider(rpcURL, undefined, { staticNetwork: true });
   web3Provider.pollingInterval = pollingIntervalMs;
@@ -94,6 +113,7 @@ export async function GetAvgGasPrice() {
 }
 
 export interface DefaultLog {
+  logName: string;
   transactionHash: string;
   blockHash: string;
   blockNumber: number;
@@ -111,7 +131,6 @@ export async function FetchAllEventsMulti(
   blockStepLimit?: number
 ): Promise<DefaultLog[]> {
   const extractedArray: DefaultLog[] = [];
-  const initBlockStep = 100_000;
   //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
@@ -162,7 +181,8 @@ export async function FetchAllEventsMulti(
           blockNumber: log.blockNumber,
           transactionIndex: log.transactionIndex,
           address: log.address,
-          args: {}
+          args: {},
+          logName: e.name
         };
         e.fragment.inputs.forEach(function (paramType, i) {
           obj.args[paramType.name] = e.args[i];
@@ -215,7 +235,6 @@ export async function FetchAllEvents(
 ): Promise<DefaultLog[]> {
   const extractedArray: DefaultLog[] = [];
 
-  const initBlockStep = 100_000;
   //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
@@ -250,13 +269,18 @@ export async function FetchAllEvents(
     if (events.length != 0) {
       for (const e of events) {
         if (e instanceof EventLog) {
+          const logParsed = contract.interface.parseLog({ data: e.data, topics: e.topics.map((_) => _.toString()) });
+          if (!logParsed) {
+            throw new Error('Cannot parse event');
+          }
           const obj: DefaultLog = {
             transactionHash: e.transactionHash,
             blockHash: e.blockHash,
             blockNumber: e.blockNumber,
             transactionIndex: e.transactionIndex,
             address: e.address,
-            args: {}
+            args: {},
+            logName: logParsed.name
           };
           e.fragment.inputs.forEach(function (paramType, i) {
             obj.args[paramType.name] = e.args[i];
@@ -313,7 +337,7 @@ export async function FetchAllEventsAndExtractStringArray(
 ): Promise<string[]> {
   const extractedArray: Set<string> = new Set<string>();
 
-  const initBlockStep = 100_000;
+  const logPrefix = `${contractName}`;
   //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
@@ -372,11 +396,11 @@ export async function FetchAllEventsAndExtractStringArray(
       blockStep = blockStep * 2;
     }
 
-    /*Log(
-      `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
-        toBlock - fromBlock + 1
-      } blocks). Current results: ${extractedArray.size}`
-    );*/
+    // Log(
+    //   `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
+    //     toBlock - fromBlock + 1
+    //   } blocks). Current results: ${extractedArray.size}`
+    // );
 
     cptError = 0;
     fromBlock = toBlock + 1;
@@ -390,4 +414,16 @@ export async function FetchAllEventsAndExtractStringArray(
     `${logPrefix}: found ${extractedArray.size} ${argNames.join(',')} in range [${startBlock} ${targetBlock}]`
   );*/
   return Array.from(extractedArray);
+}
+
+export async function GetERC20Infos(web3Provider: JsonRpcProvider, tokenAddress: string): Promise<TokenConfig> {
+  const erc20Contract = ERC20__factory.connect(tokenAddress, MulticallWrapper.wrap(web3Provider));
+  const erc20Data = await Promise.all([erc20Contract.symbol(), erc20Contract.name(), erc20Contract.decimals()]);
+
+  return {
+    address: tokenAddress,
+    symbol: erc20Data[0],
+    permitAllowed: false,
+    decimals: Number(erc20Data[2])
+  };
 }
