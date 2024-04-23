@@ -51,13 +51,7 @@ export default class TermsProposalFetcher {
 
     for (const p of allProposals) {
       if (p.voteEnd < l1BlockNumber && p.status == ProposalStatus.PROPOSED) {
-        p.status = ProposalStatus.CREATED;
-        p.proposalId = '';
-        p.description = '';
-        p.proposer = '';
-        p.quorum = '';
-        p.voteEnd = 0;
-        p.voteStart = 0;
+        resetProposalToCreated(p);
       }
     }
 
@@ -161,6 +155,9 @@ async function fetchNewCreatedLendingTerms(
       status: ProposalStatus.CREATED,
       termName: label,
       description: '',
+      values: [],
+      targets: [],
+      calldatas: [],
       proposalId: '',
       proposer: '',
       voteEnd: 0,
@@ -207,6 +204,9 @@ async function fetchProposalEvents(
       const proposalId = proposalCreated.args.proposalId as bigint;
       const proposer = proposalCreated.args.proposer as string;
       const description = proposalCreated.args.description as string;
+      const calldatas = proposalCreated.args.calldatas as string[];
+      const values = (proposalCreated.args.values as bigint[]).map((_) => _.toString(10));
+      const targets = proposalCreated.args.targets as string[];
       const voteStart = proposalCreated.args.voteStart as bigint;
       const voteEnd = proposalCreated.args.voteEnd as bigint;
       const termAddressFromDescription = proposalCreated.args.description.split(' Enable term ')[1];
@@ -223,10 +223,13 @@ async function fetchProposalEvents(
       foundProposal.proposalId = proposalId.toString(10);
       foundProposal.proposer = proposer;
       foundProposal.description = description;
+      foundProposal.calldatas = calldatas;
+      foundProposal.values = values;
+      foundProposal.targets = targets;
       foundProposal.voteStart = Number(voteStart);
       foundProposal.voteEnd = Number(voteEnd);
       foundProposal.status = ProposalStatus.PROPOSED;
-      const quorum = await lendingTermOnboarding.quorum(proposalId);
+      const quorum = await lendingTermOnboarding.quorum(voteStart);
       foundProposal.quorum = quorum.toString();
 
       // send notification only if it's been proposed less than 12 hours ago
@@ -287,14 +290,20 @@ async function fetchProposalEvents(
         foundProposal.status = ProposalStatus.ACTIVE;
       }
       if (proposalEvent.logName == 'ProposalCanceled') {
-        foundProposal.status = ProposalStatus.CREATED;
-        foundProposal.proposalId = '';
-        foundProposal.description = '';
-        foundProposal.proposer = '';
-        foundProposal.quorum = '';
-        foundProposal.voteEnd = 0;
-        foundProposal.voteStart = 0;
+        resetProposalToCreated(foundProposal);
       }
     }
   }
+}
+function resetProposalToCreated(proposal: Proposal) {
+  proposal.status = ProposalStatus.CREATED;
+  proposal.proposalId = '';
+  proposal.description = '';
+  proposal.targets = [];
+  proposal.values = [];
+  proposal.calldatas = [];
+  proposal.proposer = '';
+  proposal.quorum = '';
+  proposal.voteEnd = 0;
+  proposal.voteStart = 0;
 }

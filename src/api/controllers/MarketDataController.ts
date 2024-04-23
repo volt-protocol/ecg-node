@@ -42,18 +42,17 @@ class MarketDataController {
     };
 
     for (const term of termsFile.terms) {
-      const collateralToken = getTokenByAddress(term.collateralAddress);
       const loansForTerm = loansFile.loans.filter((_) => _.lendingTermAddress == term.termAddress);
       response.terms.push({
         address: term.termAddress,
         availableDebt: norm(term.availableDebt),
-        borrowRatio: norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals),
+        borrowRatio: norm(term.maxDebtPerCollateralToken, 36 - term.collateralDecimals),
         collateral: {
           address: term.collateralAddress,
-          decimals: collateralToken.decimals,
-          logo: `/img/crypto-logos/${collateralToken.symbol.toLowerCase()}.png`,
-          name: collateralToken.symbol,
-          symbol: collateralToken.symbol
+          decimals: term.collateralDecimals,
+          logo: `/img/crypto-logos/${term.collateralSymbol.toLowerCase()}.png`,
+          name: term.collateralSymbol,
+          symbol: term.collateralSymbol
         },
         currentDebt: norm(term.currentDebt),
         interestRate: norm(term.interestRate),

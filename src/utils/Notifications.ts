@@ -1,4 +1,4 @@
-import { MARKET_ID } from './Constants';
+import { MARKET_ID, NETWORK } from './Constants';
 import { SendDiscordMessage, SendDiscordMessageList } from './DiscordHelper';
 import { SendTelegramMessage } from './TelegramHelper';
 import { retry } from './Utils';
@@ -18,7 +18,7 @@ export async function SendNotifications(sender: string, title: string, msg: stri
     discordHookUrl = process.env.DISCORD_WEBHOOK_URL;
   }
 
-  sender = `MARKET ${MARKET_ID} | ${sender}`;
+  sender = `${NETWORK} | MARKET ${MARKET_ID} | ${sender}`;
   // both channels
   if (tgBotId && tgChatId && discordHookUrl) {
     await Promise.all([

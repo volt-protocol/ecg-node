@@ -16,6 +16,9 @@ export interface Proposal {
   hardCap: string;
   proposalId: string;
   description: string;
+  calldatas: string[];
+  values: string[];
+  targets: string[];
   proposer: string;
   voteStart: number;
   voteEnd: number;

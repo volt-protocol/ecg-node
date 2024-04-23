@@ -1,6 +1,11 @@
 import { JsonRpcProvider } from 'ethers';
 import { ProtocolData } from '../../model/ProtocolData';
-import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddress } from '../../config/Config';
+import {
+  GetGuildTokenAddress,
+  GetProfitManagerAddress,
+  getTokenByAddress,
+  getTokenByAddressNoError
+} from '../../config/Config';
 import {
   GuildToken__factory,
   LendingTerm as LendingTermType,
@@ -14,7 +19,9 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { Log } from '../../utils/Logger';
+import { Log, Warn } from '../../utils/Logger';
+import { GetERC20Infos } from '../../utils/Web3Helper';
+import { SendNotifications } from '../../utils/Notifications';
 
 export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
@@ -58,7 +65,18 @@ export default class LendingTermsFetcher {
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
-      const collateralToken = getTokenByAddress(termParameters.collateralToken);
+      let collateralToken = getTokenByAddressNoError(termParameters.collateralToken);
+      if (!collateralToken) {
+        collateralToken = await GetERC20Infos(web3Provider, termParameters.collateralToken);
+        Warn(
+          `Token ${termParameters.collateralToken} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
+        );
+        await SendNotifications(
+          'LendingTermFetcher',
+          `Token ${termParameters.collateralToken} not found in config`,
+          `This does not break the fetcher but should be checked. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
+        );
+      }
       const interestRate = termParameters.interestRate.toString(10);
       const maxDebtPerCol = termParameters.maxDebtPerCollateralToken.toString(10);
       const label =
