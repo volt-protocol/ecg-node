@@ -16,7 +16,7 @@ import { TokenConfig } from '../config/Config';
 import { ERC20__factory } from '../contracts/types';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { NETWORK } from './Constants';
-const initBlockStep = NETWORK == 'ARBITRUM' ? 1_000_000 : 100_000;
+const initBlockStep = NETWORK == 'ARBITRUM' ? 500_000 : 100_000;
 
 /**
  * @param pollingInterval Default 1hour. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events

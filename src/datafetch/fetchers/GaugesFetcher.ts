@@ -36,16 +36,19 @@ export default class GaugesFetcher {
 
     // fetch & handle data
     const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
-    // IncrementGaugeWeight(user, gauge, weight)
-    const incrementGaugeEvents = await FetchAllEvents(
-      guild,
-      'GuildToken',
-      'IncrementGaugeWeight',
-      sinceBlock,
-      currentBlock
-    );
-    for (const event of incrementGaugeEvents) {
-      {
+
+    const filters = [
+      (await guild.filters.IncrementGaugeWeight().getTopicFilter()).toString(),
+      (await guild.filters.DecrementGaugeWeight().getTopicFilter()).toString(),
+      (await guild.filters.GaugeLoss().getTopicFilter()).toString(),
+      (await guild.filters.GaugeLossApply().getTopicFilter()).toString()
+    ];
+
+    const allEvents = await FetchAllEvents(guild, 'GuildToken', [filters], sinceBlock, currentBlock);
+
+    for (const event of allEvents) {
+      // IncrementGaugeWeight(user, gauge, weight)
+      if (event.logName == 'IncrementGaugeWeight') {
         gaugesFile.gauges[event.args.gauge] = gaugesFile.gauges[event.args.gauge] || {
           address: event.args.gauge,
           weight: 0n,
@@ -68,23 +71,23 @@ export default class GaugesFetcher {
 
         gaugesFile.gauges[event.args.gauge].users[event.args.user].weight += event.args.weight;
       }
+
+      // DecrementGaugeWeight(user, gauge, weight)
+      if (event.logName == 'DecrementGaugeWeight') {
+        gaugesFile.gauges[event.args.gauge].weight -= event.args.weight;
+
+        gaugesFile.gauges[event.args.gauge].users[event.args.user].weight -= event.args.weight;
+      }
+
+      // GaugeLoss(gauge, when)
+      if (event.logName == 'GaugeLoss') {
+        gaugesFile.gauges[event.args.gauge].lastLoss = Number(event.args.when);
+      }
+      // GaugeLossApply(gauge, who, weight, when)
+      if (event.logName == 'GaugeLossApply') {
+        gaugesFile.gauges[event.args.gauge].users[event.args.who].lastLossApplied = Number(event.args.when);
+      }
     }
-
-    // DecrementGaugeWeight(user, gauge, weight)
-    (await FetchAllEvents(guild, 'GuildToken', 'DecrementGaugeWeight', sinceBlock, currentBlock)).forEach((event) => {
-      gaugesFile.gauges[event.args.gauge].weight -= event.args.weight;
-
-      gaugesFile.gauges[event.args.gauge].users[event.args.user].weight -= event.args.weight;
-    });
-
-    // GaugeLoss(gauge, when)
-    (await FetchAllEvents(guild, 'GuildToken', 'GaugeLoss', sinceBlock, currentBlock)).forEach((event) => {
-      gaugesFile.gauges[event.args.gauge].lastLoss = Number(event.args.when);
-    });
-    // GaugeLossApply(gauge, who, weight, when)
-    (await FetchAllEvents(guild, 'GuildToken', 'GaugeLossApply', sinceBlock, currentBlock)).forEach((event) => {
-      gaugesFile.gauges[event.args.gauge].users[event.args.who].lastLossApplied = Number(event.args.when);
-    });
 
     gaugesFile.updated = Date.now();
     gaugesFile.updatedHuman = new Date().toISOString();
