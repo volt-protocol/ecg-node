@@ -18,6 +18,7 @@ import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
+import { Log } from '../../utils/Logger';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -196,7 +197,7 @@ class MarketDataController {
     // add all tokens from lending terms that might be unknown
 
     for (const term of termsFile.terms) {
-      if (!allTokens.some((_) => _.address.toLowerCase() == term.collateralAddress)) {
+      if (!allTokens.some((_) => _.address.toLowerCase() == term.collateralAddress.toLowerCase())) {
         allTokens.push({
           address: term.collateralAddress,
           symbol: term.collateralSymbol,
@@ -209,7 +210,6 @@ class MarketDataController {
     const tokenIds = allTokens.map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`).join(',');
 
     const llamaUrl = `https://coins.llama.fi/prices/current/${tokenIds}?searchWidth=4h`;
-
     const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
 
     for (const token of allTokens) {
