@@ -118,5 +118,11 @@
 		"symbol": "gWETH-3",
 		"decimals": 18,
 		"permitAllowed": true
+	},
+	{
+		"address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+		"symbol": "DAI",
+		"decimals": 18,
+		"permitAllowed": true
 	}
 ]
