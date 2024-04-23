@@ -99,53 +99,92 @@ export function getTokenByAddressNoError(address: string) {
 }
 
 export function GetDeployBlock() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'deployBlock' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.deployBlock;
 }
 
 export function GetGuildTokenAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'guildTokenAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.guildTokenAddress;
 }
 
 export function GetPegTokenAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'pegTokenAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.pegTokenAddress;
 }
 
 export function GetCreditTokenAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'creditTokenAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.creditTokenAddress;
 }
 
 export function GetProfitManagerAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'profitManagerAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.profitManagerAddress;
 }
 
 export function GetLendingTermOffboardingAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'lendingTermOffboardingAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.lendingTermOffboardingAddress;
 }
 
 export function GetLendingTermOnboardingAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'lendingTermOnboardingAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.lendingTermOnboardingAddress;
 }
 
 export function GetUniswapV2RouterAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'uniswapV2RouterAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.uniswapV2RouterAddress;
 }
 
 export function GetGatewayAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'gatewayAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.gatewayAddress;
 }
 
 export function GetPSMAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'psmAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.psmAddress;
 }
 
 export function GetDaoGovernorGuildAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'daoGovernorGuildAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.daoGovernorGuildAddress;
 }
 
 export function GetDaoVetoGuildAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'daoVetoGuildAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.daoVetoGuildAddress;
 }
 
 export function GetLendingTermFactoryAddress() {
+  if (!configuration.deployBlock || configuration.deployBlock == 0) {
+    throw new Error(`'lendingTermFactoryAddress' not set in configuration ${CONFIG_FILE}`);
+  }
   return configuration.lendingTermFactoryAddress;
 }
