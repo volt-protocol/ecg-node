@@ -2,13 +2,14 @@ import { JsonRpcProvider } from 'ethers';
 import { GetDeployBlock, GetGuildTokenAddress } from '../../config/Config';
 import fs from 'fs';
 import { GuildToken__factory } from '../../contracts/types';
-import { DATA_DIR } from '../../utils/Constants';
+import { DATA_DIR, MARKET_ID } from '../../utils/Constants';
 import path from 'path';
 import { ReadJSON, WriteJSON } from '../../utils/Utils';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { FetchAllEvents } from '../../utils/Web3Helper';
 import { GaugesFileStructure } from '../../model/Gauge';
+import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 
 export default class GaugesFetcher {
   static async fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
@@ -44,7 +45,11 @@ export default class GaugesFetcher {
       (await guild.filters.GaugeLossApply().getTopicFilter()).toString()
     ];
 
-    const allEvents = await FetchAllEvents(guild, 'GuildToken', [filters], sinceBlock, currentBlock);
+    const allEventsAllGauges = await FetchAllEvents(guild, 'GuildToken', [filters], sinceBlock, currentBlock);
+    const allGaugesForMarket = await GetGaugeForMarketId(guild, MARKET_ID, false);
+
+    // keep only events about is it includes a gauge for the market
+    const allEvents = allEventsAllGauges.filter((_) => allGaugesForMarket.includes(_.args.gauge));
 
     for (const event of allEvents) {
       // IncrementGaugeWeight(user, gauge, weight)

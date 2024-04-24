@@ -37,11 +37,11 @@ export async function FetchECGData() {
     const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, currentBlock);
     Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
-    const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
-    Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
-    fetchStart = performance.now();
     const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
     Log(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
+    const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
+    Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const auctions = await AuctionsFetcher.fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
     Log(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
