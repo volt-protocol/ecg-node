@@ -137,8 +137,6 @@ async function fetchNewCreatedLendingTerms(
     }
     const borrowRatio = norm(maxDebtPerCol, 36 - collateralToken.decimals);
 
-    const label =
-      `${collateralToken.symbol}` + `-${roundTo(norm(interestRate) * 100, 2)}%` + `-${roundTo(borrowRatio, 2)}`;
     allCreated.push({
       termAddress: termAddress,
       maxDebtPerCollateralToken: maxDebtPerCol,
@@ -153,7 +151,8 @@ async function fetchNewCreatedLendingTerms(
       openingFee: termParameters.openingFee.toString(10),
       minPartialRepayPercent: norm(termParameters.minPartialRepayPercent),
       status: ProposalStatus.CREATED,
-      termName: label,
+      termName:
+        `${collateralToken.symbol}` + `-${roundTo(borrowRatio, 2)}` + `-${roundTo(norm(interestRate) * 100, 2)}%`,
       description: '',
       values: [],
       targets: [],
