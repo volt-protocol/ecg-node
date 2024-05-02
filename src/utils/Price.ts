@@ -110,6 +110,9 @@ export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [t
     const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
 
     for (const tokenAddress of tokenAddresses) {
+      if (prices[tokenAddress]) {
+        continue;
+      }
       const token = getTokenByAddress(tokenAddress);
       const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
       const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
