@@ -19,6 +19,7 @@ import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
 import { Log } from '../../utils/Logger';
+import { GetTokenPriceMulti } from '../../utils/Price';
 
 class MarketDataController {
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
@@ -185,7 +186,6 @@ class MarketDataController {
   static async GetTokensInfos(marketId: number): Promise<TokensApiInfo[]> {
     const coinDetails: TokensApiInfo[] = [];
 
-    const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
     const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
 
     if (!fs.existsSync(termsFileName)) {
@@ -207,22 +207,15 @@ class MarketDataController {
       }
     }
 
-    const tokenIds = allTokens.map((_) => `${llamaNetwork}:${_.mainnetAddress || _.address}`).join(',');
-
-    const llamaUrl = `https://coins.llama.fi/prices/current/${tokenIds}?searchWidth=4h`;
-    const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
+    const tokenPrices = await GetTokenPriceMulti(allTokens.map((_) => _.address));
 
     for (const token of allTokens) {
-      const llamaPrice = priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`]
-        ? priceResponse.coins[`${llamaNetwork}:${token.mainnetAddress || token.address}`].price
-        : 0;
-
       coinDetails.push({
         address: token.address,
         decimals: token.decimals,
         name: token.symbol,
         symbol: token.symbol,
-        price: llamaPrice
+        price: tokenPrices[token.address]
       });
     }
 
