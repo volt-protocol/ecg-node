@@ -75,6 +75,7 @@ async function HistoricalDataFetcher() {
 
 async function FetchHistoricalData(state: HistoricalDataState) {
   const web3Provider = GetWeb3Provider();
+
   const currentBlock = await web3Provider.getBlockNumber();
   Log(`fetching data up to block ${currentBlock}`);
 
@@ -84,15 +85,16 @@ async function FetchHistoricalData(state: HistoricalDataState) {
     fs.mkdirSync(historicalDataDir, { recursive: true });
   }
 
-  await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
-  await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
-  await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
-  await fetchTVL(currentBlock, historicalDataDir, web3Provider);
-  await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
-  await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
-  await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
+  // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
+  // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
+  // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
+  // await fetchTVL(currentBlock, historicalDataDir, web3Provider);
+  // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
+  // await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
+  // await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
   await fetchLoansData(currentBlock, historicalDataDir, web3Provider, state);
   await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
+  await fetchAPRData(currentBlock, historicalDataDir, web3Provider);
   // await fetchLastActivity(state, web3Provider, currentBlock);
 }
 
@@ -648,7 +650,8 @@ async function fetchLoansData(
     for (const termAddress of Object.keys(historicalDataState.openLoans)) {
       const lendingTermContract = LendingTerm__factory.connect(termAddress, multicallProvider);
       for (const loanId of historicalDataState.openLoans[termAddress]) {
-        promises.push(lendingTermContract.getLoan(loanId));
+        promises.push(lendingTermContract.getLoan(loanId, { blockTag: blockToFetch }));
+        promises.push(lendingTermContract.getLoanDebt(loanId, { blockTag: blockToFetch }));
       }
     }
 
@@ -658,7 +661,8 @@ async function fetchLoansData(
     const allLoans: Loan[] = [];
     for (const termAddress of Object.keys(historicalDataState.openLoans)) {
       for (const loanId of historicalDataState.openLoans[termAddress]) {
-        const loanData = getLoanResults[cursor++];
+        const loanData = getLoanResults[cursor++] as LendingTerm.LoanStructOutput;
+        const loanDebt = getLoanResults[cursor++] as bigint;
         allLoans.push({
           id: loanId,
           bidTime: Number(loanData.closeTime) * 1000,
@@ -676,20 +680,22 @@ async function fetchLoansData(
           borrowCreditMultiplier: '0',
           txHashClose: '',
           txHashOpen: '',
-          loanDebt: '0',
+          loanDebt: loanDebt.toString(10),
           debtRepaid: '0'
         });
       }
     }
 
     let currentlyOpenedLoans = 0;
-    let totalBorrowUSDC = 0;
+    let totalBorrowPegToken = 0;
+    let totalUnpaidInterests = 0;
     // cleanup openLoans to only save the currently still open loans
     historicalDataState.openLoans = {};
     for (const loan of allLoans) {
       if (loan.status != LoanStatus.CLOSED) {
         currentlyOpenedLoans++;
-        totalBorrowUSDC += norm(loan.borrowAmount) * norm(creditMultiplier);
+        totalBorrowPegToken += norm(loan.borrowAmount) * norm(creditMultiplier);
+        totalUnpaidInterests += (norm(loan.loanDebt) - norm(loan.borrowAmount)) * norm(creditMultiplier);
 
         if (!historicalDataState.openLoans[loan.lendingTermAddress]) {
           historicalDataState.openLoans[loan.lendingTermAddress] = [];
@@ -700,16 +706,95 @@ async function fetchLoansData(
     }
 
     fullHistoricalData.values[blockToFetch].openLoans = currentlyOpenedLoans;
-    fullHistoricalData.values[blockToFetch].borrowValue = totalBorrowUSDC;
+    fullHistoricalData.values[blockToFetch].borrowValue = totalBorrowPegToken;
+    fullHistoricalData.values[blockToFetch].totalUnpaidInterests = totalUnpaidInterests;
 
     Log(
       `fetchLoansData: [${blockToFetch}] (${new Date(
         blockData.timestamp * 1000
-      ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowUSDC}`
+      ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowPegToken}, unpaid interests: ${totalUnpaidInterests}`
     );
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function fetchAPRData(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'apr-data.json');
+  let fullHistoricalData: HistoricalDataMulti = {
+    name: 'apr-data',
+    values: {},
+    blockTimes: {}
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.values).at(-1)) + STEP_BLOCK;
+  }
+
+  if (startBlock > currentBlock) {
+    Log('fetchDebtCeilingAndIssuance: data already up to date');
+    return;
+  }
+
+  const creditContract = CreditToken__factory.connect(GetCreditTokenAddress(), multicallProvider);
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    fullHistoricalData.values[blockToFetch] = {};
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+    const creditData = await Promise.all([
+      creditContract.rebasingSupply(),
+      creditContract.totalSupply(),
+      creditContract.targetTotalSupply()
+    ]);
+
+    const sharePrice = await getSharePrice(blockData.timestamp, web3Provider, blockToFetch);
+    fullHistoricalData.values[blockToFetch].rebasingSupply = norm(creditData[0]);
+    fullHistoricalData.values[blockToFetch].totalSupply = norm(creditData[1]);
+    fullHistoricalData.values[blockToFetch].targetTotalSupply = norm(creditData[2]);
+    fullHistoricalData.values[blockToFetch].sharePrice = sharePrice;
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    Log(
+      `fetchAPRData: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) | ` +
+        `rebasingSupply ${fullHistoricalData.values[blockToFetch].rebasingSupply}` +
+        `, totalSupply ${fullHistoricalData.values[blockToFetch].totalSupply}` +
+        `, targetTotalSupply ${fullHistoricalData.values[blockToFetch].targetTotalSupply}` +
+        `, sharePrice ${fullHistoricalData.values[blockToFetch].sharePrice}`
+    );
+  }
+
+  WriteJSON(historyFilename, fullHistoricalData);
+}
+
+async function getSharePrice(
+  timestampSec: number,
+  web3Provider: ethers.JsonRpcProvider,
+  blockNumber: number
+): Promise<number> {
+  // get value of internal data "__rebasingSharePrice" which is stored at index 20 and 21 of the CreditToken contract
+  // value is a struct (uint32 lastTimestamp, uint224 lastValue, uint32 targetTimestamp, uint224 targetValue)
+  // it appears the solidity dev forgot to put a public getter on this particular data so that's the only way to do it
+  const val20 = await web3Provider.getStorage(GetCreditTokenAddress(), 20, blockNumber);
+  const val21 = await web3Provider.getStorage(GetCreditTokenAddress(), 21, blockNumber);
+
+  const lastTimestamp = Number(BigInt('0x' + val20.substring(val20.length - 8)));
+  const lastValue = norm(BigInt(val20.substring(0, val20.length - 8)), 30);
+  const targetTimestamp = Number(BigInt('0x' + val21.substring(val20.length - 8)));
+  const targetValue = norm(BigInt(val21.substring(0, val20.length - 8)), 30);
+
+  if (timestampSec >= targetTimestamp) {
+    // if period is passed, return target value
+    return targetValue;
+  } else {
+    // block.timestamp is within [lastTimestamp, targetTimestamp[
+    const elapsed = timestampSec - lastTimestamp;
+    const delta = targetValue - lastValue;
+    return lastValue + (delta * elapsed) / (targetTimestamp - lastTimestamp);
+  }
 }
 
 HistoricalDataFetcher();
