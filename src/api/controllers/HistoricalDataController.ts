@@ -84,7 +84,8 @@ class HistoricalDataController {
 
       const multiValues: { [key: string]: number[] } = {
         openLoans: Object.values(fullHistory.values).map((_) => _.openLoans),
-        borrowValue: Object.values(fullHistory.values).map((_) => _.borrowValue)
+        borrowValue: Object.values(fullHistory.values).map((_) => _.borrowValue),
+        totalUnpaidInterests: Object.values(fullHistory.values).map((_) => _.totalUnpaidInterests)
       };
 
       return {

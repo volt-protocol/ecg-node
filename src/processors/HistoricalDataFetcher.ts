@@ -1,6 +1,6 @@
 import { GetProtocolData, ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
-import fs, { stat } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
@@ -8,6 +8,8 @@ import {
   GetCreditTokenAddress,
   GetDeployBlock,
   GetGuildTokenAddress,
+  GetPSMAddress,
+  GetPegTokenAddress,
   GetProfitManagerAddress,
   LoadConfiguration,
   getTokenByAddress,
@@ -24,11 +26,11 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { FetchAllEventsAndExtractStringArray, GetBlock, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { FetchAllEventsMulti, GetBlock, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
-import { HistoricalDataState } from '../model/HistoricalDataState';
+import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import LastActivityFetcher from '../datafetch/fetchers/LastActivityFetcher';
@@ -55,25 +57,12 @@ async function HistoricalDataFetcher() {
       throw new Error('Cannot find RPC_URL in env');
     }
 
-    let historicalDataState: HistoricalDataState = {
-      openLoans: {},
-      lastBlockActivityFetched: GetDeployBlock()
-    };
-
-    const historicalDataStateFile = path.join(DATA_DIR, 'processors', 'historical-data-state.json');
-    if (fs.existsSync(historicalDataStateFile)) {
-      historicalDataState = ReadJSON(historicalDataStateFile);
-    }
-
-    await FetchHistoricalData(historicalDataState);
-
-    // save state file
-    WriteJSON(historicalDataStateFile, historicalDataState);
+    await FetchHistoricalData();
     await WaitUntilScheduled(startDate, runEverySec);
   }
 }
 
-async function FetchHistoricalData(state: HistoricalDataState) {
+async function FetchHistoricalData() {
   const web3Provider = GetWeb3Provider();
 
   const currentBlock = await web3Provider.getBlockNumber();
@@ -85,58 +74,71 @@ async function FetchHistoricalData(state: HistoricalDataState) {
     fs.mkdirSync(historicalDataDir, { recursive: true });
   }
 
-  // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider);
-  // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider);
-  // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider);
-  // await fetchTVL(currentBlock, historicalDataDir, web3Provider);
-  // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider);
-  // await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider);
-  // await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider);
-  await fetchLoansData(currentBlock, historicalDataDir, web3Provider, state);
-  await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider);
-  await fetchAPRData(currentBlock, historicalDataDir, web3Provider);
-  // await fetchLastActivity(state, web3Provider, currentBlock);
+  const blockTimes: { [blockNumber: number]: number } = await fetchBlocks(
+    currentBlock,
+    historicalDataDir,
+    web3Provider
+  );
+  await Promise.all([
+    fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchTVL(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchLoansData(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes)
+  ]);
+  // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchTVL(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchLoansData(currentBlock, historicalDataDir, web3Provider, state, blockTimes);
+  // await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes);
+  // await fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes);
 }
 
-async function fetchLastActivity(
-  state: HistoricalDataState,
-  web3Provider: ethers.JsonRpcProvider,
-  currentBlock: number
-) {
-  const termsFileName = path.join(DATA_DIR, 'terms.json');
-
-  if (!fs.existsSync(termsFileName)) {
-    throw new Error(`Could not find file ${termsFileName}`);
-  }
-
-  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
-
-  const syncDataFake: SyncData = {
-    activitySync: {
-      lastBlockFetched: state.lastBlockActivityFetched
-    },
-    auctionSync: [],
-    gaugeSync: {
-      lastBlockFetched: 0
-    },
-    termSync: []
+async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+  let startBlock = GetDeployBlock();
+  const historyFilename = path.join(historicalDataDir, 'blocks.json');
+  let fullHistoricalData: HistoricalData = {
+    name: 'blocks',
+    values: {},
+    blockTimes: {}
   };
 
-  await LastActivityFetcher.fetchAndSaveActivity(
-    syncDataFake,
-    web3Provider,
-    currentBlock,
-    GetProtocolData(),
-    termsFile.terms
-  );
+  if (fs.existsSync(historyFilename)) {
+    fullHistoricalData = ReadJSON(historyFilename);
+    startBlock = Number(Object.keys(fullHistoricalData.blockTimes).at(-1)) + STEP_BLOCK;
+  }
 
-  state.lastBlockActivityFetched = currentBlock;
+  if (startBlock > currentBlock) {
+    Log('fetchBlocks: data already up to date');
+    return fullHistoricalData.blockTimes;
+  }
+
+  for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
+    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
+    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+
+    Log(`fetchBlocks: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) block saved`);
+    WriteJSON(historyFilename, fullHistoricalData);
+  }
+  WriteJSON(historyFilename, fullHistoricalData);
+
+  return fullHistoricalData.blockTimes;
 }
 
 async function fetchCreditTotalSupply(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   let startBlock = GetDeployBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-supply.json');
@@ -160,14 +162,14 @@ async function fetchCreditTotalSupply(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const totalSupplyAtBlock = await creditTokenContract.totalSupply({ blockTag: blockToFetch });
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     fullHistoricalData.values[blockToFetch] = norm(totalSupplyAtBlock);
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
     Log(
       `fetchCreditTotalSupply: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) total supply : ${fullHistoricalData.values[blockToFetch]}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -176,7 +178,8 @@ async function fetchCreditTotalSupply(
 async function fetchCreditTotalIssuance(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   let startBlock = GetDeployBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-total-issuance.json');
@@ -200,14 +203,14 @@ async function fetchCreditTotalIssuance(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const totalIssuanceAtBlock = await profitManagerContract.totalIssuance({ blockTag: blockToFetch });
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     fullHistoricalData.values[blockToFetch] = norm(totalIssuanceAtBlock);
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
     Log(
       `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -216,7 +219,8 @@ async function fetchCreditTotalIssuance(
 async function fetchCreditMultiplier(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   let startBlock = GetDeployBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-multiplier.json');
@@ -240,14 +244,14 @@ async function fetchCreditMultiplier(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const creditMultiplier = await retry(() => profitManagerContract.creditMultiplier({ blockTag: blockToFetch }), []);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     fullHistoricalData.values[blockToFetch] = norm(creditMultiplier);
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
     Log(
       `fetchCreditMultiplier: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) credit multiplier: ${fullHistoricalData.values[blockToFetch]}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -256,7 +260,8 @@ async function fetchCreditMultiplier(
 async function fetchAverageInterestRate(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
@@ -283,14 +288,11 @@ async function fetchAverageInterestRate(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
-
     const promises = [];
     promises.push(profitManagerContract.totalIssuance({ blockTag: blockToFetch }));
 
     for (const termAddress of liveTerms) {
       const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
-      promises.push(guildContract.gaugeType(termAddress, { blockTag: blockToFetch }));
       promises.push(termContract.getParameters({ blockTag: blockToFetch }));
       promises.push(termContract.issuance({ blockTag: blockToFetch }));
     }
@@ -302,7 +304,6 @@ async function fetchAverageInterestRate(
     let avgInterestRate = 0;
     if (totalIssuance != 0) {
       for (const termAddress of liveTerms) {
-        const gaugeType = promiseResults[cursor++] as bigint;
         const parameters = promiseResults[cursor++] as LendingTerm.LendingTermParamsStructOutput;
         const issuance = norm(promiseResults[cursor++] as bigint);
 
@@ -313,19 +314,25 @@ async function fetchAverageInterestRate(
     }
 
     fullHistoricalData.values[blockToFetch] = avgInterestRate;
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
       `fetchAverageInterestRate: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) avg interest rate : ${fullHistoricalData.values[blockToFetch]}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
 }
 
-async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+async function fetchTVL(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
+) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
   let startBlock = GetDeployBlock();
@@ -347,12 +354,20 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
   }
 
   const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const pegTokenContract = ERC20__factory.connect(GetPegTokenAddress(), web3Provider);
+  const pegToken = getTokenByAddress(GetPegTokenAddress());
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const collateralPromises = [];
+    const pegTokenBalance = await pegTokenContract.balanceOf(GetPSMAddress(), { blockTag: blockToFetch });
+    const pegTokenPrice = await GetTokenPriceAtTimestamp(
+      pegToken.mainnetAddress || pegToken.address,
+      blockTimes[blockToFetch]
+    );
+
+    const psmPegTokenValue = (pegTokenPrice ?? 0) * norm(pegTokenBalance, pegToken.decimals);
 
     for (const termAddress of liveTerms) {
       const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
@@ -364,7 +379,7 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
     let cursor = 0;
     const balanceOfPromises = [];
     for (const termAddress of liveTerms) {
-      const termCollateral = collateralResults[cursor++];
+      const termCollateral = collateralResults[cursor++] as string;
       const erc20Contract = ERC20__factory.connect(termCollateral, multicallProvider);
       balanceOfPromises.push(erc20Contract.balanceOf(termAddress, { blockTag: blockToFetch }));
     }
@@ -387,20 +402,22 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
       const balanceNorm = norm(balanceOfResults[cursor++], tokenConf.decimals);
       const priceAtTimestamp = await GetTokenPriceAtTimestamp(
         tokenConf.mainnetAddress || tokenConf.address,
-        blockData.timestamp
+        blockTimes[blockToFetch]
       );
       const termTvl = (priceAtTimestamp ?? 0) * balanceNorm;
       tvlInUsd += termTvl;
     }
 
-    fullHistoricalData.values[blockToFetch] = tvlInUsd;
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.values[blockToFetch] = tvlInUsd + psmPegTokenValue;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
-      `fetchTVL: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) TVL : ${
+      `fetchTVL: [${blockToFetch}] (${new Date(blockTimes[blockToFetch] * 1000).toISOString()}) TVL : ${
         fullHistoricalData.values[blockToFetch]
-      }`
+      }. TCL: $${tvlInUsd}, PSM pegTokenValue: $${psmPegTokenValue}`
     );
+
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -409,7 +426,8 @@ async function fetchTVL(currentBlock: number, historicalDataDir: string, web3Pro
 async function fetchDebtCeilingAndIssuance(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
@@ -436,7 +454,6 @@ async function fetchDebtCeilingAndIssuance(
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
 
@@ -460,19 +477,25 @@ async function fetchDebtCeilingAndIssuance(
       totalIssuance += norm(issuance);
     }
 
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
       `fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) total debtCeiling: ${totalDebtCeiling} | total issuance: ${totalIssuance}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
 }
 
-async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+async function fetchGaugeWeight(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
+) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
   let startBlock = GetDeployBlock();
@@ -498,7 +521,6 @@ async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string,
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
 
@@ -516,13 +538,14 @@ async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string,
       totalWeight += norm(gaugeWeight);
     }
 
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
       `fetchGaugeWeight: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) total weight: ${totalWeight}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -531,7 +554,8 @@ async function fetchGaugeWeight(currentBlock: number, historicalDataDir: string,
 async function fetchSurplusBuffer(
   currentBlock: number,
   historicalDataDir: string,
-  web3Provider: ethers.JsonRpcProvider
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
@@ -559,7 +583,6 @@ async function fetchSurplusBuffer(
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
 
     const promises = [];
 
@@ -577,13 +600,14 @@ async function fetchSurplusBuffer(
       totalBuffer += norm(surplusBuffer);
     }
 
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
       `fetchSurplusBuffer: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) total surplus buffer: ${totalBuffer}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
@@ -593,8 +617,17 @@ async function fetchLoansData(
   currentBlock: number,
   historicalDataDir: string,
   web3Provider: ethers.JsonRpcProvider,
-  historicalDataState: HistoricalDataState
+  blockTimes: { [blocknumber: number]: number }
 ) {
+  let historicalDataState: HistoricalDataStateLoanBorrow = {
+    openLoans: {}
+  };
+
+  const historicalDataStateFile = path.join(DATA_DIR, 'processors', 'historical-data-state-loan-borrow.json');
+  if (fs.existsSync(historicalDataStateFile)) {
+    historicalDataState = ReadJSON(historicalDataStateFile);
+  }
+
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
   let startBlock = GetDeployBlock();
@@ -621,29 +654,48 @@ async function fetchLoansData(
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const creditMultiplier = await profitManagerContract.creditMultiplier({ blockTag: blockToFetch });
 
     // for all live terms get the LoanOpen events from blockToFetch - STEP_BLOCK to blockToFetch
-    for (const termAddress of liveTerms) {
-      const termContract = LendingTerm__factory.connect(termAddress, web3Provider);
-      const newLoanIds = await FetchAllEventsAndExtractStringArray(
-        termContract,
-        `Term-${termAddress}`,
-        'LoanOpen',
-        ['loanId'],
-        blockToFetch - STEP_BLOCK + 1,
-        blockToFetch
-      );
+    const termContractInterface = LendingTerm__factory.createInterface();
+    const topics = termContractInterface.encodeFilterTopics('LoanOpen', []);
+    const logs = await FetchAllEventsMulti(
+      LendingTerm__factory.createInterface(),
+      liveTerms,
+      topics,
+      blockToFetch - STEP_BLOCK + 1,
+      blockToFetch,
+      web3Provider
+    );
 
-      if (!historicalDataState.openLoans[termAddress]) {
-        historicalDataState.openLoans[termAddress] = [];
+    for (const log of logs) {
+      if (!historicalDataState.openLoans[log.address]) {
+        historicalDataState.openLoans[log.address] = [];
       }
 
-      historicalDataState.openLoans[termAddress].push(...newLoanIds);
+      historicalDataState.openLoans[log.address].push(log.args.loanId);
     }
+
+    // for (const termAddress of liveTerms) {
+    //   const termContract = LendingTerm__factory.connect(termAddress, web3Provider);
+
+    //   const newLoanIds = await FetchAllEventsAndExtractStringArray(
+    //     termContract,
+    //     `Term-${termAddress}`,
+    //     'LoanOpen',
+    //     ['loanId'],
+    //     blockToFetch - STEP_BLOCK + 1,
+    //     blockToFetch
+    //   );
+
+    //   if (!historicalDataState.openLoans[termAddress]) {
+    //     historicalDataState.openLoans[termAddress] = [];
+    //   }
+
+    //   historicalDataState.openLoans[termAddress].push(...newLoanIds);
+    // }
 
     // for all open loans, fetch amount borrowed and check if still open
     const promises = [];
@@ -711,15 +763,25 @@ async function fetchLoansData(
 
     Log(
       `fetchLoansData: [${blockToFetch}] (${new Date(
-        blockData.timestamp * 1000
+        blockTimes[blockToFetch] * 1000
       ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowPegToken}, unpaid interests: ${totalUnpaidInterests}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
+    // save state file
+    WriteJSON(historicalDataStateFile, historicalDataState);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);
+  // save state file
+  WriteJSON(historicalDataStateFile, historicalDataState);
 }
 
-async function fetchAPRData(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
+async function fetchAPRData(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider,
+  blockTimes: { [blocknumber: number]: number }
+) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
   let startBlock = GetDeployBlock();
@@ -744,27 +806,27 @@ async function fetchAPRData(currentBlock: number, historicalDataDir: string, web
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
-    const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     const creditData = await Promise.all([
       creditContract.rebasingSupply(),
       creditContract.totalSupply(),
       creditContract.targetTotalSupply()
     ]);
 
-    const sharePrice = await getSharePrice(blockData.timestamp, web3Provider, blockToFetch);
+    const sharePrice = await getSharePrice(blockTimes[blockToFetch], web3Provider, blockToFetch);
     fullHistoricalData.values[blockToFetch].rebasingSupply = norm(creditData[0]);
     fullHistoricalData.values[blockToFetch].totalSupply = norm(creditData[1]);
     fullHistoricalData.values[blockToFetch].targetTotalSupply = norm(creditData[2]);
     fullHistoricalData.values[blockToFetch].sharePrice = sharePrice;
-    fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
+    fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
     Log(
-      `fetchAPRData: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) | ` +
+      `fetchAPRData: [${blockToFetch}] (${new Date(blockTimes[blockToFetch] * 1000).toISOString()}) | ` +
         `rebasingSupply ${fullHistoricalData.values[blockToFetch].rebasingSupply}` +
         `, totalSupply ${fullHistoricalData.values[blockToFetch].totalSupply}` +
         `, targetTotalSupply ${fullHistoricalData.values[blockToFetch].targetTotalSupply}` +
         `, sharePrice ${fullHistoricalData.values[blockToFetch].sharePrice}`
     );
+    WriteJSON(historyFilename, fullHistoricalData);
   }
 
   WriteJSON(historyFilename, fullHistoricalData);

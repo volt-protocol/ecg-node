@@ -81,9 +81,8 @@ export async function retry<T extends (...arg0: any[]) => any>(
       Log(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
       throw e;
     }
-    Log(`Retry ${currRetry} failed: ${e}`);
+    Log(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
     // Log(e);
-    Log(`Waiting ${retryCount} second(s)`);
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
   }

@@ -1,4 +1,3 @@
-export interface HistoricalDataState {
+export interface HistoricalDataStateLoanBorrow {
   openLoans: { [termAddress: string]: string[] }; // termAddress => loanId[]
-  lastBlockActivityFetched: number;
 }
