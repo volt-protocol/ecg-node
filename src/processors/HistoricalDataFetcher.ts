@@ -1,4 +1,4 @@
-import { GetProtocolData, ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
 
 import fs from 'fs';
 import path from 'path';
@@ -26,16 +26,13 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { FetchAllEventsMulti, GetBlock, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { FetchAllEventsMulti, GetBlock, GetERC20Infos, GetArchiveWeb3Provider } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
-import LastActivityFetcher from '../datafetch/fetchers/LastActivityFetcher';
-import { LendingTermsFileStructure } from '../model/LendingTerm';
-import { SyncData } from '../model/SyncData';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -63,7 +60,7 @@ async function HistoricalDataFetcher() {
 }
 
 async function FetchHistoricalData() {
-  const web3Provider = GetWeb3Provider();
+  const web3Provider = GetArchiveWeb3Provider();
 
   const currentBlock = await web3Provider.getBlockNumber();
   Log(`fetching data up to block ${currentBlock}`);

@@ -19,6 +19,21 @@ import { NETWORK } from './Constants';
 const initBlockStep = NETWORK == 'ARBITRUM' ? 500_000 : 100_000;
 
 /**
+ * @param pollingInterval Default 500 sec. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
+ * @returns {JsonRpcProvider}
+ */
+export function GetArchiveWeb3Provider(pollingIntervalMs = 500_000): JsonRpcProvider {
+  const rpcURL = process.env.RPC_URL_ARCHIVE;
+  if (!rpcURL) {
+    throw new Error('Cannot find RPC_URL_ARCHIVE in env');
+  }
+  const web3Provider = new JsonRpcProvider(rpcURL, undefined, { staticNetwork: true });
+  web3Provider.pollingInterval = pollingIntervalMs;
+
+  return web3Provider;
+}
+
+/**
  * @param pollingInterval Default 15 sec. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
  * @returns {JsonRpcProvider}
  */
