@@ -14,6 +14,18 @@ export async function LoadConfiguration() {
   await Promise.all([LoadProtocolConstants(), LoadTokens()]);
 }
 
+export async function GetFullConfigFile(): Promise<ConfigFile> {
+  // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
+  if (CONFIG_FILE.startsWith('http')) {
+    // load via http
+    const resp = await HttpGet<ConfigFile>(CONFIG_FILE);
+    return resp;
+  } else {
+    // read from filesystem
+    return JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'));
+  }
+}
+
 async function LoadProtocolConstants() {
   // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
   if (CONFIG_FILE.startsWith('http')) {

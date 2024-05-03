@@ -1,14 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import { GLOBAL_DATA_DIR, NETWORK } from '../../utils/Constants';
-import { ReadJSON } from '../../utils/Utils';
+import { GLOBAL_DATA_DIR } from '../../utils/Constants';
+import { GetProtocolData, ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
 import { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { getAllTokens, getTokenByAddress } from '../../config/Config';
+import { GetFullConfigFile, getAllTokens } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
-import { HttpGet } from '../../utils/HttpHelper';
-import { DefiLlamaPriceResponse } from '../../model/DefiLlama';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
 import { AuctionHousesFileStructure } from '../../model/AuctionHouse';
@@ -18,10 +16,71 @@ import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
-import { Log } from '../../utils/Logger';
-import { GetTokenPriceMulti } from '../../utils/Price';
+import { GetTokenPrice, GetTokenPriceMulti } from '../../utils/Price';
+import { AirdropDataResponse } from '../model/AirdropDataResponse';
+import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
 
 class MarketDataController {
+  static async GetAirdropData(): Promise<AirdropDataResponse> {
+    const airdropData: AirdropDataResponse = {
+      rebasingSupplyUsd: 0,
+      termSurplusBufferUsd: 0,
+      totalIssuanceUsd: 0
+    };
+
+    const fullConfig = await GetFullConfigFile();
+
+    const marketDirs = fs.readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
+    for (const marketDir of marketDirs) {
+      const marketId = marketDir.split('_')[1];
+      if (Number(marketId) > 1e6) {
+        // ignore test market
+        continue;
+      }
+      const marketPath = path.join(GLOBAL_DATA_DIR, marketDir);
+      const aprDataFilename = path.join(marketPath, 'history', 'apr-data.json');
+      const surplusBufferFilename = path.join(marketPath, 'history', 'surplus-buffer.json');
+      const totalIssuanceFilename = path.join(marketPath, 'history', 'credit-total-issuance.json');
+
+      if (!fs.existsSync(aprDataFilename)) {
+        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
+      }
+      if (!fs.existsSync(surplusBufferFilename)) {
+        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
+      }
+      if (!fs.existsSync(totalIssuanceFilename)) {
+        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
+      }
+
+      const aprData: HistoricalDataMulti = ReadJSON(aprDataFilename);
+      const totalIssuanceData: HistoricalData = ReadJSON(totalIssuanceFilename);
+      const surplusBufferData: HistoricalDataMulti = ReadJSON(surplusBufferFilename);
+
+      // read only the last data
+      const lastRebasing = aprData.values[Number(Object.keys(aprData.values).at(-1))].rebasingSupply;
+      const lastCreditTotalIssuance = totalIssuanceData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
+      let surplusBuffer = 0;
+      for (const termBuffer of Object.values(
+        surplusBufferData.values[Number(Object.keys(surplusBufferData.values).at(-1))]
+      )) {
+        surplusBuffer += termBuffer;
+      }
+
+      const creditMultiplierNorm = norm(GetProtocolData().creditMultiplier);
+      const rebasingPegToken = lastRebasing * creditMultiplierNorm;
+      const lastCreditTotalIssuancePegToken = lastCreditTotalIssuance * creditMultiplierNorm;
+      const surplusBufferPegToken = surplusBuffer * creditMultiplierNorm;
+      // get price of the peg token
+      let pegTokenPrice = await GetTokenPrice(fullConfig[Number(marketId)].pegTokenAddress);
+      if (!pegTokenPrice) {
+        pegTokenPrice = 0;
+      }
+      airdropData.rebasingSupplyUsd += rebasingPegToken * pegTokenPrice;
+      airdropData.termSurplusBufferUsd += surplusBufferPegToken * pegTokenPrice;
+      airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
+    }
+    return airdropData;
+  }
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
     const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
     const loansFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
