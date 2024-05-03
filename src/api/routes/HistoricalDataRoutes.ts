@@ -408,6 +408,10 @@ router.get('/SurplusBuffer/:termAddress', async (req: Request, res: Response) =>
  *                      type: array
  *                      items:
  *                        type: number
+ *                    totalUnpaidInterests:
+ *                      type: array
+ *                      items:
+ *                        type: number
  */
 router.get('/LoanBorrow', async (req: Request, res: Response) => {
   try {
@@ -416,6 +420,67 @@ router.get('/LoanBorrow', async (req: Request, res: Response) => {
     const history = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => HistoricalDataController.GetLoanBorrow(marketId),
+      HISTORICAL_CACHE_DURATION
+    );
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
+/**
+ * @openapi
+ * /api/history/APR:
+ *   get:
+ *     tags:
+ *      - history
+ *     description: Gets APR data history
+ *     parameters:
+ *       - in: query
+ *         name: marketId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: The market id. Default to 1
+ *     responses:
+ *       200:
+ *         description: Gets APR data history
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                timestamps:
+ *                  type: array
+ *                  items:
+ *                    type: number
+ *                values:
+ *                  type: object
+ *                  properties:
+ *                    rebasingSupply:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ *                    totalSupply:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ *                    targetTotalSupply:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ *                    sharePrice:
+ *                      type: array
+ *                      items:
+ *                        type: number
+ */
+router.get('/APR', async (req: Request, res: Response) => {
+  try {
+    const marketId = getMarketIdFromRequest(req);
+    const cacheKey = `/api/history/APR-market_${marketId}`;
+    const history = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => HistoricalDataController.GetAPRData(marketId),
       HISTORICAL_CACHE_DURATION
     );
     res.status(200).json(history);

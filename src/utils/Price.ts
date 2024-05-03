@@ -5,7 +5,10 @@ import SimpleCacheService from './CacheService';
 import { NETWORK } from './Constants';
 import { HttpGet } from './HttpHelper';
 import { Log } from './Logger';
+import { sleep } from './Utils';
 import { GetWeb3Provider } from './Web3Helper';
+
+let lastCallDefillama = 0;
 
 export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number | undefined> {
   // fake prices for sepolia tokens VORIAN and BEEF
@@ -29,7 +32,7 @@ export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: 
     cacheDurationMs
   );
 
-  Log(`GetTokenPriceAtTimestamp[${new Date(timestamp * 1000).toISOString()}]: ${tokenId} = $${price}`);
+  // Log(`GetTokenPriceAtTimestamp[${new Date(timestamp * 1000).toISOString()}]: ${tokenId} = $${price}`);
 
   return price;
 }
@@ -134,19 +137,34 @@ async function GetPendleApiMarketPrice(marketAddress: string) {
 }
 
 async function GetDefiLlamaPrice(tokenId: string) {
+  const msToWait = 1000 - (Date.now() - lastCallDefillama);
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
+
   const apiUrl = `https://coins.llama.fi/prices/current/${tokenId}?searchWidth=4h`;
   const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
+  lastCallDefillama = Date.now();
+
   if (!resp.coins || !resp.coins[tokenId]) {
     return undefined;
   }
+
   return resp.coins[tokenId].price;
 }
 
 async function GetDefiLlamaPriceAtTimestamp(tokenId: string, timestampSec: number) {
+  const msToWait = 1000 - (Date.now() - lastCallDefillama);
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
   const apiUrl = `https://coins.llama.fi/prices/historical/${timestampSec}/${tokenId}?searchWidth=4h`;
   const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
+  lastCallDefillama = Date.now();
+
   if (!resp.coins || !resp.coins[tokenId]) {
     return undefined;
   }
+
   return resp.coins[tokenId].price;
 }

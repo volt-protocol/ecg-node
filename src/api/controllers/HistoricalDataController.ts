@@ -84,7 +84,30 @@ class HistoricalDataController {
 
       const multiValues: { [key: string]: number[] } = {
         openLoans: Object.values(fullHistory.values).map((_) => _.openLoans),
-        borrowValue: Object.values(fullHistory.values).map((_) => _.borrowValue)
+        borrowValue: Object.values(fullHistory.values).map((_) => _.borrowValue),
+        totalUnpaidInterests: Object.values(fullHistory.values).map((_) => _.totalUnpaidInterests)
+      };
+
+      return {
+        timestamps: times,
+        values: multiValues
+      };
+    }
+  }
+
+  static async GetAPRData(marketId: number): Promise<ApiHistoricalDataMulti> {
+    const historyFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'history', 'apr-data.json');
+    if (!fs.existsSync(historyFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    } else {
+      const fullHistory: HistoricalDataMulti = ReadJSON(historyFilename);
+      const times = Object.values(fullHistory.blockTimes);
+
+      const multiValues: { [key: string]: number[] } = {
+        rebasingSupply: Object.values(fullHistory.values).map((_) => _.rebasingSupply),
+        totalSupply: Object.values(fullHistory.values).map((_) => _.totalSupply),
+        targetTotalSupply: Object.values(fullHistory.values).map((_) => _.targetTotalSupply),
+        sharePrice: Object.values(fullHistory.values).map((_) => _.sharePrice)
       };
 
       return {
