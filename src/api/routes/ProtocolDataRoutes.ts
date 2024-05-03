@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import SimpleCacheService from '../../utils/CacheService';
 import MarketDataController from '../controllers/MarketDataController';
+import ProtocolDataController from '../controllers/ProtocolDataController';
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.get('/airdropdata', async (req: Request, res: Response) => {
     const cacheKey = '/airdropdata';
     const data = await SimpleCacheService.GetAndCache(
       cacheKey,
-      () => MarketDataController.GetAirdropData(),
+      () => ProtocolDataController.GetAirdropData(),
       CACHE_DURATION
     );
     res.status(200).json(data);

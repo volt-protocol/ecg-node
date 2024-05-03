@@ -26,13 +26,20 @@ import {
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
-import { FetchAllEventsMulti, GetBlock, GetERC20Infos, GetArchiveWeb3Provider } from '../utils/Web3Helper';
+import {
+  FetchAllEventsMulti,
+  GetBlock,
+  GetERC20Infos,
+  GetArchiveWeb3Provider,
+  FetchAllEvents
+} from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
+import { CreditTransferFile } from '../model/CreditTransfer';
 dotenv.config();
 
 const runEverySec = 30 * 60; // every 30 minutes
@@ -88,16 +95,9 @@ async function FetchHistoricalData() {
     fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes),
     fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes)
   ]);
-  // await fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchTVL(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchLoansData(currentBlock, historicalDataDir, web3Provider, state, blockTimes);
-  // await fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes);
-  // await fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes);
+
+  // fetch all credit transfers
+  await fetchAllCreditTransfers(currentBlock, historicalDataDir, web3Provider);
 }
 
 async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
@@ -854,6 +854,42 @@ async function getSharePrice(
     const delta = targetValue - lastValue;
     return lastValue + (delta * elapsed) / (targetTimestamp - lastTimestamp);
   }
+}
+
+async function fetchAllCreditTransfers(
+  currentBlock: number,
+  historicalDataDir: string,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  const historyFilename = path.join(historicalDataDir, 'credit-transfers.json');
+  let transferFile: CreditTransferFile = {
+    lastBlockFetched: GetDeployBlock() - 1,
+    creditHolderCount: 0,
+    transfers: []
+  };
+
+  if (fs.existsSync(historyFilename)) {
+    transferFile = ReadJSON(historyFilename);
+  }
+
+  const creditToken = ERC20__factory.connect(GetCreditTokenAddress(), MulticallWrapper.wrap(web3Provider));
+  const allLogs = await FetchAllEvents(
+    creditToken,
+    'credit',
+    'Transfer',
+    transferFile.lastBlockFetched + 1,
+    currentBlock
+  );
+
+  transferFile.transfers.push(...allLogs);
+
+  // compute unique addresses and multicall to get the balance
+  const uniqueAddresses = Array.from(new Set<string>(transferFile.transfers.map((_) => _.args.to)));
+
+  const balanceOfResults = await Promise.all(uniqueAddresses.map((_) => creditToken.balanceOf(_)));
+  transferFile.creditHolderCount = balanceOfResults.filter((_) => _ > 0n).length;
+  transferFile.lastBlockFetched = currentBlock;
+  WriteJSON(historyFilename, transferFile);
 }
 
 HistoricalDataFetcher();

@@ -19,68 +19,36 @@ import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
 import { GetTokenPrice, GetTokenPriceMulti } from '../../utils/Price';
 import { AirdropDataResponse } from '../model/AirdropDataResponse';
 import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
+import { CreditTransferFile } from '../../model/CreditTransfer';
+import { MarketDataResponse } from '../model/MarketData';
+import { ProtocolData, ProtocolDataFileStructure } from '../../model/ProtocolData';
 
 class MarketDataController {
-  static async GetAirdropData(): Promise<AirdropDataResponse> {
-    const airdropData: AirdropDataResponse = {
-      rebasingSupplyUsd: 0,
-      termSurplusBufferUsd: 0,
-      totalIssuanceUsd: 0
-    };
+  static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
+    const protocolDataFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'protocol-data.json');
+    const creditTransfersFilename = path.join(
+      GLOBAL_DATA_DIR,
+      `market_${marketId}`,
+      'history',
+      'credit-transfers.json'
+    );
 
-    const fullConfig = await GetFullConfigFile();
-
-    const marketDirs = fs.readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
-    for (const marketDir of marketDirs) {
-      const marketId = marketDir.split('_')[1];
-      if (Number(marketId) > 1e6) {
-        // ignore test market
-        continue;
-      }
-      const marketPath = path.join(GLOBAL_DATA_DIR, marketDir);
-      const aprDataFilename = path.join(marketPath, 'history', 'apr-data.json');
-      const surplusBufferFilename = path.join(marketPath, 'history', 'surplus-buffer.json');
-      const totalIssuanceFilename = path.join(marketPath, 'history', 'credit-total-issuance.json');
-
-      if (!fs.existsSync(aprDataFilename)) {
-        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
-      }
-      if (!fs.existsSync(surplusBufferFilename)) {
-        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
-      }
-      if (!fs.existsSync(totalIssuanceFilename)) {
-        throw new Error(`DATA FILE NOT FOUND FOR ${marketDir}`);
-      }
-
-      const aprData: HistoricalDataMulti = ReadJSON(aprDataFilename);
-      const totalIssuanceData: HistoricalData = ReadJSON(totalIssuanceFilename);
-      const surplusBufferData: HistoricalDataMulti = ReadJSON(surplusBufferFilename);
-
-      // read only the last data
-      const lastRebasing = aprData.values[Number(Object.keys(aprData.values).at(-1))].rebasingSupply;
-      const lastCreditTotalIssuance = totalIssuanceData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
-      let surplusBuffer = 0;
-      for (const termBuffer of Object.values(
-        surplusBufferData.values[Number(Object.keys(surplusBufferData.values).at(-1))]
-      )) {
-        surplusBuffer += termBuffer;
-      }
-
-      const creditMultiplierNorm = norm(GetProtocolData().creditMultiplier);
-      const rebasingPegToken = lastRebasing * creditMultiplierNorm;
-      const lastCreditTotalIssuancePegToken = lastCreditTotalIssuance * creditMultiplierNorm;
-      const surplusBufferPegToken = surplusBuffer * creditMultiplierNorm;
-      // get price of the peg token
-      let pegTokenPrice = await GetTokenPrice(fullConfig[Number(marketId)].pegTokenAddress);
-      if (!pegTokenPrice) {
-        pegTokenPrice = 0;
-      }
-      airdropData.rebasingSupplyUsd += rebasingPegToken * pegTokenPrice;
-      airdropData.termSurplusBufferUsd += surplusBufferPegToken * pegTokenPrice;
-      airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
+    if (!fs.existsSync(protocolDataFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
     }
-    return airdropData;
+
+    if (!fs.existsSync(creditTransfersFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+    const protocolDataFile: ProtocolDataFileStructure = ReadJSON(protocolDataFilename);
+    const creditTransferFile: CreditTransferFile = ReadJSON(creditTransfersFilename);
+
+    return {
+      creditMultiplier: protocolDataFile.data.creditMultiplier.toString(10),
+      creditHolderCount: creditTransferFile.creditHolderCount
+    };
   }
+
   static async GetTermsInfo(marketId: number): Promise<LendingTermsApiResponse> {
     const termsFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
     const loansFileName = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
