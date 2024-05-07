@@ -6,6 +6,7 @@
         "TERM_OFFBOARDER": {
             "enabled": false,
             "performCleanup": true,
+            "onlyLogging": true,
             "defaultMinOvercollateralization": 1.2,
             "tokens": {
                 "sDAI": {

@@ -62,5 +62,21 @@
 		"creditTokenAddress": "0xaFBe44E79E9affB25CEd16D971933219d1d6EC8d",
 		"profitManagerAddress": "0x5D87B2f530e9C1E605EeE48e41c10534B7E29C78",
 		"psmAddress": "0x475840078280BaE8EF2428dbe151c7b349CF3f50"
+	},
+	"4": {
+		"PEGTOKEN": "ARB",
+		"deployBlock": 206525000,
+		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
+		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
+		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
+		"uniswapV2RouterAddress": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+		"gatewayAddress": "0x69e2D90935E438c26fFE72544dEE4C1306D80A56",
+		"lendingTermFactoryAddress": "0xFc462354dc9Cac684516b49f002ae769514bbe63",
+		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"pegTokenAddress": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+		"creditTokenAddress": "0x8D8b654E2B6A0289D8f758cBCCc42aB387c67B61",
+		"profitManagerAddress": "0x7181E377b259D7c8D4caFdFe9FBe103dc5bfcE45",
+		"psmAddress": "0x4dC22679436e4C751bdfe6c518CD7768E999CED3"
 	}
 }

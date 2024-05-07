@@ -36,6 +36,12 @@ export default class LoansFetcher {
       updatedHuman: new Date(Date.now()).toISOString()
     };
 
+    if (terms.length == 0) {
+      Log('FetchECGData[Loans]: no terms to fetch');
+      WriteJSON(loansFilePath, updateLoans);
+      return;
+    }
+
     // allNewLoansIds contains all loanIds opened from sinceBlock => currentBlock
     const allNewLoansIds = await fetchNewLoanOpen(terms, syncData, web3Provider, currentBlock);
 

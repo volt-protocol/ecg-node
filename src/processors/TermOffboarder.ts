@@ -54,9 +54,13 @@ async function TermOffboarder() {
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
       const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
       if (termMustBeOffboarded) {
-        Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
-        const web3Provider = GetWeb3Provider();
-        await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
+        if (!offboarderConfig.onlyLogging) {
+          Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
+          const web3Provider = GetWeb3Provider();
+          await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
+        } else {
+          Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
+        }
       } else {
         Log(`[${term.label}]: Term is healthy`);
       }
