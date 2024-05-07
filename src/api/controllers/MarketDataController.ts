@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { GLOBAL_DATA_DIR } from '../../utils/Constants';
-import { GetProtocolData, ReadJSON } from '../../utils/Utils';
+import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
 import { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { GetFullConfigFile, getAllTokens } from '../../config/Config';
+import { getAllTokens } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
@@ -16,12 +16,10 @@ import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
-import { GetTokenPrice, GetTokenPriceMulti } from '../../utils/Price';
-import { AirdropDataResponse } from '../model/AirdropDataResponse';
-import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
+import { GetTokenPriceMulti } from '../../utils/Price';
 import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
-import { ProtocolData, ProtocolDataFileStructure } from '../../model/ProtocolData';
+import { ProtocolDataFileStructure } from '../../model/ProtocolData';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {

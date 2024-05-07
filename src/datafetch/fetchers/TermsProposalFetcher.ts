@@ -117,6 +117,7 @@ async function fetchNewCreatedLendingTerms(
     const termAddress = termEvent.args.term;
     const lendingTermContract = LendingTerm__factory.connect(termAddress, multicallProvider);
     promises.push(lendingTermContract.getParameters());
+    promises.push(lendingTermContract.auctionHouse());
   }
 
   const results = await Promise.all(promises);
@@ -125,7 +126,8 @@ async function fetchNewCreatedLendingTerms(
   for (const termEvent of createdTermEvents) {
     const termAddress = termEvent.args.term;
     const createdBlock = termEvent.blockNumber;
-    const termParameters: LendingTermType.LendingTermParamsStructOutput = results[cursor++];
+    const termParameters = results[cursor++] as LendingTermType.LendingTermParamsStructOutput;
+    const auctionHouse = results[cursor++] as string;
     const interestRate = termParameters.interestRate.toString(10);
     const maxDebtPerCol = termParameters.maxDebtPerCollateralToken.toString(10);
     const collateralTokenAddress = termParameters.collateralToken;
@@ -162,7 +164,8 @@ async function fetchNewCreatedLendingTerms(
       voteEnd: 0,
       voteStart: 0,
       quorum: '',
-      createdBlock: createdBlock
+      createdBlock: createdBlock,
+      auctionHouse: auctionHouse
     });
   }
 

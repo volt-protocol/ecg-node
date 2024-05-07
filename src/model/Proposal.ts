@@ -23,6 +23,7 @@ export interface Proposal {
   voteStart: number;
   voteEnd: number;
   quorum: string;
+  auctionHouse: string;
 }
 
 export enum ProposalStatus {
