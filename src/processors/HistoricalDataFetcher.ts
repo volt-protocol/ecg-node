@@ -655,44 +655,27 @@ async function fetchLoansData(
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
     const creditMultiplier = await profitManagerContract.creditMultiplier({ blockTag: blockToFetch });
 
-    // for all live terms get the LoanOpen events from blockToFetch - STEP_BLOCK to blockToFetch
-    const termContractInterface = LendingTerm__factory.createInterface();
-    const topics = termContractInterface.encodeFilterTopics('LoanOpen', []);
-    const logs = await FetchAllEventsMulti(
-      LendingTerm__factory.createInterface(),
-      liveTerms,
-      topics,
-      blockToFetch - STEP_BLOCK + 1,
-      blockToFetch,
-      web3Provider
-    );
+    if (liveTerms.length != 0) {
+      // for all live terms get the LoanOpen events from blockToFetch - STEP_BLOCK to blockToFetch
+      const termContractInterface = LendingTerm__factory.createInterface();
+      const topics = termContractInterface.encodeFilterTopics('LoanOpen', []);
+      const logs = await FetchAllEventsMulti(
+        LendingTerm__factory.createInterface(),
+        liveTerms,
+        topics,
+        blockToFetch - STEP_BLOCK + 1,
+        blockToFetch,
+        web3Provider
+      );
 
-    for (const log of logs) {
-      if (!historicalDataState.openLoans[log.address]) {
-        historicalDataState.openLoans[log.address] = [];
+      for (const log of logs) {
+        if (!historicalDataState.openLoans[log.address]) {
+          historicalDataState.openLoans[log.address] = [];
+        }
+
+        historicalDataState.openLoans[log.address].push(log.args.loanId);
       }
-
-      historicalDataState.openLoans[log.address].push(log.args.loanId);
     }
-
-    // for (const termAddress of liveTerms) {
-    //   const termContract = LendingTerm__factory.connect(termAddress, web3Provider);
-
-    //   const newLoanIds = await FetchAllEventsAndExtractStringArray(
-    //     termContract,
-    //     `Term-${termAddress}`,
-    //     'LoanOpen',
-    //     ['loanId'],
-    //     blockToFetch - STEP_BLOCK + 1,
-    //     blockToFetch
-    //   );
-
-    //   if (!historicalDataState.openLoans[termAddress]) {
-    //     historicalDataState.openLoans[termAddress] = [];
-    //   }
-
-    //   historicalDataState.openLoans[termAddress].push(...newLoanIds);
-    // }
 
     // for all open loans, fetch amount borrowed and check if still open
     const promises = [];
