@@ -6,7 +6,7 @@ import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
-  GetDeployBlock,
+  GetHistoricalMinBlock,
   GetGuildTokenAddress,
   GetPSMAddress,
   GetPegTokenAddress,
@@ -101,7 +101,7 @@ async function FetchHistoricalData() {
 }
 
 async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'blocks.json');
   let fullHistoricalData: HistoricalData = {
     name: 'blocks',
@@ -137,7 +137,7 @@ async function fetchCreditTotalSupply(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-supply.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-supply',
@@ -178,7 +178,7 @@ async function fetchCreditTotalIssuance(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-total-issuance.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-total-issuance',
@@ -219,7 +219,7 @@ async function fetchCreditMultiplier(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-multiplier.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-multiplier',
@@ -262,7 +262,7 @@ async function fetchAverageInterestRate(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'average-interest-rate.json');
   let fullHistoricalData: HistoricalData = {
     name: 'average-interest-rate',
@@ -332,7 +332,7 @@ async function fetchTVL(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'tvl.json');
   let fullHistoricalData: HistoricalData = {
     name: 'tvl',
@@ -428,7 +428,7 @@ async function fetchDebtCeilingAndIssuance(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'debtceiling-issuance.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'debtceiling-issuance',
@@ -495,7 +495,7 @@ async function fetchGaugeWeight(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'gauge-weight.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'gauge-weight',
@@ -556,7 +556,7 @@ async function fetchSurplusBuffer(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'surplus-buffer.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'surplus-buffer',
@@ -627,7 +627,7 @@ async function fetchLoansData(
 
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'loan-borrow.json');
 
   let fullHistoricalData: HistoricalDataMulti = {
@@ -764,7 +764,7 @@ async function fetchAPRData(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'apr-data.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'apr-data',
@@ -846,7 +846,7 @@ async function fetchAllCreditTransfers(
 ) {
   const historyFilename = path.join(historicalDataDir, 'credit-transfers.json');
   let transferFile: CreditTransferFile = {
-    lastBlockFetched: GetDeployBlock() - 1,
+    lastBlockFetched: GetHistoricalMinBlock() - 1,
     creditHolderCount: 0,
     transfers: []
   };

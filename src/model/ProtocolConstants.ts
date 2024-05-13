@@ -1,5 +1,6 @@
 export interface ProtocolConstants {
   deployBlock: number;
+  historicalMinBlock: number;
   guildTokenAddress: string;
   pegTokenAddress: string;
   creditTokenAddress: string;

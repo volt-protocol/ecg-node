@@ -117,6 +117,13 @@ export function GetDeployBlock() {
   return configuration.deployBlock;
 }
 
+export function GetHistoricalMinBlock() {
+  if (!configuration.historicalMinBlock || configuration.historicalMinBlock == 0) {
+    throw new Error(`'historicalMinBlock' not set in configuration ${CONFIG_FILE}`);
+  }
+  return configuration.historicalMinBlock;
+}
+
 export function GetGuildTokenAddress() {
   if (!configuration.guildTokenAddress) {
     throw new Error(`'guildTokenAddress' not set in configuration ${CONFIG_FILE}`);
