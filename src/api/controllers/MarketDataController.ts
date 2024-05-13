@@ -14,8 +14,8 @@ import { LastActivityFileStructure } from '../../model/LastActivity';
 import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
 import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
-import { ProposalsFileStructure } from '../../model/Proposal';
-import { ProposalsApiResponse } from '../model/ProposalsApiResponse';
+import { ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
+import { ProposalApiStatus, ProposalsApiResponse } from '../model/ProposalsApiResponse';
 import { GetTokenPriceMulti } from '../../utils/Price';
 import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
@@ -202,7 +202,40 @@ class MarketDataController {
       updated: proposalsFile.updated,
       updateBlock: proposalsFile.updateBlock,
       updatedHuman: proposalsFile.updatedHuman,
-      proposals: proposalsFile.proposals
+      proposals: proposalsFile.proposals.map((_) => {
+        const status: ProposalApiStatus =
+          _.status == ProposalStatus.QUORUM_REACHED
+            ? ProposalApiStatus.PROPOSED
+            : (_.status as unknown as ProposalApiStatus);
+
+        return {
+          auctionHouse: _.auctionHouse,
+          borrowRatio: _.borrowRatio,
+          calldatas: _.calldatas,
+          collateralTokenAddress: _.collateralTokenAddress,
+          createdBlock: _.createdBlock,
+          termAddress: _.termAddress,
+          voteEnd: _.voteEnd,
+          voteStart: _.voteStart,
+          collateralTokenDecimals: _.collateralTokenDecimals,
+          collateralTokenSymbol: _.collateralTokenSymbol,
+          knownToken: _.knownToken,
+          termName: _.termName,
+          status: status,
+          openingFee: _.openingFee,
+          interestRate: _.interestRate,
+          maxDebtPerCollateralToken: _.maxDebtPerCollateralToken,
+          maxDelayBetweenPartialRepay: _.maxDelayBetweenPartialRepay,
+          minPartialRepayPercent: _.minPartialRepayPercent,
+          quorum: _.quorum,
+          proposalId: _.proposalId,
+          hardCap: _.hardCap,
+          description: _.description,
+          values: _.values,
+          targets: _.targets,
+          proposer: _.proposer
+        };
+      })
     };
 
     return response;
