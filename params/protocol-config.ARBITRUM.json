@@ -2,6 +2,7 @@
 	"999999998": {
 		"PEGTOKEN": "WETH",
 		"deployBlock": 197600000,
+		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
 		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
 		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
@@ -18,6 +19,7 @@
 	"999999999": {
 		"PEGTOKEN": "USDC",
 		"deployBlock": 197600000,
+		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
 		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
 		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
@@ -34,6 +36,7 @@
 	"1": {
 		"PEGTOKEN": "USDC",
 		"deployBlock": 202234800,
+		"historicalMinBlock": 202234800,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
 		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
 		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
@@ -50,6 +53,7 @@
 	"3": {
 		"PEGTOKEN": "WETH",
 		"deployBlock": 202610000,
+		"historicalMinBlock": 202610000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
 		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
 		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
@@ -66,6 +70,7 @@
 	"4": {
 		"PEGTOKEN": "ARB",
 		"deployBlock": 206525000,
+		"historicalMinBlock": 210000000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
 		"lendingTermOnboardingAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
 		"lendingTermOffboardingAddress": "0x24F663c69Cd4B263cf5685A49013Ff5f1C898D24",
