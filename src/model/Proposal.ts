@@ -29,6 +29,7 @@ export interface Proposal {
 export enum ProposalStatus {
   CREATED = 'created', // term is created
   PROPOSED = 'proposed', // term is proposed (onboarding)
+  QUORUM_REACHED = 'quorum_reached', // term has reached quorum
   QUEUED = 'queued', // term is queued to be added, can still be vetoed
   ACTIVE = 'active' // validated, the term is added to the gauges
 }

@@ -50,8 +50,19 @@ export default class TermsProposalFetcher {
     const l1BlockNumber = await l1provider.getBlockNumber();
 
     for (const p of allProposals) {
-      if (p.voteEnd < l1BlockNumber && p.status == ProposalStatus.PROPOSED) {
-        resetProposalToCreated(p);
+      if (l1BlockNumber > p.voteEnd && p.status == ProposalStatus.PROPOSED) {
+        // check if quorum reached
+        const lendingTermOnboarding = LendingTermOnboarding__factory.connect(
+          GetLendingTermOnboardingAddress(),
+          web3Provider
+        );
+        const proposalVotes = await lendingTermOnboarding.proposalVotes(p.proposalId);
+        // if amount of vote for >= quorum, set status to QUORUM_REACHED
+        if (proposalVotes.forVotes >= BigInt(p.quorum)) {
+          p.status = ProposalStatus.QUORUM_REACHED;
+        } else {
+          resetProposalToCreated(p);
+        }
       }
     }
 

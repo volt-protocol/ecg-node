@@ -1,5 +1,5 @@
 export interface Proposal {
-  status: ProposalStatus;
+  status: ProposalApiStatus;
   createdBlock: number;
   termAddress: string;
   collateralTokenAddress: string;
@@ -26,7 +26,7 @@ export interface Proposal {
   auctionHouse: string;
 }
 
-export enum ProposalStatus {
+export enum ProposalApiStatus {
   CREATED = 'created', // term is created
   PROPOSED = 'proposed', // term is proposed (onboarding)
   QUEUED = 'queued', // term is queued to be added, can still be vetoed
