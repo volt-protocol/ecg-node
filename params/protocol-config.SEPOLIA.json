@@ -1,32 +1,34 @@
 {
-    "42": {
-        "deployBlock": 5682500,
-        "pegTokenAddress": "0x7b8b4418990e4Daf35F5c7f0165DC487b1963641",
-        "guildTokenAddress": "0x91806C9c67255064e5d0a333c23a6C469a8007a7",
-        "creditTokenAddress": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
-        "profitManagerAddress": "0x467e0eFA4053Ec759a31883eebF88a37347159B1",
-        "psmAddress": "0xdACFdE419629Be343449A1Ac23B29033c41F9222",
+	"42": {
+		"deployBlock": 5682500,
+		"historicalMinBlock": 5682500,
+		"pegTokenAddress": "0x7b8b4418990e4Daf35F5c7f0165DC487b1963641",
+		"guildTokenAddress": "0x91806C9c67255064e5d0a333c23a6C469a8007a7",
+		"creditTokenAddress": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
+		"profitManagerAddress": "0x467e0eFA4053Ec759a31883eebF88a37347159B1",
+		"psmAddress": "0xdACFdE419629Be343449A1Ac23B29033c41F9222",
 		"lendingTermFactoryAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
-        "lendingTermOnboardingAddress": "0x5447D9A5F03773BD2Db67319F50103d44e31dD84",
-        "lendingTermOffboardingAddress": "0x5ae217dE26f6Ff5F481C6e10ec48b2cf2fc857C8",
-        "uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
-        "gatewayAddress": "0x1d09eaf23095e300a8e88fb6d0569bdcd26d5c96",
-        "daoGovernorGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
-        "daoVetoGuildAddress": "0x0d2550d208a71805d667fb69b3aeddfd89cec48b"
-    },
-    "420": {
-        "deployBlock": 5683000,
-        "pegTokenAddress": "0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60",
-        "guildTokenAddress": "0x91806C9c67255064e5d0a333c23a6C469a8007a7",
-        "creditTokenAddress": "0xce805022e35fd808139d7E541F10D6e83420d84B",
-        "profitManagerAddress": "0x7bacAE0Bb37737E57fb3fE3fACaFd8214095D92b",
-        "psmAddress": "0x81869fcBF98ab8982B5c30529A2E7C3C24f7554e",
+		"lendingTermOnboardingAddress": "0x5447D9A5F03773BD2Db67319F50103d44e31dD84",
+		"lendingTermOffboardingAddress": "0x5ae217dE26f6Ff5F481C6e10ec48b2cf2fc857C8",
+		"uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
+		"gatewayAddress": "0x1d09eaf23095e300a8e88fb6d0569bdcd26d5c96",
+		"daoGovernorGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"daoVetoGuildAddress": "0x0d2550d208a71805d667fb69b3aeddfd89cec48b"
+	},
+	"420": {
+		"deployBlock": 5683000,
+		"historicalMinBlock": 5683000,
+		"pegTokenAddress": "0x1cED1eB530b5E71E6dB9221A22C725e862fC0e60",
+		"guildTokenAddress": "0x91806C9c67255064e5d0a333c23a6C469a8007a7",
+		"creditTokenAddress": "0xce805022e35fd808139d7E541F10D6e83420d84B",
+		"profitManagerAddress": "0x7bacAE0Bb37737E57fb3fE3fACaFd8214095D92b",
+		"psmAddress": "0x81869fcBF98ab8982B5c30529A2E7C3C24f7554e",
 		"lendingTermFactoryAddress": "0x3424f7560562468Fd4F7cD268dF7998090B4Ab21",
-        "lendingTermOnboardingAddress": "0x5447D9A5F03773BD2Db67319F50103d44e31dD84",
-        "lendingTermOffboardingAddress": "0x5ae217dE26f6Ff5F481C6e10ec48b2cf2fc857C8",
-        "uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
-        "gatewayAddress": "0x1d09eaf23095e300a8e88fb6d0569bdcd26d5c96",
-        "daoGovernorGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
-        "daoVetoGuildAddress": "0x0d2550d208a71805d667fb69b3aeddfd89cec48b"
-    }
+		"lendingTermOnboardingAddress": "0x5447D9A5F03773BD2Db67319F50103d44e31dD84",
+		"lendingTermOffboardingAddress": "0x5ae217dE26f6Ff5F481C6e10ec48b2cf2fc857C8",
+		"uniswapV2RouterAddress": "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008",
+		"gatewayAddress": "0x1d09eaf23095e300a8e88fb6d0569bdcd26d5c96",
+		"daoGovernorGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"daoVetoGuildAddress": "0x0d2550d208a71805d667fb69b3aeddfd89cec48b"
+	}
 }
