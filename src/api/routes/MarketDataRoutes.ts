@@ -67,7 +67,7 @@ router.get('/:marketId/terms', async (req: Request, res: Response) => {
 router.get('/:marketId/marketdata', async (req: Request, res: Response) => {
   try {
     const marketId = Number(req.params.marketId);
-    const cacheKey = `/markets/${marketId}/terms`;
+    const cacheKey = `/markets/${marketId}/marketdata`;
     const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetMarketData(marketId),
