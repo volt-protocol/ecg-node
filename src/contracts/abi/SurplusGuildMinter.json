@@ -1,0 +1,626 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_core",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_profitManager",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_credit",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_guild",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_rlgm",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_mintRatio",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_rewardRatio",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "oldCore",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newCore",
+				"type": "address"
+			}
+		],
+		"name": "CoreUpdate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "GuildReward",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "ratio",
+				"type": "uint256"
+			}
+		],
+		"name": "MintRatioUpdate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Paused",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "ratio",
+				"type": "uint256"
+			}
+		],
+		"name": "RewardRatioUpdate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "Stake",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Unpaused",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "Unstake",
+		"type": "event"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "MIN_STAKE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "YEAR",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "core",
+		"outputs": [
+			{
+				"internalType": "contract Core",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "credit",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "target",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "value",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes",
+						"name": "callData",
+						"type": "bytes"
+					}
+				],
+				"internalType": "struct CoreRef.Call[]",
+				"name": "calls",
+				"type": "tuple[]"
+			}
+		],
+		"name": "emergencyAction",
+		"outputs": [
+			{
+				"internalType": "bytes[]",
+				"name": "returnData",
+				"type": "bytes[]"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			}
+		],
+		"name": "getRewards",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "lastGaugeLoss",
+				"type": "uint256"
+			},
+			{
+				"components": [
+					{
+						"internalType": "uint48",
+						"name": "stakeTime",
+						"type": "uint48"
+					},
+					{
+						"internalType": "uint48",
+						"name": "lastGaugeLoss",
+						"type": "uint48"
+					},
+					{
+						"internalType": "uint160",
+						"name": "profitIndex",
+						"type": "uint160"
+					},
+					{
+						"internalType": "uint128",
+						"name": "credit",
+						"type": "uint128"
+					},
+					{
+						"internalType": "uint128",
+						"name": "guild",
+						"type": "uint128"
+					}
+				],
+				"internalType": "struct SurplusGuildMinter.UserStake",
+				"name": "userStake",
+				"type": "tuple"
+			},
+			{
+				"internalType": "bool",
+				"name": "slashed",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			}
+		],
+		"name": "getUserStake",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint48",
+						"name": "stakeTime",
+						"type": "uint48"
+					},
+					{
+						"internalType": "uint48",
+						"name": "lastGaugeLoss",
+						"type": "uint48"
+					},
+					{
+						"internalType": "uint160",
+						"name": "profitIndex",
+						"type": "uint160"
+					},
+					{
+						"internalType": "uint128",
+						"name": "credit",
+						"type": "uint128"
+					},
+					{
+						"internalType": "uint128",
+						"name": "guild",
+						"type": "uint128"
+					}
+				],
+				"internalType": "struct SurplusGuildMinter.UserStake",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "guild",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "mintRatio",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "pause",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "paused",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "profitManager",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "rewardRatio",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "rlgm",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newCore",
+				"type": "address"
+			}
+		],
+		"name": "setCore",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_mintRatio",
+				"type": "uint256"
+			}
+		],
+		"name": "setMintRatio",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_rewardRatio",
+				"type": "uint256"
+			}
+		],
+		"name": "setRewardRatio",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "stake",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+
+		],
+		"name": "unpause",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "unstake",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "term",
+				"type": "address"
+			}
+		],
+		"name": "updateMintRatio",
+		"outputs": [
+
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
