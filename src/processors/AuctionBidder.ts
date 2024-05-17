@@ -280,7 +280,8 @@ async function getSwap1Inch(
     `&amount=${collateralReceivedWei.toString()}` +
     `&from=${GetGatewayAddress()}` +
     `&slippage=${maxSlippage}` +
-    '&disableEstimate=true'; // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
+    '&disableEstimate=true' + // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
+    `&excludedProtocols=${get1inchExcludedProtocols(chainCode)}`;
 
   Log(`getSwap1Inch: ${oneInchApiUrl}`);
   const msToWait = 1000 - (Date.now() - lastCall1Inch);
@@ -302,6 +303,17 @@ async function getSwap1Inch(
   };
 }
 
+function get1inchExcludedProtocols(chainCode: bigint) {
+  switch (chainCode) {
+    case 1n:
+      return 'BALANCER,BALANCER_V2,BALANCER_V2_WRAPPER';
+    case 42161n:
+      return 'ARBITRUM_BALANCER_V2';
+    default:
+      throw new Error(`Unknown chaincode: ${chainCode}`);
+  }
+}
+
 async function getSwapOpenOcean(
   collateralToken: TokenConfig,
   pegToken: TokenConfig,
@@ -312,9 +324,11 @@ async function getSwapOpenOcean(
   const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals).toFixed(8);
   Log(`getSwapOpenOcean: amount ${collateralAmountNorm}`);
 
-  const chainCode = GetOpenOceanChainCodeByChainId((await web3Provider.getNetwork()).chainId);
+  const chainId = (await web3Provider.getNetwork()).chainId;
+  const chainCode = GetOpenOceanChainCodeByChainId(chainId);
   const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1; // avg gas price + 10%
   const maxSlippage = 1; // 1%
+
   const openOceanURL =
     `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
     `inTokenAddress=${collateralToken.address}` +
@@ -322,7 +336,10 @@ async function getSwapOpenOcean(
     `&amount=${collateralAmountNorm}` +
     `&slippage=${maxSlippage}` +
     `&gasPrice=${gasPrice}` +
-    `&account=${GetGatewayAddress()}`;
+    `&account=${GetGatewayAddress()}` +
+    `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
+
+  Log(`getSwapOpenOcean: ${openOceanURL}`);
 
   const openOceanResponse = await HttpGet<OpenOceanSwapQuoteResponse>(openOceanURL);
 
@@ -331,6 +348,18 @@ async function getSwapOpenOcean(
     swapData: openOceanResponse.data.data,
     routerAddress: openOceanResponse.data.to
   };
+}
+
+function getOpenOceanExcludedProtocols(chainCode: bigint) {
+  // need to take the index from this page: https://open-api.openocean.finance/v3/eth/dexList
+  switch (chainCode) {
+    case 1n:
+      return '7,41';
+    case 42161n:
+      return '';
+    default:
+      throw new Error(`Unknown chaincode: ${chainCode}`);
+  }
 }
 
 async function processBid(
