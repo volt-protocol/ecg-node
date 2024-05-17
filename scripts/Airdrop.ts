@@ -7,12 +7,12 @@ import { LendingTerm__factory } from '../src/contracts/types/factories/LendingTe
 import { ERC20__factory } from '../src/contracts/types/factories/ERC20__factory';
 import * as dotenv from 'dotenv';
 import { ethers } from 'ethers';
-import { ReadJSON, WriteJSON, sleep } from '../src/utils/Utils';
+import { ReadJSON, WriteJSON, retry, sleep } from '../src/utils/Utils';
 import { HttpGet } from '../src/utils/HttpHelper';
 import { BLOCK_PER_HOUR, GLOBAL_DATA_DIR } from '../src/utils/Constants';
 import { CreditTransferFile } from '../src/model/CreditTransfer';
 import path from 'path';
-import { MulticallWrapper } from 'ethers-multicall-provider';
+import { MulticallProvider, MulticallWrapper } from 'ethers-multicall-provider';
 import { GetTokenPriceAtTimestamp } from '../src/utils/Price';
 import { norm } from '../src/utils/TokenUtils';
 import { ProtocolConstants } from '../src/model/ProtocolConstants';
@@ -20,7 +20,7 @@ import { GetGaugeForMarketId } from '../src/utils/ECGHelper';
 import { SurplusGuildMinter__factory } from '../src/contracts/types';
 import { SurplusGuildMinter } from '../src/contracts/types/SurplusGuildMinter';
 import { LoansFileStructure } from '../src/model/Loan';
-import { writeFileSync } from 'fs';
+import { existsSync, writeFileSync } from 'fs';
 
 dotenv.config();
 
@@ -104,6 +104,7 @@ async function computeAirdropData() {
   }
 
   const fullData: UserDailyData = {};
+
   while (currentDate < endDate) {
     const stopDate = structuredClone(currentDate);
     stopDate.setDate(stopDate.getDate() + 1);
@@ -137,33 +138,35 @@ async function computeAirdropData() {
       const uniqueAddresses = marketAddresses[Number(marketId)];
 
       const creditToken = ERC20__factory.connect(config.creditTokenAddress, multicallArchivalProvider);
-      const balanceOfResults = await Promise.all(
-        uniqueAddresses.map((_) => creditToken.balanceOf(_, { blockTag: blockToUse }))
+      console.log('Getting balance of results');
+      const balanceOfResults = await retry(
+        () => Promise.all(uniqueAddresses.map((_) => creditToken.balanceOf(_, { blockTag: blockToUse }))),
+        []
       );
 
       const guildContract = GuildToken__factory.connect(config.guildTokenAddress, multicallArchivalProvider);
-      const liveTerms = await GetGaugeForMarketId(guildContract, Number(marketId), true, blockToUse);
+      console.log('Getting live terms');
+      const liveTerms = await retry(() => GetGaugeForMarketId(guildContract, Number(marketId), true, blockToUse), []);
 
-      const surplusGuildMinterContract = SurplusGuildMinter__factory.connect(
-        marketSgm[Number(marketId)],
-        multicallArchivalProvider
-      );
-      const userStakePromises: Promise<SurplusGuildMinter.UserStakeStructOutput>[] = [];
-      for (const userAddress of uniqueAddresses) {
-        for (const termAddress of liveTerms) {
-          userStakePromises.push(
-            surplusGuildMinterContract.getUserStake(userAddress, termAddress, { blockTag: blockToUse })
-          );
-        }
-      }
+      console.log('Getting user stake results');
+      const userStakeResults = await retry(getUserStakeResult, [
+        marketId,
+        multicallArchivalProvider,
+        uniqueAddresses,
+        liveTerms,
+        blockToUse
+      ]);
 
-      const userStakeResults = await Promise.all(userStakePromises);
-
-      const allLoansValue = await Promise.all(
-        loansFile.loans.map((_) => {
-          const lendingTermContract = LendingTerm__factory.connect(_.lendingTermAddress, multicallArchivalProvider);
-          return lendingTermContract.getLoanDebt(_.id, { blockTag: blockToUse });
-        })
+      console.log('Getting loan values');
+      const allLoansValue = await retry(
+        () =>
+          Promise.all(
+            loansFile.loans.map((_) => {
+              const lendingTermContract = LendingTerm__factory.connect(_.lendingTermAddress, multicallArchivalProvider);
+              return lendingTermContract.getLoanDebt(_.id, { blockTag: blockToUse });
+            })
+          ),
+        []
       );
 
       const blockTimestamp = Math.round(stopDate.getTime() / 1000);
@@ -229,6 +232,30 @@ async function computeAirdropData() {
 interface BlockResponse {
   height: number;
   timestamp: number;
+}
+
+async function getUserStakeResult(
+  marketId: string,
+  multicallArchivalProvider: MulticallProvider<ethers.JsonRpcProvider>,
+  uniqueAddresses: string[],
+  liveTerms: string[],
+  blockToUse: number
+) {
+  const surplusGuildMinterContract = SurplusGuildMinter__factory.connect(
+    marketSgm[Number(marketId)],
+    multicallArchivalProvider
+  );
+  const userStakePromises: Promise<SurplusGuildMinter.UserStakeStructOutput>[] = [];
+  for (const userAddress of uniqueAddresses) {
+    for (const termAddress of liveTerms) {
+      userStakePromises.push(
+        surplusGuildMinterContract.getUserStake(userAddress, termAddress, { blockTag: blockToUse })
+      );
+    }
+  }
+
+  const userStakeResults = await Promise.all(userStakePromises);
+  return userStakeResults;
 }
 
 function initAllUsersData(
