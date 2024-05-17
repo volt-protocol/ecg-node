@@ -81,8 +81,8 @@ async function computeAirdropData() {
   const web3ProviderArchival = GetArchiveWeb3Provider();
   const currentBlock = await web3ProviderArchival.getBlockNumber();
   const multicallArchivalProvider = MulticallWrapper.wrap(web3ProviderArchival);
-  const startDate = new Date(2024, 3, 19, 12, 0, 0);
-  const endDate = new Date(2024, 4, 17, 12, 0, 0);
+  const startDate = new Date(2024, 3, 19, 9, 0, 0);
+  const endDate = new Date(2024, 4, 17, 9, 0, 0);
   let currentDate = startDate;
   let blockStart = await getBlockAtTimestamp('arbitrum', Math.round(currentDate.getTime() / 1000));
   const marketAddresses: { [marketId: number]: string[] } = {};
