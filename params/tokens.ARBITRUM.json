@@ -51,8 +51,8 @@
 		"decimals": 18,
 		"permitAllowed": true,
 		"pendleConfiguration": {
-			"market": "0x952083cde7aaa11ab8449057f7de23a970aa8472",
-			"syTokenOut": "0x35751007a407ca6feffe80b3cb397736d2cf4dbe"
+			"market": "0x952083cde7aaa11AB8449057F7de23A970AA8472",
+			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
 		}
 	},
 	{
@@ -61,8 +61,8 @@
 		"decimals": 18,
 		"permitAllowed": true,
 		"pendleConfiguration": {
-			"market": "0x6ae79089b2cf4be441480801bb741a531d94312b",
-			"syTokenOut": "0x4186bfc76e2e237523cbc30fd220fe055156b41f"
+			"market": "0x6Ae79089b2CF4be441480801bb741A531d94312b",
+			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F"
 		}
 	},
 	{
@@ -131,8 +131,8 @@
 		"decimals": 18,
 		"permitAllowed": true,
 		"pendleConfiguration": {
-			"market": "0x2dfaf9a5e4f293bceede49f2dba29aacdd88e0c4",
-			"syTokenOut": "0x35751007a407ca6feffe80b3cb397736d2cf4dbe"
+			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
+			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
 		}
 	}
 ]
