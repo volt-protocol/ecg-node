@@ -124,5 +124,15 @@
 		"symbol": "DAI",
 		"decimals": 18,
 		"permitAllowed": true
+	},
+	{
+		"address": "0xad853EB4fB3Fe4a66CdFCD7b75922a0494955292",
+		"symbol": "PT-USDe-29AUG2024",
+		"decimals": 18,
+		"permitAllowed": true,
+		"pendleConfiguration": {
+			"market": "0x2dfaf9a5e4f293bceede49f2dba29aacdd88e0c4",
+			"syTokenOut": "0x35751007a407ca6feffe80b3cb397736d2cf4dbe"
+		}
 	}
 ]
