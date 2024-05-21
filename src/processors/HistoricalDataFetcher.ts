@@ -158,7 +158,7 @@ async function fetchCreditTotalSupply(
   const creditTokenContract = CreditToken__factory.connect(GetCreditTokenAddress(), web3Provider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
-    const totalSupplyAtBlock = await creditTokenContract.totalSupply({ blockTag: blockToFetch });
+    const totalSupplyAtBlock = await creditTokenContract.targetTotalSupply({ blockTag: blockToFetch });
     fullHistoricalData.values[blockToFetch] = norm(totalSupplyAtBlock);
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
     Log(
