@@ -84,16 +84,16 @@ async function FetchHistoricalData() {
     web3Provider
   );
   await Promise.all([
-    fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchTVL(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchLoansData(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes),
-    fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes)
+    // fetchCreditTotalSupply(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchCreditTotalIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchAverageInterestRate(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    retry(() => fetchTVL(currentBlock, historicalDataDir, web3Provider, blockTimes), [])
+    // fetchDebtCeilingAndIssuance(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchGaugeWeight(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchSurplusBuffer(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchLoansData(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchCreditMultiplier(currentBlock, historicalDataDir, web3Provider, blockTimes),
+    // fetchAPRData(currentBlock, historicalDataDir, web3Provider, blockTimes)
   ]);
 
   // fetch all credit transfers
@@ -361,7 +361,8 @@ async function fetchTVL(
     const pegTokenBalance = await pegTokenContract.balanceOf(GetPSMAddress(), { blockTag: blockToFetch });
     const pegTokenPrice = await GetTokenPriceAtTimestamp(
       pegToken.mainnetAddress || pegToken.address,
-      blockTimes[blockToFetch]
+      blockTimes[blockToFetch],
+      blockToFetch
     );
 
     const psmPegTokenValue = (pegTokenPrice ?? 0) * norm(pegTokenBalance, pegToken.decimals);
@@ -399,7 +400,8 @@ async function fetchTVL(
       const balanceNorm = norm(balanceOfResults[cursor++], tokenConf.decimals);
       const priceAtTimestamp = await GetTokenPriceAtTimestamp(
         tokenConf.mainnetAddress || tokenConf.address,
-        blockTimes[blockToFetch]
+        blockTimes[blockToFetch],
+        blockToFetch
       );
       const termTvl = (priceAtTimestamp ?? 0) * balanceNorm;
       tvlInUsd += termTvl;

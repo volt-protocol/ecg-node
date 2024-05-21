@@ -1,16 +1,22 @@
-import { getTokenByAddress } from '../config/Config';
+import { GetPendleOracleAddress, PendleConfig, getTokenByAddress } from '../config/Config';
+import { PendleOracle__factory } from '../contracts/types';
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import { PendleMarketResponse } from '../model/PendleApi';
 import SimpleCacheService from './CacheService';
 import { NETWORK } from './Constants';
 import { HttpGet } from './HttpHelper';
 import { Log } from './Logger';
+import { norm } from './TokenUtils';
 import { sleep } from './Utils';
-import { GetWeb3Provider } from './Web3Helper';
+import { GetArchiveWeb3Provider, GetWeb3Provider } from './Web3Helper';
 
 let lastCallDefillama = 0;
 
-export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: number): Promise<number | undefined> {
+export async function GetTokenPriceAtTimestamp(
+  tokenAddress: string,
+  timestamp: number,
+  atBlock: number
+): Promise<number | undefined> {
   // fake prices for sepolia tokens VORIAN and BEEF
   if (NETWORK == 'SEPOLIA') {
     if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
@@ -22,17 +28,29 @@ export async function GetTokenPriceAtTimestamp(tokenAddress: string, timestamp: 
       return 40_000_000_000;
     }
   }
-  const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
-  const cacheKey = `GetTokenPriceAtTimestamp-${tokenId}-${timestamp}`;
+
+  let price: number | undefined = undefined;
+  const token = getTokenByAddress(tokenAddress);
+  const cacheKey = `GetTokenPriceAtTimestamp-${token.symbol}-${token.address}-${timestamp}`;
   const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
 
-  const price = await SimpleCacheService.GetAndCache(
-    cacheKey,
-    () => GetDefiLlamaPriceAtTimestamp(tokenId, timestamp),
-    cacheDurationMs
-  );
+  if (token.pendleConfiguration) {
+    const pendleConfig = token.pendleConfiguration;
+    // fetch price using pendle api
+    price = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => GetPendlePriceAtBlock(token.symbol, pendleConfig, atBlock, timestamp),
+      cacheDurationMs
+    );
+  } else {
+    const tokenId = getDefillamaTokenId(NETWORK, tokenAddress);
 
-  // Log(`GetTokenPriceAtTimestamp[${new Date(timestamp * 1000).toISOString()}]: ${tokenId} = $${price}`);
+    price = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => GetDefiLlamaPriceAtTimestamp(token.symbol, tokenId, timestamp),
+      cacheDurationMs
+    );
+  }
 
   return price;
 }
@@ -65,7 +83,7 @@ export async function GetTokenPrice(tokenAddress: string): Promise<number | unde
 
     Log(`GetTokenPrice: price for ${token.symbol} from pendle: ${price}`);
   } else {
-    const tokenId = NETWORK == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
+    const tokenId = getDefillamaTokenId(NETWORK, tokenAddress);
     const cacheKey = `GetTokenPrice-${tokenId}`;
 
     price = await SimpleCacheService.GetAndCache(cacheKey, () => GetDefiLlamaPrice(tokenId), cacheDurationMs);
@@ -136,6 +154,11 @@ async function GetPendleApiMarketPrice(marketAddress: string) {
   return response.pt.price.usd;
 }
 
+function getDefillamaTokenId(network: string, tokenAddress: string) {
+  const tokenId = network == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
+  return tokenId;
+}
+
 async function GetDefiLlamaPrice(tokenId: string) {
   const msToWait = 1000 - (Date.now() - lastCallDefillama);
   if (msToWait > 0) {
@@ -153,7 +176,7 @@ async function GetDefiLlamaPrice(tokenId: string) {
   return resp.coins[tokenId].price;
 }
 
-async function GetDefiLlamaPriceAtTimestamp(tokenId: string, timestampSec: number) {
+async function GetDefiLlamaPriceAtTimestamp(tokenSymbol: string, tokenId: string, timestampSec: number) {
   const msToWait = 1000 - (Date.now() - lastCallDefillama);
   if (msToWait > 0) {
     await sleep(msToWait);
@@ -166,5 +189,46 @@ async function GetDefiLlamaPriceAtTimestamp(tokenId: string, timestampSec: numbe
     return undefined;
   }
 
+  Log(`GetDefiLlamaPriceAtTimestamp: price for ${tokenSymbol} from llama: $${resp.coins[tokenId].price}`);
   return resp.coins[tokenId].price;
+}
+
+async function GetPendlePriceAtBlock(
+  tokenSymbol: string,
+  pendleConfig: PendleConfig,
+  atBlock: number,
+  timestampSec: number
+) {
+  // get pendle price vs asset using pendle oracle
+  const pendlePriceVsAsset = await GetPendleOraclePrice(pendleConfig.market, atBlock);
+
+  // get $ price of pendle pricing asset
+  const network = pendleConfig.basePricingAsset.chainId == 1 ? 'ETHEREUM' : 'ARBITRUM';
+  const tokenId = getDefillamaTokenId(network, pendleConfig.basePricingAsset.address);
+  const usdPriceBaseAsset = await GetDefiLlamaPriceAtTimestamp(
+    pendleConfig.basePricingAsset.symbol,
+    tokenId,
+    timestampSec
+  );
+  if (!usdPriceBaseAsset) {
+    throw new Error(`Cannot find price for ${tokenId} at timestamp ${timestampSec}`);
+  }
+
+  const price = pendlePriceVsAsset * usdPriceBaseAsset;
+  Log(`GetPendlePriceAtBlock: price for ${tokenSymbol} from pendle: $${price}`);
+  return price;
+}
+
+/**
+ * Get the PT price vs the asset, example for
+ * @param pendleMarketAddress
+ * @param atBlock
+ * @returns
+ */
+async function GetPendleOraclePrice(pendleMarketAddress: string, atBlock: number | undefined) {
+  // if blocknumber is specified, get an archive node
+  const web3Provider = atBlock ? GetArchiveWeb3Provider() : GetWeb3Provider();
+  const oracleContract = PendleOracle__factory.connect(GetPendleOracleAddress(), web3Provider);
+  const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 600, { blockTag: atBlock });
+  return norm(priceToAsset);
 }
