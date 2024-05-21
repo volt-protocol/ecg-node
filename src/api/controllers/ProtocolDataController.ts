@@ -16,7 +16,8 @@ class ProtocolDataController {
       termSurplusBufferUsd: 0,
       totalIssuanceUsd: 0,
       marketUtilization: {},
-      marketTVL: {}
+      marketTVL: {},
+      marketDebt: {}
     };
 
     const fullConfig = await GetFullConfigFile();
@@ -89,7 +90,8 @@ class ProtocolDataController {
       airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
 
       airdropData.marketUtilization[Number(marketId)] = Math.min(1, lastCreditTotalIssuance / lastCreditTotalSupply);
-      airdropData.marketUtilization[Number(marketId)] = lastTvlData;
+      airdropData.marketTVL[Number(marketId)] = lastTvlData;
+      airdropData.marketDebt[Number(marketId)] = lastCreditTotalIssuance * pegTokenPrice;
     }
     return airdropData;
   }

@@ -4,4 +4,5 @@ export interface AirdropDataResponse {
   termSurplusBufferUsd: number;
   marketUtilization: { [marketId: number]: number };
   marketTVL: { [marketId: number]: number };
+  marketDebt: { [marketId: number]: number };
 }
