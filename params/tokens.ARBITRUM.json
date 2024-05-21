@@ -36,23 +36,18 @@
 		"permitAllowed": true
 	},
 	{
-		"address": "0x9bEcd6b4Fb076348A455518aea23d3799361FE95",
-		"symbol": "PT-weETH-25APR2024",
-		"decimals": 18,
-		"permitAllowed": true,
-		"pendleConfiguration": {
-			"market": "0xE11f9786B06438456b044B3E21712228ADcAA0D1",
-			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
-		}
-	},
-	{
 		"address": "0x1c27Ad8a19Ba026ADaBD615F6Bc77158130cfBE4",
 		"symbol": "PT-weETH-27JUN2024",
 		"decimals": 18,
 		"permitAllowed": true,
 		"pendleConfiguration": {
 			"market": "0x952083cde7aaa11AB8449057F7de23A970AA8472",
-			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
+			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"basePricingAsset": {
+				"chainId": 1,
+				"symbol": "eETH",
+				"address": "0x35fA164735182de50811E8e2E824cFb9B6118ac2"
+			}
 		}
 	},
 	{
@@ -62,7 +57,12 @@
 		"permitAllowed": true,
 		"pendleConfiguration": {
 			"market": "0x6Ae79089b2CF4be441480801bb741A531d94312b",
-			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F"
+			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
+			"basePricingAsset": {
+				"chainId": 42161,
+				"symbol": "ETH",
+				"address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+			}
 		}
 	},
 	{
@@ -132,7 +132,12 @@
 		"permitAllowed": true,
 		"pendleConfiguration": {
 			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
-			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe"
+			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"basePricingAsset": {
+				"chainId": 1,
+				"symbol": "USDe",
+				"address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3"
+			}
 		}
 	}
 ]
