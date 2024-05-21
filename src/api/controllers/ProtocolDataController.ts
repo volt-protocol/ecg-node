@@ -15,7 +15,8 @@ class ProtocolDataController {
       rebasingSupplyUsd: 0,
       termSurplusBufferUsd: 0,
       totalIssuanceUsd: 0,
-      marketUtilization: {}
+      marketUtilization: {},
+      marketTVL: {}
     };
 
     const fullConfig = await GetFullConfigFile();
@@ -33,6 +34,7 @@ class ProtocolDataController {
       const surplusBufferFilename = path.join(marketPath, 'history', 'surplus-buffer.json');
       const totalIssuanceFilename = path.join(marketPath, 'history', 'credit-total-issuance.json');
       const totalSupplyFilename = path.join(marketPath, 'history', 'credit-supply.json');
+      const tvlFilename = path.join(marketPath, 'history', 'tvl.json');
       const protocolDataFilename = path.join(marketPath, 'protocol-data.json');
 
       if (!fs.existsSync(aprDataFilename)) {
@@ -50,17 +52,22 @@ class ProtocolDataController {
       if (!fs.existsSync(totalSupplyFilename)) {
         throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
       }
+      if (!fs.existsSync(tvlFilename)) {
+        throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+      }
 
       const aprData: HistoricalDataMulti = ReadJSON(aprDataFilename);
       const totalIssuanceData: HistoricalData = ReadJSON(totalIssuanceFilename);
       const surplusBufferData: HistoricalDataMulti = ReadJSON(surplusBufferFilename);
       const protocolDataFile: ProtocolDataFileStructure = ReadJSON(protocolDataFilename);
       const totalSupplyData: HistoricalData = ReadJSON(totalSupplyFilename);
+      const tvlData: HistoricalData = ReadJSON(tvlFilename);
 
       // read only the last data
       const lastRebasing = aprData.values[Number(Object.keys(aprData.values).at(-1))].rebasingSupply;
       const lastCreditTotalIssuance = totalIssuanceData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
-      const lastCreditTotalSupply = totalSupplyData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
+      const lastCreditTotalSupply = totalSupplyData.values[Number(Object.keys(totalSupplyData.values).at(-1))];
+      const lastTvlData = tvlData.values[Number(Object.keys(tvlData.values).at(-1))];
       let surplusBuffer = 0;
       for (const termBuffer of Object.values(
         surplusBufferData.values[Number(Object.keys(surplusBufferData.values).at(-1))]
@@ -82,6 +89,7 @@ class ProtocolDataController {
       airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
 
       airdropData.marketUtilization[Number(marketId)] = Math.min(1, lastCreditTotalIssuance / lastCreditTotalSupply);
+      airdropData.marketUtilization[Number(marketId)] = lastTvlData;
     }
     return airdropData;
   }
