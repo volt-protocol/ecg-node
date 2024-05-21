@@ -14,7 +14,8 @@ class ProtocolDataController {
     const airdropData: AirdropDataResponse = {
       rebasingSupplyUsd: 0,
       termSurplusBufferUsd: 0,
-      totalIssuanceUsd: 0
+      totalIssuanceUsd: 0,
+      marketUtilization: {}
     };
 
     const fullConfig = await GetFullConfigFile();
@@ -31,6 +32,7 @@ class ProtocolDataController {
       const aprDataFilename = path.join(marketPath, 'history', 'apr-data.json');
       const surplusBufferFilename = path.join(marketPath, 'history', 'surplus-buffer.json');
       const totalIssuanceFilename = path.join(marketPath, 'history', 'credit-total-issuance.json');
+      const totalSupplyFilename = path.join(marketPath, 'history', 'credit-supply.json');
       const protocolDataFilename = path.join(marketPath, 'protocol-data.json');
 
       if (!fs.existsSync(aprDataFilename)) {
@@ -45,15 +47,20 @@ class ProtocolDataController {
       if (!fs.existsSync(protocolDataFilename)) {
         throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
       }
+      if (!fs.existsSync(totalSupplyFilename)) {
+        throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+      }
 
       const aprData: HistoricalDataMulti = ReadJSON(aprDataFilename);
       const totalIssuanceData: HistoricalData = ReadJSON(totalIssuanceFilename);
       const surplusBufferData: HistoricalDataMulti = ReadJSON(surplusBufferFilename);
       const protocolDataFile: ProtocolDataFileStructure = ReadJSON(protocolDataFilename);
+      const totalSupplyData: HistoricalData = ReadJSON(totalSupplyFilename);
 
       // read only the last data
       const lastRebasing = aprData.values[Number(Object.keys(aprData.values).at(-1))].rebasingSupply;
       const lastCreditTotalIssuance = totalIssuanceData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
+      const lastCreditTotalSupply = totalSupplyData.values[Number(Object.keys(totalIssuanceData.values).at(-1))];
       let surplusBuffer = 0;
       for (const termBuffer of Object.values(
         surplusBufferData.values[Number(Object.keys(surplusBufferData.values).at(-1))]
@@ -73,6 +80,8 @@ class ProtocolDataController {
       airdropData.rebasingSupplyUsd += rebasingPegToken * pegTokenPrice;
       airdropData.termSurplusBufferUsd += surplusBufferPegToken * pegTokenPrice;
       airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
+
+      airdropData.marketUtilization[Number(marketId)] = lastCreditTotalIssuance / lastCreditTotalSupply;
     }
     return airdropData;
   }

@@ -34,7 +34,7 @@ import {
   FetchAllEvents
 } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetTokenPriceAtTimestamp } from '../utils/Price';
+import { GetTokenPriceAtTimestamp, GetTokenPriceMultiAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';
@@ -359,12 +359,6 @@ async function fetchTVL(
 
     const collateralPromises = [];
     const pegTokenBalance = await pegTokenContract.balanceOf(GetPSMAddress(), { blockTag: blockToFetch });
-    const pegTokenPrice = await GetTokenPriceAtTimestamp(
-      pegToken.mainnetAddress || pegToken.address,
-      blockTimes[blockToFetch]
-    );
-
-    const psmPegTokenValue = (pegTokenPrice ?? 0) * norm(pegTokenBalance, pegToken.decimals);
 
     for (const termAddress of liveTerms) {
       const termContract = LendingTerm__factory.connect(termAddress, multicallProvider);
@@ -385,6 +379,15 @@ async function fetchTVL(
 
     // here we have all the collaterals and the balances of each terms
     // we need to fetch the collateral price (historical) of each tokens
+    const tokenPrices = await GetTokenPriceMultiAtTimestamp(
+      Array.from(new Set<string>([...collateralResults, pegToken.address])),
+      blockTimes[blockToFetch],
+      blockToFetch
+    );
+
+    const pegTokenPrice = tokenPrices[pegToken.address];
+    const psmPegTokenValue = (pegTokenPrice ?? 0) * norm(pegTokenBalance, pegToken.decimals);
+
     cursor = 0;
     let tvlInUsd = 0;
     for (const collateralAddress of collateralResults) {
@@ -397,10 +400,7 @@ async function fetchTVL(
       }
 
       const balanceNorm = norm(balanceOfResults[cursor++], tokenConf.decimals);
-      const priceAtTimestamp = await GetTokenPriceAtTimestamp(
-        tokenConf.mainnetAddress || tokenConf.address,
-        blockTimes[blockToFetch]
-      );
+      const priceAtTimestamp = tokenPrices[collateralAddress];
       const termTvl = (priceAtTimestamp ?? 0) * balanceNorm;
       tvlInUsd += termTvl;
     }
