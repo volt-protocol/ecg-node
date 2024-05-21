@@ -81,7 +81,7 @@ class ProtocolDataController {
       airdropData.termSurplusBufferUsd += surplusBufferPegToken * pegTokenPrice;
       airdropData.totalIssuanceUsd += lastCreditTotalIssuancePegToken * pegTokenPrice;
 
-      airdropData.marketUtilization[Number(marketId)] = lastCreditTotalIssuance / lastCreditTotalSupply;
+      airdropData.marketUtilization[Number(marketId)] = Math.min(1, lastCreditTotalIssuance / lastCreditTotalSupply);
     }
     return airdropData;
   }
