@@ -8,4 +8,5 @@ export interface EventData {
   eventName: string;
   block: number;
   originArgs: Result;
+  originArgName: string[];
 }

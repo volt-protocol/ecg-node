@@ -1,8 +1,8 @@
 import { EventData, EventQueue } from '../utils/EventQueue';
 import { buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
-import { SendNotifications } from '../utils/Notifications';
-import { Log } from '../utils/Logger';
+import { SendNotifications, SendNotificationsSpam } from '../utils/Notifications';
+import { Log, Warn } from '../utils/Logger';
 import { StartEventListener } from './EventWatcher';
 import { MARKET_ID } from '../utils/Constants';
 import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
@@ -44,6 +44,31 @@ async function ProcessAsync(event: EventData) {
 
     // await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
     Log(msg);
+  }
+
+  try {
+    const fields: { fieldName: string; fieldValue: string }[] = [];
+    fields.push({
+      fieldName: 'Block',
+      fieldValue: event.block.toString()
+    });
+    fields.push({
+      fieldName: 'Tx',
+      fieldValue: buildTxUrl(event.txHash)
+    });
+
+    for (let i = 0; i < event.originArgName.length; i++) {
+      const argName = event.originArgName[i];
+      const argVal = event.originArgs[i];
+
+      fields.push({
+        fieldName: argName,
+        fieldValue: argVal.toString()
+      });
+    }
+    await SendNotificationsSpam('Event Processor', `NEW ${event.eventName.toUpperCase()} RECEIVED`, fields);
+  } catch (e) {
+    Warn('Error sending notification to spam', e);
   }
 }
 
