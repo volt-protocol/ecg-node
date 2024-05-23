@@ -73,3 +73,15 @@ export async function SendNotificationsList(
 
   await Promise.all([tgPromise, discordPromise]);
 }
+
+export async function SendNotificationsSpam(
+  sender: string,
+  title: string,
+  fields: { fieldName: string; fieldValue: string }[]
+) {
+  const discordHookUrl = process.env.DISCORD_SPAM_HOOK;
+
+  if (discordHookUrl) {
+    await retry(SendDiscordMessageList, [discordHookUrl, sender, title, fields]);
+  }
+}

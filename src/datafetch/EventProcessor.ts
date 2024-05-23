@@ -1,8 +1,8 @@
 import { EventData, EventQueue } from '../utils/EventQueue';
 import { buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
-import { SendNotifications } from '../utils/Notifications';
-import { Log } from '../utils/Logger';
+import { SendNotifications, SendNotificationsSpam } from '../utils/Notifications';
+import { Log, Warn } from '../utils/Logger';
 import { StartEventListener } from './EventWatcher';
 import { MARKET_ID } from '../utils/Constants';
 import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
@@ -42,7 +42,6 @@ async function ProcessAsync(event: EventData) {
 
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
-    // await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
     Log(msg);
   }
 }

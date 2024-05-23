@@ -76,7 +76,8 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
             eventName: parsed.name,
             block: event.log.blockNumber,
             originArgs: parsed.args,
-            sourceContract: 'GuildToken'
+            sourceContract: 'GuildToken',
+            originArgName: parsed.fragment.inputs.map((_) => _.name)
           });
         } else {
           Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
@@ -88,7 +89,8 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
         eventName: parsed.name,
         block: event.log.blockNumber,
         originArgs: parsed.args,
-        sourceContract: 'GuildToken'
+        sourceContract: 'GuildToken',
+        originArgName: parsed.fragment.inputs.map((_) => _.name)
       });
     }
   });
@@ -119,7 +121,8 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
       eventName: parsed.name,
       block: event.log.blockNumber,
       originArgs: parsed.args,
-      sourceContract: 'Onboarding'
+      sourceContract: 'Onboarding',
+      originArgName: parsed.fragment.inputs.map((_) => _.name)
     });
   });
 }
@@ -153,7 +156,8 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
       eventName: parsed.name,
       block: event.log.blockNumber,
       originArgs: parsed.args,
-      sourceContract: 'TermFactory'
+      sourceContract: 'TermFactory',
+      originArgName: parsed.fragment.inputs.map((_) => _.name)
     });
   });
 }
@@ -196,7 +200,8 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
         eventName: parsed.name,
         block: event.log.blockNumber,
         originArgs: parsed.args,
-        sourceContract: 'LendingTerm'
+        sourceContract: 'LendingTerm',
+        originArgName: parsed.fragment.inputs.map((_) => _.name)
       });
     });
   }
