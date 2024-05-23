@@ -80,7 +80,6 @@ export async function SendNotificationsSpam(
   fields: { fieldName: string; fieldValue: string }[]
 ) {
   const discordHookUrl = process.env.DISCORD_SPAM_HOOK;
-  sender = `MARKET ${MARKET_ID} | ${sender}`;
 
   if (discordHookUrl) {
     await retry(SendDiscordMessageList, [discordHookUrl, sender, title, fields]);

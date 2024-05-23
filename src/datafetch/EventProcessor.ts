@@ -42,33 +42,7 @@ async function ProcessAsync(event: EventData) {
 
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
-    // await SendNotifications(event.sourceContract, `Emitted event: ${event.eventName}`, msg);
     Log(msg);
-  }
-
-  try {
-    const fields: { fieldName: string; fieldValue: string }[] = [];
-    fields.push({
-      fieldName: 'Block',
-      fieldValue: event.block.toString()
-    });
-    fields.push({
-      fieldName: 'Tx',
-      fieldValue: buildTxUrl(event.txHash)
-    });
-
-    for (let i = 0; i < event.originArgName.length; i++) {
-      const argName = event.originArgName[i];
-      const argVal = event.originArgs[i];
-
-      fields.push({
-        fieldName: argName,
-        fieldValue: argVal.toString()
-      });
-    }
-    await SendNotificationsSpam('Event Processor', `NEW ${event.eventName.toUpperCase()} RECEIVED`, fields);
-  } catch (e) {
-    Warn('Error sending notification to spam', e);
   }
 }
 

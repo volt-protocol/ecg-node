@@ -3,7 +3,7 @@ import { MARKET_ID, TOKENS_FILE, CONFIG_FILE, NETWORK, PENDLE_ORACLES } from '..
 import { readFileSync } from 'fs';
 import { HttpGet } from '../utils/HttpHelper';
 
-interface ConfigFile {
+export interface ConfigFile {
   [marketId: number]: ProtocolConstants;
 }
 

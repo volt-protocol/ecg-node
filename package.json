@@ -5,6 +5,7 @@
     "scripts": {
         "start": "node --inspect -r ts-node/register ./src/ECGNode.ts",
         "start:api": "node --inspect -r ts-node/register ./src/api/Api.ts",
+        "start:spam-watcher": "node --inspect -r ts-node/register ./src/spam-watcher/SpamWatcher.ts",
         "debug:auction-bidder": "node --inspect -r ts-node/register ./src/processors/AuctionBidder.ts",
         "debug:historical-data-fetcher": "node --inspect -r ts-node/register ./src/processors/HistoricalDataFetcher.ts",
         "debug:loan-caller": "node --inspect -r ts-node/register ./src/processors/LoanCaller.ts",
