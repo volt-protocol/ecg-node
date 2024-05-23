@@ -190,7 +190,7 @@ async function SendSpamNotif(event: EventData) {
     });
     fields.push({
       fieldName: 'Source',
-      fieldValue: event.sourceContract + (event.sourceAddress ? (' @ ' + event.sourceAddress) : '')
+      fieldValue: event.sourceContract + (event.sourceAddress ? ' @ ' + event.sourceAddress : '')
     });
 
     for (let i = 0; i < event.originArgName.length; i++) {
@@ -209,56 +209,72 @@ async function SendSpamNotif(event: EventData) {
   }
 }
 
-async function formatNotif(event: EventData, fields: { fieldName: string; fieldValue: string }[]) : Promise<{
+async function formatNotif(
+  event: EventData,
+  fields: { fieldName: string; fieldValue: string }[]
+): Promise<{
   title: string;
   text: string;
-  fields: { fieldName: string; fieldValue: string }[]
+  fields: { fieldName: string; fieldValue: string }[];
 }> {
-  const contractJsonFile = await HttpGet<{
-    addr: string;
-    name: string;
-  }[]>('https://raw.githubusercontent.com/volt-protocol/ethereum-credit-guild/main/protocol-configuration/addresses.arbitrum.json');
-  
+  const contractJsonFile = await HttpGet<
+    {
+      addr: string;
+      name: string;
+    }[]
+  >(
+    'https://raw.githubusercontent.com/volt-protocol/ethereum-credit-guild/main/protocol-configuration/addresses.arbitrum.json'
+  );
+
   let sourceAddressLabel = 'UNKNOWN_ADDRESS';
   if (event.sourceAddress) {
-    sourceAddressLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == event.sourceAddress?.toLowerCase())?.name || sourceAddressLabel;
+    sourceAddressLabel =
+      contractJsonFile.find((_) => _.addr.toLowerCase() == event.sourceAddress?.toLowerCase())?.name ||
+      sourceAddressLabel;
   }
   const ret = {
     title: `${event.eventName}`,
     text: [
-      sourceAddressLabel == 'UNKNOWN_ADDRESS' ? (fields.find((_)=>_.fieldName == 'Source')?.fieldValue || '') : sourceAddressLabel,
+      sourceAddressLabel == 'UNKNOWN_ADDRESS'
+        ? fields.find((_) => _.fieldName == 'Source')?.fieldValue || ''
+        : sourceAddressLabel,
       '\n',
-      fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
     ].join(''),
     fields: fields.filter((_) => !['Tx', 'Source'].includes(_.fieldName))
   };
-  switch(event.eventName) {
+  switch (event.eventName) {
     case 'Mint':
     case 'Redeem':
-      ret.title = fields.find((_)=>_.fieldName == 'Source')?.fieldValue + ' -> ' + event.eventName;
+      ret.title = fields.find((_) => _.fieldName == 'Source')?.fieldValue + ' -> ' + event.eventName;
       ret.text = [
         'Amount : ',
-        String(Number(fields.find((_)=>_.fieldName == (event.eventName == 'Mint' ? 'amountOut' : 'amountIn'))?.fieldValue || '0') / 1e18),
+        String(
+          Number(
+            fields.find((_) => _.fieldName == (event.eventName == 'Mint' ? 'amountOut' : 'amountIn'))?.fieldValue || '0'
+          ) / 1e18
+        ),
         '\n',
-        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+        fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
       ].join('');
       ret.fields = [];
       break;
     case 'IncrementGaugeWeight':
     case 'DecrementGaugeWeight':
-      let gauge = fields.find((_)=>_.fieldName == 'gauge')?.fieldValue || '';
-      let user = fields.find((_)=>_.fieldName == 'user')?.fieldValue || '';
-      let termLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == gauge.toLowerCase())?.name || 'UNKNOWN_TERM';
-      let userLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == user.toLowerCase())?.name || user;
-      ret.title = (event.eventName == 'IncrementGaugeWeight' ? 'Gauge Increment' : 'Gauge Decrement') + ' -> ' + termLabel;
-      ret.text = fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || '';
+      let gauge = fields.find((_) => _.fieldName == 'gauge')?.fieldValue || '';
+      let user = fields.find((_) => _.fieldName == 'user')?.fieldValue || '';
+      let termLabel = contractJsonFile.find((_) => _.addr.toLowerCase() == gauge.toLowerCase())?.name || 'UNKNOWN_TERM';
+      let userLabel = contractJsonFile.find((_) => _.addr.toLowerCase() == user.toLowerCase())?.name || user;
+      ret.title =
+        (event.eventName == 'IncrementGaugeWeight' ? 'Gauge Increment' : 'Gauge Decrement') + ' -> ' + termLabel;
+      ret.text = fields.find((_) => _.fieldName == 'Tx')?.fieldValue || '';
       ret.text = [
         'Weight : ',
-        String(Number(fields.find((_)=>_.fieldName == 'weight')?.fieldValue || '0') / 1e18),
+        String(Number(fields.find((_) => _.fieldName == 'weight')?.fieldValue || '0') / 1e18),
         ' GUILD',
         userLabel.indexOf('SGM') !== -1 ? ' (through SGM)' : '',
         '\n',
-        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+        fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
       ].join('');
       ret.fields = [];
       break;
@@ -266,9 +282,9 @@ async function formatNotif(event: EventData, fields: { fieldName: string; fieldV
       ret.title = 'LoanOpen -> ' + sourceAddressLabel;
       ret.text = [
         'Borrowed : ',
-        String(Number(fields.find((_)=>_.fieldName == 'borrowAmount')?.fieldValue || '0') / 1e18),
+        String(Number(fields.find((_) => _.fieldName == 'borrowAmount')?.fieldValue || '0') / 1e18),
         '\n',
-        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+        fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
       ].join('');
       ret.fields = [];
       break;
@@ -276,9 +292,9 @@ async function formatNotif(event: EventData, fields: { fieldName: string; fieldV
       ret.title = 'LoanCall -> ' + sourceAddressLabel;
       ret.text = [
         'id : ',
-        fields.find((_)=>_.fieldName == 'loanId')?.fieldValue || '?',
+        fields.find((_) => _.fieldName == 'loanId')?.fieldValue || '?',
         '\n',
-        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+        fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
       ].join('');
       ret.fields = [];
       break;
@@ -286,9 +302,9 @@ async function formatNotif(event: EventData, fields: { fieldName: string; fieldV
       ret.title = 'LoanClose -> ' + sourceAddressLabel;
       ret.text = [
         'Repaid : ',
-        String(Number(fields.find((_)=>_.fieldName == 'debtRepaid')?.fieldValue || '0') / 1e18),
+        String(Number(fields.find((_) => _.fieldName == 'debtRepaid')?.fieldValue || '0') / 1e18),
         '\n',
-        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+        fields.find((_) => _.fieldName == 'Tx')?.fieldValue || ''
       ].join('');
       ret.fields = [];
       break;
