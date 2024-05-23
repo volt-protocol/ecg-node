@@ -4,12 +4,13 @@ import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import PSMAbi from '../contracts/abi/SimplePSM.json';
 import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
-import { GetListenerWeb3Provider, GetWeb3Provider } from '../utils/Web3Helper';
+import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log, Warn } from '../utils/Logger';
 import { EventData } from '../utils/EventQueue';
 import { SendNotificationsSpam } from '../utils/Notifications';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { buildTxUrl } from '../utils/Utils';
+import { HttpGet } from '../utils/HttpHelper';
 dotenv.config();
 
 const GUILD_TOKEN_ADDRESS = '0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978';
@@ -64,6 +65,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
         eventName: parsed.name,
         block: event.log.blockNumber,
         originArgs: parsed.args,
+        sourceAddress: event.log.address,
         sourceContract: 'GuildToken',
         originArgName: parsed.fragment.inputs.map((_) => _.name)
       };
@@ -85,7 +87,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
   guildTokenContract.liveGauges().then((liveTerms) => {
     Log(`Liveterms: ${liveTerms.length}`);
     // find all gauges with debt ceiling
-    const multicallProvider = MulticallWrapper.wrap(GetWeb3Provider());
+    const multicallProvider = MulticallWrapper.wrap(GetListenerWeb3Provider(5000));
     Promise.all(
       liveTerms.map((_) => {
         const termContract = LendingTerm__factory.connect(_, multicallProvider);
@@ -125,6 +127,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
               eventName: parsed.name,
               block: event.log.blockNumber,
               originArgs: parsed.args,
+              sourceAddress: event.log.address,
               sourceContract: 'LendingTerm',
               originArgName: parsed.fragment.inputs.map((_) => _.name)
             };
@@ -167,6 +170,7 @@ export function StartPSMListener(provider: JsonRpcProvider) {
           eventName: parsed.name,
           block: event.log.blockNumber,
           originArgs: parsed.args,
+          sourceAddress: event.log.address,
           sourceContract: `PSM ${psm.token}`,
           originArgName: parsed.fragment.inputs.map((_) => _.name)
         };
@@ -181,16 +185,12 @@ async function SendSpamNotif(event: EventData) {
   try {
     const fields: { fieldName: string; fieldValue: string }[] = [];
     fields.push({
-      fieldName: 'Source',
-      fieldValue: event.sourceContract
-    });
-    fields.push({
-      fieldName: 'Block',
-      fieldValue: event.block.toString()
-    });
-    fields.push({
       fieldName: 'Tx',
       fieldValue: buildTxUrl(event.txHash)
+    });
+    fields.push({
+      fieldName: 'Source',
+      fieldValue: event.sourceContract + (event.sourceAddress ? (' @ ' + event.sourceAddress) : '')
     });
 
     for (let i = 0; i < event.originArgName.length; i++) {
@@ -202,10 +202,98 @@ async function SendSpamNotif(event: EventData) {
         fieldValue: argVal.toString()
       });
     }
-    await SendNotificationsSpam('Spam Event Sender', `NEW ${event.eventName.toUpperCase()} RECEIVED`, fields);
+    const formattedNotif = await formatNotif(event, fields);
+    await SendNotificationsSpam(formattedNotif.title, formattedNotif.text, formattedNotif.fields);
   } catch (e) {
     Warn('Error sending notification to spam', e);
   }
+}
+
+async function formatNotif(event: EventData, fields: { fieldName: string; fieldValue: string }[]) : Promise<{
+  title: string;
+  text: string;
+  fields: { fieldName: string; fieldValue: string }[]
+}> {
+  const contractJsonFile = await HttpGet<{
+    addr: string;
+    name: string;
+  }[]>('https://raw.githubusercontent.com/volt-protocol/ethereum-credit-guild/main/protocol-configuration/addresses.arbitrum.json');
+  
+  let sourceAddressLabel = 'UNKNOWN_ADDRESS';
+  if (event.sourceAddress) {
+    sourceAddressLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == event.sourceAddress?.toLowerCase())?.name || sourceAddressLabel;
+  }
+  const ret = {
+    title: `${event.eventName}`,
+    text: [
+      sourceAddressLabel == 'UNKNOWN_ADDRESS' ? (fields.find((_)=>_.fieldName == 'Source')?.fieldValue || '') : sourceAddressLabel,
+      '\n',
+      fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+    ].join(''),
+    fields: fields.filter((_) => !['Tx', 'Source'].includes(_.fieldName))
+  };
+  switch(event.eventName) {
+    case 'Mint':
+    case 'Redeem':
+      ret.title = fields.find((_)=>_.fieldName == 'Source')?.fieldValue + ' -> ' + event.eventName;
+      ret.text = [
+        'Amount : ',
+        String(Number(fields.find((_)=>_.fieldName == (event.eventName == 'Mint' ? 'amountOut' : 'amountIn'))?.fieldValue || '0') / 1e18),
+        '\n',
+        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      ].join('');
+      ret.fields = [];
+      break;
+    case 'IncrementGaugeWeight':
+    case 'DecrementGaugeWeight':
+      let gauge = fields.find((_)=>_.fieldName == 'gauge')?.fieldValue || '';
+      let user = fields.find((_)=>_.fieldName == 'user')?.fieldValue || '';
+      let termLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == gauge.toLowerCase())?.name || 'UNKNOWN_TERM';
+      let userLabel = contractJsonFile.find((_)=>_.addr.toLowerCase() == user.toLowerCase())?.name || user;
+      ret.title = (event.eventName == 'IncrementGaugeWeight' ? 'Gauge Increment' : 'Gauge Decrement') + ' -> ' + termLabel;
+      ret.text = fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || '';
+      ret.text = [
+        'Weight : ',
+        String(Number(fields.find((_)=>_.fieldName == 'weight')?.fieldValue || '0') / 1e18),
+        ' GUILD',
+        userLabel.indexOf('SGM') !== -1 ? ' (through SGM)' : '',
+        '\n',
+        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      ].join('');
+      ret.fields = [];
+      break;
+    case 'LoanOpen':
+      ret.title = 'LoanOpen -> ' + sourceAddressLabel;
+      ret.text = [
+        'Borrowed : ',
+        String(Number(fields.find((_)=>_.fieldName == 'borrowAmount')?.fieldValue || '0') / 1e18),
+        '\n',
+        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      ].join('');
+      ret.fields = [];
+      break;
+    case 'LoanCall':
+      ret.title = 'LoanCall -> ' + sourceAddressLabel;
+      ret.text = [
+        'id : ',
+        fields.find((_)=>_.fieldName == 'loanId')?.fieldValue || '?',
+        '\n',
+        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      ].join('');
+      ret.fields = [];
+      break;
+    case 'LoanClose':
+      ret.title = 'LoanClose -> ' + sourceAddressLabel;
+      ret.text = [
+        'Repaid : ',
+        String(Number(fields.find((_)=>_.fieldName == 'debtRepaid')?.fieldValue || '0') / 1e18),
+        '\n',
+        fields.find((_)=>_.fieldName == 'Tx')?.fieldValue || ''
+      ].join('');
+      ret.fields = [];
+      break;
+  }
+  return ret;
 }
 
 StartSpamEventListener();

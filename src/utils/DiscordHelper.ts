@@ -15,7 +15,7 @@ export async function SendDiscordMessageList(
   const hook = new Webhook(hookUrl);
 
   const builder = new MessageBuilder();
-  builder.setTitle(`[${sender}]`);
+  builder.setTitle(`${sender}`);
   builder.setDescription(title);
   for (const field of fields) {
     builder.addField(field.fieldName, field.fieldValue, false);
