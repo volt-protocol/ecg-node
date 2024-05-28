@@ -1,5 +1,14 @@
-import { GetPendleOracleAddress, PendleConfig, getTokenByAddress, getTokenByAddressNoError } from '../config/Config';
-import { PendleOracle__factory } from '../contracts/types';
+import { median } from 'simple-statistics';
+import {
+  DexEnum,
+  GetPendleOracleAddress,
+  PendleConfig,
+  TokenConfig,
+  getTokenByAddress,
+  getTokenByAddressNoError,
+  getTokenBySymbol
+} from '../config/Config';
+import { PendleOracle__factory, UniswapV3Pool__factory } from '../contracts/types';
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import { PendleMarketResponse } from '../model/PendleApi';
 import SimpleCacheService from './CacheService';
@@ -9,6 +18,7 @@ import { Log, Warn } from './Logger';
 import { norm } from './TokenUtils';
 import { sleep } from './Utils';
 import { GetArchiveWeb3Provider, GetERC20Infos, GetWeb3Provider } from './Web3Helper';
+import { MulticallWrapper } from 'ethers-multicall-provider';
 
 let lastCallDefillama = 0;
 
@@ -30,21 +40,20 @@ export async function GetTokenPrice(tokenAddress: string): Promise<number | unde
 
 export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [tokenAddress: string]: number }> {
   const deduplicatedTokenAddresses = Array.from(new Set<string>(tokenAddresses));
-  const prices: { [tokenAddress: string]: number } = {};
+  const allPrices: { [tokenAddress: string]: number } = {};
 
-  const defillamaIds: string[] = [];
-  const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
+  const genericTokenToFetch: TokenConfig[] = [];
 
   for (const tokenAddress of deduplicatedTokenAddresses) {
     if (NETWORK == 'SEPOLIA') {
       if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
         // VORIAN token
-        prices[tokenAddress] = 1_000_000_000;
+        allPrices[tokenAddress] = 1_000_000_000;
         continue;
       }
       if (tokenAddress == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
         // BEEF token
-        prices[tokenAddress] = 40_000_000_000;
+        allPrices[tokenAddress] = 40_000_000_000;
         continue;
       }
     }
@@ -57,43 +66,49 @@ export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [t
 
     if (token.pendleConfiguration) {
       // fetch price using pendle api
-      prices[tokenAddress] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
-      Log(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${prices[tokenAddress]}`);
+      allPrices[tokenAddress] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
+      Log(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${allPrices[tokenAddress]}`);
       continue;
     }
 
     // if here, it means we will fetch price from defillama
-    defillamaIds.push(`${llamaNetwork}:${token.mainnetAddress || token.address}`);
+    genericTokenToFetch.push(token);
   }
 
-  if (defillamaIds.length > 0) {
-    const llamaUrl = `https://coins.llama.fi/prices/current/${defillamaIds.join(',')}?searchWidth=4h`;
-    const msToWait = 1000 - (Date.now() - lastCallDefillama);
-    if (msToWait > 0) {
-      await sleep(msToWait);
-    }
-    const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
-    lastCallDefillama = Date.now();
+  if (genericTokenToFetch.length > 0) {
+    const wethToken = getTokenBySymbol('WETH');
+    const wethPrice = (await getDefiLlamaPriceMulti([wethToken]))[wethToken.address];
+    const priceResults = await Promise.all([
+      getDefiLlamaPriceMulti(genericTokenToFetch),
+      GetDexPriceMulti(genericTokenToFetch, wethPrice)
+    ]);
 
-    for (const tokenAddress of deduplicatedTokenAddresses) {
-      if (prices[tokenAddress]) {
-        continue;
-      }
-      let token = getTokenByAddressNoError(tokenAddress);
-      if (!token) {
-        token = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
-        Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
-      }
-      const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
-      const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
+    for (const token of genericTokenToFetch) {
+      const prices: number[] = [];
 
-      prices[tokenAddress] = llamaPrice;
-      Log(`GetTokenPriceMulti: price for ${token.symbol} from llama: ${prices[tokenAddress]}`);
+      for (const priceResult of priceResults) {
+        const tokenPrice = priceResult[token.address];
+        if (tokenPrice) {
+          prices.push(tokenPrice);
+        }
+      }
+
+      if (prices.length == 0) {
+        allPrices[token.address] = 0;
+      } else {
+        // use median price from all sources
+        allPrices[token.address] = median(prices);
+      }
+      Log(
+        `GetTokenPriceMulti: price for ${token.symbol} from sources: ${allPrices[token.address]}. Medianed from ${
+          prices.length
+        } prices: ${prices}`
+      );
     }
   }
 
-  Log(`GetTokenPriceMulti: ends with ${Object.keys(prices).length} prices`);
-  return prices;
+  Log(`GetTokenPriceMulti: ends with ${Object.keys(allPrices).length} prices`);
+  return allPrices;
 }
 
 export async function GetTokenPriceAtTimestamp(
@@ -202,6 +217,33 @@ function getDefillamaTokenId(network: string, tokenAddress: string) {
   return tokenId;
 }
 
+async function getDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+  const llamaPrices: { [tokenAddress: string]: number } = {};
+  const defillamaIds: string[] = [];
+  const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
+
+  for (const token of tokens) {
+    defillamaIds.push(`${llamaNetwork}:${token.mainnetAddress || token.address}`);
+  }
+
+  const llamaUrl = `https://coins.llama.fi/prices/current/${defillamaIds.join(',')}?searchWidth=4h`;
+  const msToWait = 1000 - (Date.now() - lastCallDefillama);
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
+  const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
+  lastCallDefillama = Date.now();
+  for (const token of tokens) {
+    const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
+    const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
+
+    llamaPrices[token.address] = llamaPrice;
+    Log(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: ${llamaPrices[token.address]}`);
+  }
+
+  return llamaPrices;
+}
+
 async function GetDefiLlamaPriceAtTimestamp(tokenSymbol: string, tokenId: string, timestampSec: number) {
   const msToWait = 1000 - (Date.now() - lastCallDefillama);
   if (msToWait > 0) {
@@ -273,4 +315,93 @@ async function GetPendleOraclePrice(pendleMarketAddress: string, atBlock: number
   const oracleContract = PendleOracle__factory.connect(GetPendleOracleAddress(), web3Provider);
   const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 600, { blockTag: atBlock });
   return norm(priceToAsset);
+}
+
+//    _____  ________   __
+//   |  __ \|  ____\ \ / /
+//   | |  | | |__   \ V /
+//   | |  | |  __|   > <
+//   | |__| | |____ / . \
+//   |_____/|______/_/ \_\
+//
+//
+
+async function GetDexPriceMulti(
+  tokens: TokenConfig[],
+  wethPriceUsd: number,
+  atBlock?: number
+): Promise<{ [tokenAddress: string]: number }> {
+  const prices: { [tokenAddress: string]: number } = {};
+  const web3Provider = GetWeb3Provider();
+  const multicallProvider = MulticallWrapper.wrap(web3Provider);
+  const promises = [];
+  for (const token of tokens) {
+    if (token.dexConfiguration) {
+      if (token.dexConfiguration.dex == DexEnum.UNISWAP_V3) {
+        for (const univ3PoolAddress of token.dexConfiguration.addresses) {
+          const univ3Pool = UniswapV3Pool__factory.connect(univ3PoolAddress, multicallProvider);
+          promises.push(univ3Pool.slot0({ blockTag: atBlock }));
+          promises.push(univ3Pool.token0({ blockTag: atBlock }));
+        }
+      }
+    }
+  }
+
+  const results = await Promise.all(promises);
+  let cursor = 0;
+  for (const token of tokens) {
+    if (token.dexConfiguration) {
+      if (token.dexConfiguration.dex == DexEnum.UNISWAP_V3) {
+        const pricesForToken: number[] = [];
+        for (const univ3PoolAddress of token.dexConfiguration.addresses) {
+          const slot0 = results[cursor++] as {
+            sqrtPriceX96: bigint;
+            tick: bigint;
+            observationIndex: bigint;
+            observationCardinality: bigint;
+            observationCardinalityNext: bigint;
+            feeProtocol: bigint;
+            unlocked: boolean;
+          };
+          const token0 = results[cursor++] as string;
+
+          let priceForToken = 0;
+          const quoteDecimal = token.dexConfiguration.viaWETH ? 18 : 6;
+          if (token0 == token.address) {
+            // means token1 is USDC or WETH
+            priceForToken = getPriceNormalized(Number(slot0.tick), token.decimals, quoteDecimal);
+          } else {
+            // means token0 is USDC or WETH
+            priceForToken = 1 / getPriceNormalized(Number(slot0.tick), quoteDecimal, token.decimals);
+          }
+
+          if (token.dexConfiguration.viaWETH) {
+            priceForToken *= wethPriceUsd;
+          }
+
+          pricesForToken.push(priceForToken);
+        }
+
+        const tokenPrice = median(pricesForToken);
+        Log(
+          `GetDexPriceMulti: price for ${token.symbol} from DEX: ${tokenPrice} from ${pricesForToken.length} prices: ${pricesForToken}`
+        );
+        prices[token.address] = tokenPrice;
+      }
+    }
+  }
+
+  return prices;
+}
+
+function getPriceNormalized(currentTick: number, token0Decimals: number, token1Decimals: number) {
+  const token0DecimalFactor = 10 ** token0Decimals;
+  const token1DecimalFactor = 10 ** token1Decimals;
+  const price = getTickPrice(currentTick);
+  const priceToken0VsToken1 = (price * token0DecimalFactor) / token1DecimalFactor;
+  return priceToken0VsToken1;
+}
+
+function getTickPrice(tick: number) {
+  return 1.0001 ** tick;
 }

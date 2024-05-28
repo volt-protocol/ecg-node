@@ -223,7 +223,7 @@ router.get('/:marketId/tokens', async (req: Request, res: Response) => {
     const data = await SimpleCacheService.GetAndCache(
       cacheKey,
       () => MarketDataController.GetTokensInfos(marketId),
-      CACHE_DURATION
+      5 * 60 * 1000 // 5 min token cache duration for pricing
     );
     if (!data) {
       res.status(404).json({ error: `Cannot find market ${marketId}` });

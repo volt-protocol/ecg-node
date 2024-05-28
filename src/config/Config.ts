@@ -66,6 +66,17 @@ export interface TokenConfig {
   decimals: number;
   permitAllowed: boolean;
   pendleConfiguration?: PendleConfig;
+  dexConfiguration?: DexConfig;
+}
+
+export interface DexConfig {
+  dex: DexEnum;
+  addresses: string[]; // must list pool addresses (if multiple) for token vs USDC or WETH. For univ3 it's because it exists multiple pools
+  viaWETH: boolean; // if true, means the pool is Token/WETH and the price should be multiplied by WETH price
+}
+
+export enum DexEnum {
+  UNISWAP_V3 = 'UNISWAP_V3'
 }
 
 export interface PendleConfig {
