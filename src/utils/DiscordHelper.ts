@@ -1,9 +1,10 @@
 import { MessageBuilder, Webhook } from 'discord-webhook-node';
+import { truncateString } from './Utils';
 
 export async function SendDiscordMessage(hookUrl: string, sender: string, title: string, msg: string) {
   const hook = new Webhook(hookUrl);
 
-  await hook.info(`[${sender}]`, truncateFieldValue(title), truncateFieldValue(msg));
+  await hook.info(`[${sender}]`, truncateString(title), truncateString(msg));
 }
 
 export async function SendDiscordMessageList(
@@ -24,12 +25,4 @@ export async function SendDiscordMessageList(
   builder.setTimestamp();
 
   await hook.send(builder);
-}
-
-function truncateFieldValue(value: string) {
-  if (value.length >= 1000) {
-    return value.substring(0, 999);
-  }
-
-  return value;
 }

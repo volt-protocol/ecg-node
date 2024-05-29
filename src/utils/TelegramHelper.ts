@@ -1,4 +1,4 @@
-import { sleep } from './Utils';
+import { sleep, truncateString } from './Utils';
 import { Log } from './Logger';
 import { HttpPost } from './HttpHelper';
 import axios from 'axios';
@@ -58,5 +58,5 @@ async function CallTelegram(botId: string, chatId: string, msg: string, isMarkdo
 }
 
 export async function SendTelegramMessage(botId: string, chatId: string, msg: string, isMarkdown = false) {
-  await CallTelegram(botId, chatId, msg, isMarkdown);
+  await CallTelegram(botId, chatId, truncateString(msg), isMarkdown);
 }

@@ -105,3 +105,11 @@ export function GetProtocolData(): ProtocolData {
     return protocolDataFile.data;
   }
 }
+
+export function truncateString(value: string, maxLen = 1000) {
+  if (value.length >= maxLen) {
+    return value.substring(0, maxLen - 1);
+  }
+
+  return value;
+}
