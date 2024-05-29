@@ -90,7 +90,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
   if (genericTokenToFetch.length > 0) {
     const wethPrice = await getSafeWethPrice();
     const priceResults = await Promise.all([
-      getDefiLlamaPriceMulti(genericTokenToFetch),
+      GetDefiLlamaPriceMulti(genericTokenToFetch),
       GetDexPriceMulti(genericTokenToFetch, wethPrice),
       GetCoinGeckoPriceMulti(genericTokenToFetch),
       GetCoinCapPriceMulti(genericTokenToFetch),
@@ -293,7 +293,7 @@ function getDefillamaTokenId(network: string, tokenAddress: string) {
   return tokenId;
 }
 
-async function getDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
   const llamaPrices: { [tokenAddress: string]: number } = {};
   const defillamaIds: string[] = [];
 
