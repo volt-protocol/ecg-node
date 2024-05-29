@@ -13,12 +13,13 @@ import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import { PendleMarketResponse } from '../model/PendleApi';
 import SimpleCacheService from './CacheService';
 import { NETWORK } from './Constants';
-import { HttpGet } from './HttpHelper';
+import { HttpGet, HttpPost } from './HttpHelper';
 import { Log, Warn } from './Logger';
 import { norm } from './TokenUtils';
 import { sleep } from './Utils';
 import { GetArchiveWeb3Provider, GetERC20Infos, GetWeb3Provider } from './Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
+import { MoralisTokenPrice } from '../model/Moralis';
 
 let lastCallDefillama = 0;
 
@@ -85,7 +86,8 @@ export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [t
     const wethPrice = await getSafeWethPrice();
     const priceResults = await Promise.all([
       getDefiLlamaPriceMulti(genericTokenToFetch),
-      GetDexPriceMulti(genericTokenToFetch, wethPrice)
+      GetDexPriceMulti(genericTokenToFetch, wethPrice),
+      GetMoralisPriceMulti(genericTokenToFetch)
     ]);
 
     for (const token of genericTokenToFetch) {
@@ -434,4 +436,87 @@ async function getSafeWethPrice(): Promise<number> {
     },
     5 * 60 * 1000 // 5 min cache
   );
+}
+
+//    __  __  ____  _____            _      _____  _____
+//   |  \/  |/ __ \|  __ \     /\   | |    |_   _|/ ____|
+//   | \  / | |  | | |__) |   /  \  | |      | | | (___
+//   | |\/| | |  | |  _  /   / /\ \ | |      | |  \___ \
+//   | |  | | |__| | | \ \  / ____ \| |____ _| |_ ____) |
+//   |_|  |_|\____/|_|  \_\/_/    \_\______|_____|_____/
+//
+//
+
+async function GetMoralisPriceMulti(
+  tokens: TokenConfig[],
+  atBlock?: number
+): Promise<{ [tokenAddress: string]: number }> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  //   curl --request POST \
+  //      --url 'https://deep-index.moralis.io/api/v2.2/erc20/prices?chain=eth&include=percent_change' \
+  //      --header 'accept: application/json' \
+  //      --header 'X-API-Key: YOUR_API_KEY' \
+  //      --header 'content-type: application/json' \
+  //      --data '
+  // {
+  //   "tokens": [
+  //     {
+  //       "token_address": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+  //     },
+  //     {
+  //       "token_address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+  //     },
+  //     {
+  //       "exchange": "uniswapv2",
+  //       "token_address": "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
+  //       "to_block": "16314545"
+  //     },
+  //     {
+  //       "token_address": "0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0"
+  //     }
+  //   ]
+  // }
+  // '
+
+  const chain = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'eth';
+
+  const moralisTokens: { token_address: string; to_block: number | undefined }[] = [];
+  const config = {
+    headers: {
+      Accept: 'application/json',
+      'X-API-Key': process.env.MORALIS_API_KEY,
+      'content-type': 'application/json'
+    }
+  };
+
+  const body = {
+    tokens: moralisTokens
+  };
+
+  for (const token of tokens) {
+    moralisTokens.push({
+      to_block: atBlock,
+      token_address: token.mainnetAddress || token.address
+    });
+  }
+
+  const moralisReponse = await HttpPost<MoralisTokenPrice[]>(
+    `https://deep-index.moralis.io/api/v2.2/erc20/prices?chain=${chain}`,
+    body,
+    config
+  );
+
+  for (const token of tokens) {
+    const addressToFind = token.mainnetAddress || token.address;
+    const foundPrice = moralisReponse.find((_) => _.tokenAddress.toLowerCase() == addressToFind.toLowerCase());
+    if (!foundPrice) {
+      throw new Error(`Cannot find moralis price for ${token.symbol} with address ${addressToFind}`);
+    }
+
+    prices[token.address] = foundPrice.usdPrice;
+    Log(`GetMoralisPriceMulti: price for ${token.symbol} from DEX: ${foundPrice.usdPrice}`);
+  }
+
+  return prices;
 }
