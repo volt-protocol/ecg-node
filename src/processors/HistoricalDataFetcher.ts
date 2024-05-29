@@ -34,7 +34,7 @@ import {
   FetchAllEvents
 } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetTokenPriceAtTimestamp, GetTokenPriceMultiAtTimestamp } from '../utils/Price';
+import { GetTokenPriceMultiAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';

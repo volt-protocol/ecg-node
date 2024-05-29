@@ -35,7 +35,7 @@ export default class PriceService {
           if (!unkToken) {
             unkToken = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
           }
-          const tokens = await getDefiLlamaPriceMulti([unkToken]);
+          const tokens = await GetDefiLlamaPriceMulti([unkToken]);
           return tokens[tokenAddress];
         },
         PRICE_CACHE_DURATION
