@@ -443,6 +443,7 @@ export async function GetERC20Infos(web3Provider: JsonRpcProvider, tokenAddress:
     address: tokenAddress,
     symbol: erc20Data[0],
     permitAllowed: false,
-    decimals: Number(erc20Data[2])
+    decimals: Number(erc20Data[2]),
+    protocolToken: false
   };
 }

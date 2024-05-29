@@ -64,6 +64,12 @@ export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [t
       Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
     }
 
+    if (token.protocolToken) {
+      // ignoring price for protocol token
+      allPrices[token.address] = 0;
+      continue;
+    }
+
     if (token.pendleConfiguration) {
       // fetch price using pendle api
       allPrices[tokenAddress] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
@@ -76,8 +82,7 @@ export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [t
   }
 
   if (genericTokenToFetch.length > 0) {
-    const wethToken = getTokenBySymbol('WETH');
-    const wethPrice = (await getDefiLlamaPriceMulti([wethToken]))[wethToken.address];
+    const wethPrice = await getSafeWethPrice();
     const priceResults = await Promise.all([
       getDefiLlamaPriceMulti(genericTokenToFetch),
       GetDexPriceMulti(genericTokenToFetch, wethPrice)
@@ -404,4 +409,29 @@ function getPriceNormalized(currentTick: number, token0Decimals: number, token1D
 
 function getTickPrice(tick: number) {
   return 1.0001 ** tick;
+}
+
+async function getSafeWethPrice(): Promise<number> {
+  return await SimpleCacheService.GetAndCache(
+    'safe-weth-price',
+    async () => {
+      // this function must ge the eth price with stability but also not be using one of the other way of fetching price
+      // so no defillama or univ3
+      // choice: eth price vs usdt on binance
+      const url = 'https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT';
+      interface BinancePriceResponse {
+        symbol: string;
+        price: string;
+      }
+
+      const resp = await HttpGet<BinancePriceResponse>(url);
+      const price = Number(resp.price);
+      if (price == 0) {
+        throw new Error('getSafeWethPrice: error when fetching weth price');
+      }
+      Log(`getSafeWethPrice: returning 1 WETH = $${price} from binance`);
+      return price;
+    },
+    5 * 60 * 1000 // 5 min cache
+  );
 }

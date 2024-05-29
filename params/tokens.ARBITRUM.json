@@ -1,21 +1,94 @@
 [
 	{
+		"address": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
+		"symbol": "GUILD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0xe38d06840c9E527b8D40309CCcF4B05af0F888A5",
+		"symbol": "PREGUILD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0xcFC43e1251bD7fd2f37766c083948497B7871AEb",
+		"symbol": "gUSDC-999999999",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0xce805022e35fd808139d7E541F10D6e83420d84B",
+		"symbol": "gWETH-999999998",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0xD5FD8456aa96aAA07c23605e9a8d2ce5f737F145",
+		"symbol": "gUSDC-1",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0xaFBe44E79E9affB25CEd16D971933219d1d6EC8d",
+		"symbol": "gWETH-3",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
 		"address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 		"symbol": "USDC",
 		"decimals": 6,
-		"permitAllowed": true
+		"permitAllowed": true,
+		"protocolToken": false,
+		"dexConfiguration": {
+			"dex": "UNISWAP_V3",
+			"viaWETH": false,
+			"addresses": [
+				"0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6"
+			]
+		}
 	},
 	{
 		"address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
 		"symbol": "USDT",
 		"decimals": 6,
-		"permitAllowed": true
+		"permitAllowed": true,
+		"protocolToken": false,
+		"dexConfiguration": {
+			"dex": "UNISWAP_V3",
+			"viaWETH": false,
+			"addresses": [
+				"0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6"
+			]
+		}
+	},
+	{
+		"address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+		"symbol": "DAI",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"dexConfiguration": {
+			"dex": "UNISWAP_V3",
+			"viaWETH": false,
+			"addresses": [
+				"0x7f580f8A02b759C350E6b8340e7c2d4b8162b6a9"
+			]
+		}
 	},
 	{
 		"address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
 		"symbol": "WETH",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": false,
@@ -30,6 +103,7 @@
 		"symbol": "WBTC",
 		"decimals": 8,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": false,
@@ -43,6 +117,7 @@
 		"symbol": "rETH",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": true,
@@ -56,6 +131,7 @@
 		"symbol": "wstETH",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": true,
@@ -69,6 +145,7 @@
 		"symbol": "PT-weETH-27JUN2024",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x952083cde7aaa11AB8449057F7de23A970AA8472",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
@@ -84,6 +161,7 @@
 		"symbol": "PT-rsETH-27JUN2024",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x6Ae79089b2CF4be441480801bb741A531d94312b",
 			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
@@ -99,6 +177,7 @@
 		"symbol": "PENDLE",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": true,
@@ -113,6 +192,7 @@
 		"symbol": "weETH",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": true,
@@ -127,6 +207,7 @@
 		"symbol": "ARB",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": true,
@@ -137,52 +218,11 @@
 		}
 	},
 	{
-		"address": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
-		"symbol": "GUILD",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xe38d06840c9E527b8D40309CCcF4B05af0F888A5",
-		"symbol": "PREGUILD",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xcFC43e1251bD7fd2f37766c083948497B7871AEb",
-		"symbol": "gUSDC-999999999",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xce805022e35fd808139d7E541F10D6e83420d84B",
-		"symbol": "gWETH-999999998",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xD5FD8456aa96aAA07c23605e9a8d2ce5f737F145",
-		"symbol": "gUSDC-1",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xaFBe44E79E9affB25CEd16D971933219d1d6EC8d",
-		"symbol": "gWETH-3",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
-		"address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-		"symbol": "DAI",
-		"decimals": 18,
-		"permitAllowed": true
-	},
-	{
 		"address": "0xad853EB4fB3Fe4a66CdFCD7b75922a0494955292",
 		"symbol": "PT-USDe-29AUG2024",
 		"decimals": 18,
 		"permitAllowed": true,
+		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",

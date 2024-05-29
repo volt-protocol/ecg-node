@@ -260,7 +260,8 @@ class MarketDataController {
           address: term.collateralAddress,
           symbol: term.collateralSymbol,
           decimals: term.collateralDecimals,
-          permitAllowed: false
+          permitAllowed: false,
+          protocolToken: false
         });
       }
     }
