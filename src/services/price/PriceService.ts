@@ -518,16 +518,3 @@ async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddr
 
   return prices;
 }
-async function debug() {
-  await LoadConfiguration();
-  const priceWeth = await PriceService.GetTokenPrice('0x82aF49447D8a07e3bd95BD0d56f35241523fBab1');
-  console.log({ priceWeth });
-  const priceWBTC = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
-  console.log({ priceWBTC });
-
-  await sleep(10 * 60);
-  const priceWBTC2 = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
-  console.log({ priceWBTC2 });
-}
-
-debug();
