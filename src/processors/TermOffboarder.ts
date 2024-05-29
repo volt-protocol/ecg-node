@@ -3,7 +3,6 @@ import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../mo
 import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR } from '../utils/Constants';
-import { GetTokenPrice } from '../utils/Price';
 import {
   GetLendingTermOffboardingAddress,
   GetPegTokenAddress,
@@ -19,6 +18,7 @@ import { SendNotifications } from '../utils/Notifications';
 import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
+import PriceService from '../services/price/PriceService';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -78,20 +78,23 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
       address: term.collateralAddress,
       decimals: term.collateralDecimals,
       symbol: term.collateralSymbol,
-      permitAllowed: false
+      permitAllowed: false,
+      protocolToken: false
     };
     Warn(
       `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
     );
   }
 
-  const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
+  const collateralRealPrice = await PriceService.GetTokenPrice(
+    collateralToken.mainnetAddress || collateralToken.address
+  );
   if (!collateralRealPrice) {
     Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
     return false;
   }
   const pegToken = getTokenByAddress(GetPegTokenAddress());
-  const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
+  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   if (!pegTokenRealPrice) {
     Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}`);
     return false;

@@ -5,8 +5,7 @@ import {
   PendleConfig,
   TokenConfig,
   getTokenByAddress,
-  getTokenByAddressNoError,
-  getTokenBySymbol
+  getTokenByAddressNoError
 } from '../config/Config';
 import { PendleOracle__factory, UniswapV3Pool__factory } from '../contracts/types';
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
@@ -22,122 +21,6 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { MoralisTokenPrice } from '../model/Moralis';
 
 let lastCallDefillama = 0;
-
-export async function GetTokenPrice(tokenAddress: string): Promise<number | undefined> {
-  const token = getTokenByAddress(tokenAddress);
-  const cacheKey = `GetTokenPrice-${token.symbol}-${token.address}`;
-  const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
-  const price = await SimpleCacheService.GetAndCache(
-    cacheKey,
-    async () => {
-      const tokenPrices = await GetTokenPriceMulti([tokenAddress]);
-      return tokenPrices[tokenAddress];
-    },
-    cacheDurationMs
-  );
-
-  return price;
-}
-
-export async function GetTokenPriceMulti(tokenAddresses: string[]): Promise<{ [tokenAddress: string]: number }> {
-  const deduplicatedTokenAddresses = Array.from(new Set<string>(tokenAddresses));
-  const allPrices: { [tokenAddress: string]: number } = {};
-
-  const genericTokenToFetch: TokenConfig[] = [];
-
-  for (const tokenAddress of deduplicatedTokenAddresses) {
-    if (NETWORK == 'SEPOLIA') {
-      if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
-        // VORIAN token
-        allPrices[tokenAddress] = 1_000_000_000;
-        continue;
-      }
-      if (tokenAddress == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
-        // BEEF token
-        allPrices[tokenAddress] = 40_000_000_000;
-        continue;
-      }
-    }
-
-    let token = getTokenByAddressNoError(tokenAddress);
-    if (!token) {
-      token = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
-      Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
-    }
-
-    if (token.protocolToken) {
-      // ignoring price for protocol token
-      allPrices[token.address] = 0;
-      continue;
-    }
-
-    if (token.pendleConfiguration) {
-      // fetch price using pendle api
-      allPrices[tokenAddress] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
-      Log(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${allPrices[tokenAddress]}`);
-      continue;
-    }
-
-    // if here, it means we will fetch price from defillama
-    genericTokenToFetch.push(token);
-  }
-
-  if (genericTokenToFetch.length > 0) {
-    const wethPrice = await getSafeWethPrice();
-    const priceResults = await Promise.all([
-      getDefiLlamaPriceMulti(genericTokenToFetch),
-      GetDexPriceMulti(genericTokenToFetch, wethPrice),
-      GetMoralisPriceMulti(genericTokenToFetch)
-    ]);
-
-    for (const token of genericTokenToFetch) {
-      const prices: number[] = [];
-
-      for (const priceResult of priceResults) {
-        const tokenPrice = priceResult[token.address];
-        if (tokenPrice) {
-          prices.push(tokenPrice);
-        }
-      }
-
-      if (prices.length == 0) {
-        allPrices[token.address] = 0;
-      } else {
-        // use median price from all sources
-        allPrices[token.address] = median(prices);
-      }
-      Log(
-        `GetTokenPriceMulti: price for ${token.symbol} from sources: ${allPrices[token.address]}. Medianed from ${
-          prices.length
-        } prices: ${prices}`
-      );
-    }
-  }
-
-  Log(`GetTokenPriceMulti: ends with ${Object.keys(allPrices).length} prices`);
-  return allPrices;
-}
-
-export async function GetTokenPriceAtTimestamp(
-  tokenAddress: string,
-  timestamp: number,
-  atBlock: number
-): Promise<number | undefined> {
-  const token = getTokenByAddress(tokenAddress);
-  const cacheKey = `GetTokenPriceAtTimestamp-${token.symbol}-${token.address}-${timestamp}`;
-  const cacheDurationMs = 5 * 60 * 1000; // 5 minute cache duration
-
-  const price = await SimpleCacheService.GetAndCache(
-    cacheKey,
-    async () => {
-      const tokenPrices = await GetTokenPriceMultiAtTimestamp([tokenAddress], timestamp, atBlock);
-      return tokenPrices[tokenAddress];
-    },
-    cacheDurationMs
-  );
-
-  return price;
-}
 
 export async function GetTokenPriceMultiAtTimestamp(
   tokenAddresses: string[],

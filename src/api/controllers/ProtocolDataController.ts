@@ -4,10 +4,10 @@ import { GLOBAL_DATA_DIR } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { norm } from '../../utils/TokenUtils';
 import { GetFullConfigFile } from '../../config/Config';
-import { GetTokenPrice } from '../../utils/Price';
 import { AirdropDataResponse } from '../model/AirdropDataResponse';
 import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
+import PriceService from '../../services/price/PriceService';
 
 class ProtocolDataController {
   static async GetAirdropData(): Promise<AirdropDataResponse> {
@@ -81,7 +81,7 @@ class ProtocolDataController {
       const lastCreditTotalIssuancePegToken = lastCreditTotalIssuance * creditMultiplierNorm;
       const surplusBufferPegToken = surplusBuffer * creditMultiplierNorm;
       // get price of the peg token
-      let pegTokenPrice = await GetTokenPrice(fullConfig[Number(marketId)].pegTokenAddress);
+      let pegTokenPrice = await PriceService.GetTokenPrice(fullConfig[Number(marketId)].pegTokenAddress);
       if (!pegTokenPrice) {
         pegTokenPrice = 0;
       }

@@ -68,6 +68,7 @@ export interface TokenConfig {
   protocolToken: boolean;
   pendleConfiguration?: PendleConfig;
   dexConfiguration?: DexConfig;
+  coingeckoId?: string;
 }
 
 export interface DexConfig {

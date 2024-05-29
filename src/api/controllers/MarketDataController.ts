@@ -16,10 +16,10 @@ import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalApiStatus, ProposalsApiResponse } from '../model/ProposalsApiResponse';
-import { GetTokenPriceMulti } from '../../utils/Price';
 import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
+import PriceService from '../../services/price/PriceService';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
@@ -266,15 +266,13 @@ class MarketDataController {
       }
     }
 
-    const tokenPrices = await GetTokenPriceMulti(allTokens.map((_) => _.address));
-
     for (const token of allTokens) {
       coinDetails.push({
         address: token.address,
         decimals: token.decimals,
         name: token.symbol,
         symbol: token.symbol,
-        price: tokenPrices[token.address]
+        price: await PriceService.GetTokenPrice(token.address)
       });
     }
 

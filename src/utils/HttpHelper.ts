@@ -1,8 +1,8 @@
 import axios, { AxiosResponse } from 'axios';
 import { retry } from './Utils';
 
-export async function HttpGet<T>(url: string, config?: any): Promise<T> {
-  const axiosResp: AxiosResponse<T> = (await retry(axios.get, [url, config])) as AxiosResponse<T>;
+export async function HttpGet<T>(url: string, config?: any, maxRetry = 10): Promise<T> {
+  const axiosResp: AxiosResponse<T> = (await retry(axios.get, [url, config], maxRetry)) as AxiosResponse<T>;
 
   return axiosResp.data;
 }
