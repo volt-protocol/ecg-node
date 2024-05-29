@@ -54,7 +54,9 @@
 				"0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6"
 			]
 		},
-		"coingeckoId": "usd-coin"
+		"coingeckoId": "usd-coin",
+		"coincapId": "usd-coin",
+		"openoceanId": 2463
 	},
 	{
 		"address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
@@ -69,7 +71,9 @@
 				"0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6"
 			]
 		},
-		"coingeckoId": "tether"
+		"coingeckoId": "tether",
+		"coincapId": "tether",
+		"openoceanId": 1230
 	},
 	{
 		"address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
@@ -84,7 +88,9 @@
 				"0x7f580f8A02b759C350E6b8340e7c2d4b8162b6a9"
 			]
 		},
-		"coingeckoId": "dai"
+		"coingeckoId": "dai",
+		"coincapId": "multi-collateral-dai",
+		"openoceanId": 1232
 	},
 	{
 		"address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
@@ -100,7 +106,9 @@
 				"0xC6962004f452bE9203591991D15f6b388e09E8D0"
 			]
 		},
-		"coingeckoId": "ethereum"
+		"coingeckoId": "ethereum",
+		"coincapId": "ethereum",
+		"openoceanId": 1233
 	},
 	{
 		"address": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
@@ -115,7 +123,9 @@
 				"0x0E4831319A50228B9e450861297aB92dee15B44F"
 			]
 		},
-		"coingeckoId": "bitcoin"
+		"coingeckoId": "bitcoin",
+		"coincapId": "bitcoin",
+		"openoceanId": 1234
 	},
 	{
 		"address": "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8",
@@ -130,7 +140,8 @@
 				"0x09ba302A3f5ad2bF8853266e271b005A5b3716fe"
 			]
 		},
-		"coingeckoId": "rocket-pool-eth"
+		"coingeckoId": "rocket-pool-eth",
+		"coincapId": ""
 	},
 	{
 		"address": "0x5979D7b546E38E414F7E9822514be443A4800529",
@@ -145,7 +156,9 @@
 				"0x35218a1cbaC5Bbc3E57fd9Bd38219D37571b3537"
 			]
 		},
-		"coingeckoId": "wrapped-steth"
+		"coingeckoId": "wrapped-steth",
+		"coincapId": "",
+		"openoceanId": 2064
 	},
 	{
 		"address": "0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8",
@@ -161,7 +174,9 @@
 				"0xB08a8794A5D3cCCA3725D92964696858d3201909"
 			]
 		},
-		"coingeckoId": "pendle"
+		"coingeckoId": "pendle",
+		"coincapId": "pendle",
+		"openoceanId": 2560
 	},
 	{
 		"address": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
@@ -177,7 +192,9 @@
 				"0xA169d1aB5c948555954D38700a6cDAA7A4E0c3A0"
 			]
 		},
-		"coingeckoId": "wrapped-eeth"
+		"coingeckoId": "wrapped-eeth",
+		"coincapId": "",
+		"openoceanId": 2789
 	},
 	{
 		"address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
@@ -193,7 +210,9 @@
 				"0x92c63d0e701CAAe670C9415d91C474F686298f00"
 			]
 		},
-		"coingeckoId": "arbitrum"
+		"coingeckoId": "arbitrum",
+		"coincapId": "",
+		"openoceanId": 2350
 	},
 	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",

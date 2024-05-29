@@ -69,6 +69,8 @@ export interface TokenConfig {
   pendleConfiguration?: PendleConfig;
   dexConfiguration?: DexConfig;
   coingeckoId?: string;
+  coincapId?: string;
+  openoceanId?: number;
 }
 
 export interface DexConfig {

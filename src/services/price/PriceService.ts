@@ -11,6 +11,10 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { DefiLlamaPriceResponse } from '../../model/DefiLlama';
 import { sleep } from '../../utils/Utils';
 import { CoingeckoPriceResponse } from '../../model/Coingecko';
+import { CoincapAssetsResponse } from '../../model/Coincap';
+import { TokenListResponse } from '../../model/OpenOceanApi';
+import { DexGuruTokensResponse } from '../../model/DexGuru';
+import { SendNotifications } from '../../utils/Notifications';
 
 let lastCallDefillama = 0;
 const PRICE_CACHE_DURATION = 10 * 60 * 1000; // 10 min cache duration
@@ -23,7 +27,7 @@ export default class PriceService {
     );
 
     if (allPrices[tokenAddress] == undefined) {
-      Warn(`GetTokenPrice: price not found in cache for ${tokenAddress}, fetching on defillama`);
+      Warn(`GetTokenPrice: price not found in cache for ${tokenAddress}, fetching price from defillama only`);
       const unkTokenPrice = await SimpleCacheService.GetAndCache(
         `unk-token-price-${tokenAddress}`,
         async () => {
@@ -41,10 +45,6 @@ export default class PriceService {
     } else {
       return allPrices[tokenAddress];
     }
-  }
-
-  async GetTokenPriceHistorical(tokenAddress: string, atBlock?: number, atTimestampSec?: number) {
-    throw new Error('NOT IMPLEMENTED');
   }
 }
 
@@ -92,8 +92,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
     const priceResults = await Promise.all([
       getDefiLlamaPriceMulti(genericTokenToFetch),
       GetDexPriceMulti(genericTokenToFetch, wethPrice),
-      GetCoinGeckoPriceMulti(genericTokenToFetch)
+      GetCoinGeckoPriceMulti(genericTokenToFetch),
+      GetCoinCapPriceMulti(genericTokenToFetch),
+      GetOpenOceanPriceMulti(genericTokenToFetch),
+      GetDexGuruPriceMulti(genericTokenToFetch)
     ]);
+
+    const priceSources = ['DefiLlama', 'DEX', 'Coingecko', 'Coincap', 'OpenOcean', 'DexGuru'];
 
     for (const token of genericTokenToFetch) {
       const prices: number[] = [];
@@ -106,7 +111,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       }
 
       if (prices.filter((_) => _ == 0).length >= prices.length) {
-        throw new Error(`More than half of prices are zero: ${prices} for token ${token.symbol}`);
+        throw new Error(`More than half the prices are zero: ${prices} for token ${token.symbol}`);
       }
 
       if (prices.length == 0) {
@@ -115,10 +120,26 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         // use median price from all sources
         allPrices[token.address] = median(prices);
       }
+
+      for (let i = 0; i < priceSources.length; i++) {
+        const priceSource = priceSources[i];
+        const tokenPrice = priceResults[i][token.address];
+        if (tokenPrice != undefined) {
+          const absDeviation = Math.abs(allPrices[token.address] - tokenPrice) / allPrices[token.address];
+          if (absDeviation >= 20 / 100) {
+            const msg = `Token ${token.symbol} price from source ${priceSource} seems wrong (${Math.round(
+              absDeviation * 100
+            )}% off): $${tokenPrice} vs median $${allPrices[token.address]}`;
+            Warn(msg);
+            await SendNotifications('PriceService', `${token.symbol} ${priceSource} price deviation`, msg);
+          }
+        }
+      }
+
       Log(
-        `LoadConfigTokenPrices: price for ${token.symbol} from sources: ${allPrices[token.address]}. Medianed from ${
+        `LoadConfigTokenPrices: price for ${token.symbol}: $${allPrices[token.address]}. Medianed from ${
           prices.length
-        } prices: ${prices}`
+        } sources: ${prices}`
       );
     }
   }
@@ -128,13 +149,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
   return allPrices;
 }
 
+// this function must ge the eth price with stability but also not be using one of the other way of fetching price
+// so no defillama or univ3
+// choice: eth price vs usdt on binance
 async function getSafeWethPrice(): Promise<number> {
   return await SimpleCacheService.GetAndCache(
     'safe-weth-price',
     async () => {
-      // this function must ge the eth price with stability but also not be using one of the other way of fetching price
-      // so no defillama or univ3
-      // choice: eth price vs usdt on binance
       const url = 'https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT';
       interface BinancePriceResponse {
         symbol: string;
@@ -299,7 +320,7 @@ async function getDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
     for (const token of tokens) {
       llamaPrices[token.address] = 0;
 
-      Log(`getDefiLlamaPriceMulti: price for ${token.symbol} from coingecko: $${llamaPrices[token.address]}`);
+      Log(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: $${llamaPrices[token.address]}`);
     }
   }
 
@@ -351,16 +372,162 @@ async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
   return prices;
 }
 
-// async function debug() {
-//   await LoadConfiguration();
-//   const priceWeth = await PriceService.GetTokenPrice('0x82aF49447D8a07e3bd95BD0d56f35241523fBab1');
-//   console.log({ priceWeth });
-//   const priceWBTC = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
-//   console.log({ priceWBTC });
+//     _____ ____ _____ _   _  _____          _____
+//    / ____/ __ \_   _| \ | |/ ____|   /\   |  __ \
+//   | |   | |  | || | |  \| | |       /  \  | |__) |
+//   | |   | |  | || | | . ` | |      / /\ \ |  ___/
+//   | |___| |__| || |_| |\  | |____ / ____ \| |
+//    \_____\____/_____|_| \_|\_____/_/    \_\_|
+//
+//
 
-//   await sleep(10 * 60);
-//   const priceWBTC2 = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
-//   console.log({ priceWBTC2 });
-// }
+async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+  const prices: { [tokenAddress: string]: number } = {};
 
-// debug();
+  const coincapIds = tokens
+    .filter((_) => _.coincapId)
+    .map((_) => _.coincapId)
+    .join(',');
+
+  try {
+    const url = `https://api.coincap.io/v2/assets?ids=${coincapIds}`;
+    const coincapResponse = await HttpGet<CoincapAssetsResponse>(url, undefined, 3);
+
+    for (const token of tokens) {
+      if (token.coincapId) {
+        const foundAsset = coincapResponse.data.find((_) => _.id == token.coincapId);
+
+        if (foundAsset) {
+          prices[token.address] = Number(foundAsset.priceUsd);
+        } else {
+          prices[token.address] = 0;
+        }
+
+        Log(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
+      }
+    }
+  } catch (e) {
+    Warn('Exception calling coincap price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return prices;
+}
+
+//     ____  _____  ______ _   _    ____   _____ ______          _   _
+//    / __ \|  __ \|  ____| \ | |  / __ \ / ____|  ____|   /\   | \ | |
+//   | |  | | |__) | |__  |  \| | | |  | | |    | |__     /  \  |  \| |
+//   | |  | |  ___/|  __| | . ` | | |  | | |    |  __|   / /\ \ | . ` |
+//   | |__| | |    | |____| |\  | | |__| | |____| |____ / ____ \| |\  |
+//    \____/|_|    |______|_| \_|  \____/ \_____|______/_/    \_\_| \_|
+//
+//
+
+async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  try {
+    const url = 'https://open-api.openocean.finance/v3/arbitrum/tokenList';
+    const openOceanResponse = await HttpGet<TokenListResponse>(url, undefined, 3);
+
+    for (const token of tokens) {
+      if (token.openoceanId) {
+        const foundAsset = openOceanResponse.data.find((_) => _.id == token.openoceanId);
+
+        if (foundAsset) {
+          prices[token.address] = Number(foundAsset.usd);
+        } else {
+          prices[token.address] = 0;
+        }
+
+        Log(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
+      }
+    }
+  } catch (e) {
+    Warn('Exception calling coincap price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return prices;
+}
+
+//    _____  ________   __   _____ _    _ _____  _    _
+//   |  __ \|  ____\ \ / /  / ____| |  | |  __ \| |  | |
+//   | |  | | |__   \ V /  | |  __| |  | | |__) | |  | |
+//   | |  | |  __|   > <   | | |_ | |  | |  _  /| |  | |
+//   | |__| | |____ / . \  | |__| | |__| | | \ \| |__| |
+//   |_____/|______/_/ \_\  \_____|\____/|_|  \_\\____/
+//
+//
+
+async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  try {
+    const tokenAddresses = tokens.map((_) => _.mainnetAddress || _.address);
+    const chainid = NETWORK == 'ARBITRUM' ? 42161 : 1;
+    const url =
+      `https://api.dev.dex.guru/v1/chain/${chainid}/tokens/market?` +
+      `token_addresses=${tokenAddresses.join(',')}` +
+      '&limit=100';
+
+    const config = {
+      headers: {
+        accept: 'application/json',
+        'api-key': process.env.DEX_GURU_API_KEY
+      }
+    };
+
+    const dexGuruResponse = await HttpGet<DexGuruTokensResponse>(url, config, 3);
+
+    for (const token of tokens) {
+      const foundAsset = dexGuruResponse.data.find(
+        (_) => _.address.toLowerCase() == (token.mainnetAddress || token.address).toLowerCase()
+      );
+
+      if (foundAsset) {
+        prices[token.address] = foundAsset.price_usd;
+      } else {
+        prices[token.address] = 0;
+      }
+
+      Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
+    }
+  } catch (e) {
+    Warn('Exception calling DexGuru price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return prices;
+}
+async function debug() {
+  await LoadConfiguration();
+  const priceWeth = await PriceService.GetTokenPrice('0x82aF49447D8a07e3bd95BD0d56f35241523fBab1');
+  console.log({ priceWeth });
+  const priceWBTC = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
+  console.log({ priceWBTC });
+
+  await sleep(10 * 60);
+  const priceWBTC2 = await PriceService.GetTokenPrice('0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f');
+  console.log({ priceWBTC2 });
+}
+
+debug();
