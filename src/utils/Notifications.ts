@@ -4,6 +4,18 @@ import { SendTelegramMessage } from './TelegramHelper';
 import { retry } from './Utils';
 import os from 'os';
 
+function getFormattedSender(sender: string) {
+  const marketId = process.env.MARKET_ID;
+  let formattedSender = sender;
+  if (marketId) {
+    formattedSender = `${os.hostname()} | ${NETWORK} | MARKET ${MARKET_ID} | ${sender}`;
+  } else {
+    formattedSender = `${os.hostname()} | ${NETWORK} | ${sender}`;
+  }
+
+  return formattedSender;
+}
+
 export async function SendNotifications(sender: string, title: string, msg: string, isWatcher = false) {
   let tgBotId = undefined;
   let tgChatId = undefined;
@@ -19,7 +31,7 @@ export async function SendNotifications(sender: string, title: string, msg: stri
     discordHookUrl = process.env.DISCORD_WEBHOOK_URL;
   }
 
-  sender = `${os.hostname()} | ${NETWORK} | MARKET ${MARKET_ID} | ${sender}`;
+  sender = getFormattedSender(sender);
   // both channels
   if (tgBotId && tgChatId && discordHookUrl) {
     await Promise.all([
@@ -46,7 +58,7 @@ export async function SendNotificationsList(
   let tgBotId = undefined;
   let tgChatId = undefined;
   let discordHookUrl = undefined;
-  sender = `${os.hostname()} | ${NETWORK} | MARKET ${MARKET_ID} | ${sender}`;
+  sender = getFormattedSender(sender);
 
   if (isWatcher) {
     tgBotId = process.env.WATCHER_TG_BOT_ID;
