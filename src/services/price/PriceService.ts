@@ -16,6 +16,11 @@ import { TokenListResponse } from '../../model/OpenOceanApi';
 import { DexGuruTokensResponse } from '../../model/DexGuru';
 import { SendNotifications } from '../../utils/Notifications';
 
+interface PriceResult {
+  source: string;
+  prices: { [tokenAddress: string]: number };
+}
+
 let lastCallDefillama = 0;
 const PRICE_CACHE_DURATION = 10 * 60 * 1000; // 10 min cache duration
 export default class PriceService {
@@ -35,8 +40,8 @@ export default class PriceService {
           if (!unkToken) {
             unkToken = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
           }
-          const tokens = await GetDefiLlamaPriceMulti([unkToken]);
-          return tokens[tokenAddress];
+          const priceResult = await GetDefiLlamaPriceMulti([unkToken]);
+          return priceResult.prices[tokenAddress];
         },
         PRICE_CACHE_DURATION
       );
@@ -95,16 +100,15 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       GetCoinGeckoPriceMulti(genericTokenToFetch),
       GetCoinCapPriceMulti(genericTokenToFetch),
       GetOpenOceanPriceMulti(genericTokenToFetch),
-      GetDexGuruPriceMulti(genericTokenToFetch)
+      GetDexGuruPriceMulti(genericTokenToFetch),
+      GetOneInchPriceMulti(genericTokenToFetch)
     ]);
-
-    const priceSources = ['DefiLlama', 'DEX', 'Coingecko', 'Coincap', 'OpenOcean', 'DexGuru'];
 
     for (const token of genericTokenToFetch) {
       const prices: number[] = [];
 
       for (const priceResult of priceResults) {
-        const tokenPrice = priceResult[token.address];
+        const tokenPrice = priceResult.prices[token.address];
         if (tokenPrice != undefined) {
           prices.push(tokenPrice);
         }
@@ -121,9 +125,9 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         allPrices[token.address] = median(prices);
       }
 
-      for (let i = 0; i < priceSources.length; i++) {
-        const priceSource = priceSources[i];
-        const tokenPrice = priceResults[i][token.address];
+      for (const priceResult of priceResults) {
+        const priceSource = priceResult.source;
+        const tokenPrice = priceResult.prices[token.address];
         if (tokenPrice != undefined) {
           const absDeviation = Math.abs(allPrices[token.address] - tokenPrice) / allPrices[token.address];
           if (absDeviation >= 20 / 100) {
@@ -199,11 +203,7 @@ async function GetPendleApiMarketPrice(marketAddress: string) {
 //
 //
 
-async function GetDexPriceMulti(
-  tokens: TokenConfig[],
-  wethPriceUsd: number,
-  atBlock?: number
-): Promise<{ [tokenAddress: string]: number }> {
+async function GetDexPriceMulti(tokens: TokenConfig[], wethPriceUsd: number): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
   const web3Provider = GetWeb3Provider();
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
@@ -213,8 +213,8 @@ async function GetDexPriceMulti(
       if (token.dexConfiguration.dex == DexEnum.UNISWAP_V3) {
         for (const univ3PoolAddress of token.dexConfiguration.addresses) {
           const univ3Pool = UniswapV3Pool__factory.connect(univ3PoolAddress, multicallProvider);
-          promises.push(univ3Pool.slot0({ blockTag: atBlock }));
-          promises.push(univ3Pool.token0({ blockTag: atBlock }));
+          promises.push(univ3Pool.slot0());
+          promises.push(univ3Pool.token0());
         }
       }
     }
@@ -264,7 +264,7 @@ async function GetDexPriceMulti(
     }
   }
 
-  return prices;
+  return { source: 'DEX', prices: prices };
 }
 
 function getPriceNormalized(currentTick: number, token0Decimals: number, token1Decimals: number) {
@@ -293,7 +293,7 @@ function getDefillamaTokenId(network: string, tokenAddress: string) {
   return tokenId;
 }
 
-async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const llamaPrices: { [tokenAddress: string]: number } = {};
   const defillamaIds: string[] = [];
 
@@ -324,7 +324,7 @@ async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
     }
   }
 
-  return llamaPrices;
+  return { source: 'DefiLlama', prices: llamaPrices };
 }
 
 //     _____ ____ _____ _   _  _____ ______ _____ _  ______
@@ -336,7 +336,7 @@ async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
 //
 //
 
-async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
 
   const coingeckoIds = tokens
@@ -369,7 +369,7 @@ async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
       }
     }
   }
-  return prices;
+  return { source: 'Coingecko', prices: prices };
 }
 
 //     _____ ____ _____ _   _  _____          _____
@@ -381,7 +381,7 @@ async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
 //
 //
 
-async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
 
   const coincapIds = tokens
@@ -417,7 +417,7 @@ async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddr
     }
   }
 
-  return prices;
+  return { source: 'Coincap', prices: prices };
 }
 
 //     ____  _____  ______ _   _    ____   _____ ______          _   _
@@ -429,7 +429,7 @@ async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddr
 //
 //
 
-async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
 
   try {
@@ -460,7 +460,7 @@ async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
     }
   }
 
-  return prices;
+  return { source: 'OpenOcean', prices: prices };
 }
 
 //    _____  ________   __   _____ _    _ _____  _    _
@@ -472,7 +472,7 @@ async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAd
 //
 //
 
-async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddress: string]: number }> {
+async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
 
   try {
@@ -516,5 +516,57 @@ async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<{ [tokenAddr
     }
   }
 
-  return prices;
+  return { source: 'DexGuru', prices: prices };
+}
+
+//    __ _____ _   _  _____ _    _
+//   /_ |_   _| \ | |/ ____| |  | |
+//    | | | | |  \| | |    | |__| |
+//    | | | | | . ` | |    |  __  |
+//    | |_| |_| |\  | |____| |  | |
+//    |_|_____|_| \_|\_____|_|  |_|
+//
+//
+
+async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  try {
+    const tokenAddresses = tokens.map((_) => _.mainnetAddress || _.address);
+    const chainid = NETWORK == 'ARBITRUM' ? 42161 : 1;
+    const url = `https://api.1inch.dev/price/v1.1/${chainid}/${tokenAddresses.join(',')}`;
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${process.env.ONE_INCH_API_KEY}`
+      },
+      params: {
+        currency: 'USD'
+      }
+    };
+    const oneInchPriceResponse = await HttpGet<{ [tokenAddress: string]: string }>(url, config, 3);
+
+    for (const token of tokens) {
+      const foundPrice = oneInchPriceResponse[(token.mainnetAddress || token.address).toLowerCase()];
+
+      if (foundPrice != undefined) {
+        prices[token.address] = Number(foundPrice);
+      } else {
+        prices[token.address] = 0;
+      }
+
+      Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
+    }
+  } catch (e) {
+    Warn('Exception calling 1inch price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return { source: '1INCH', prices: prices };
 }
