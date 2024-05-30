@@ -42,7 +42,7 @@ async function LoadProtocolConstants() {
   }
 }
 
-async function LoadTokens() {
+export async function LoadTokens() {
   // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
   if (TOKENS_FILE.startsWith('http')) {
     // load via http

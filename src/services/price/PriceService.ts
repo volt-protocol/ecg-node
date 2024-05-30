@@ -83,6 +83,11 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
           allPrices[token.address] = 40_000_000_000;
           continue;
         }
+        if (token.address == '0x391163Dda1f29e0f17fB2B703C9Afd11bf35B780') {
+          // ESWAK token
+          allPrices[token.address] = 1_000_000_000_000;
+          continue;
+        }
       }
 
       if (token.protocolToken) {
