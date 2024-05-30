@@ -4,7 +4,7 @@ import { NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
 import { UniswapV3Pool__factory } from '../../contracts/types';
-import SimpleCacheService from '../../utils/CacheService';
+import SimpleCacheService from '../cache/CacheService';
 import { HttpGet } from '../../utils/HttpHelper';
 import { PendleMarketResponse } from '../../model/PendleApi';
 import { MulticallWrapper } from 'ethers-multicall-provider';

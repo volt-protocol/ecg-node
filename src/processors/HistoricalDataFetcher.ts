@@ -1,8 +1,8 @@
-import { ReadJSON, WaitUntilScheduled, WriteJSON, retry } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, WriteJSON, retry, sleep } from '../utils/Utils';
 
 import fs from 'fs';
 import path from 'path';
-import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID, NETWORK } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
@@ -13,7 +13,9 @@ import {
   GetProfitManagerAddress,
   LoadConfiguration,
   getTokenByAddress,
-  getTokenByAddressNoError
+  getTokenByAddressNoError,
+  GetPendleOracleAddress,
+  PendleConfig
 } from '../config/Config';
 import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
 import {
@@ -22,6 +24,7 @@ import {
   GuildToken__factory,
   LendingTerm,
   LendingTerm__factory,
+  PendleOracle__factory,
   ProfitManager__factory
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
@@ -34,13 +37,15 @@ import {
   FetchAllEvents
 } from '../utils/Web3Helper';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetTokenPriceMultiAtTimestamp } from '../utils/Price';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
 import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { CreditTransferFile } from '../model/CreditTransfer';
+import { HttpGet } from '../utils/HttpHelper';
+import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 dotenv.config();
+let lastCallDefillama = 0;
 
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = BLOCK_PER_HOUR;
@@ -382,7 +387,8 @@ async function fetchTVL(
     const tokenPrices = await GetTokenPriceMultiAtTimestamp(
       Array.from(new Set<string>([...collateralResults, pegToken.address])),
       blockTimes[blockToFetch],
-      blockToFetch
+      blockToFetch,
+      web3Provider
     );
 
     const pegTokenPrice = tokenPrices[pegToken.address];
@@ -873,6 +879,168 @@ async function fetchAllCreditTransfers(
   transferFile.creditHolderCount = balanceOfResults.filter((_) => _ > 0n).length;
   transferFile.lastBlockFetched = currentBlock;
   WriteJSON(historyFilename, transferFile);
+}
+
+async function GetTokenPriceMultiAtTimestamp(
+  tokenAddresses: string[],
+  timestamp: number,
+  atBlock: number,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<{ [tokenAddress: string]: number }> {
+  const deduplicatedTokenAddresses = Array.from(new Set<string>(tokenAddresses));
+  const prices: { [tokenAddress: string]: number } = {};
+
+  const defillamaIds: string[] = [];
+  const llamaNetwork = NETWORK == 'ARBITRUM' ? 'arbitrum' : 'ethereum';
+
+  for (const tokenAddress of deduplicatedTokenAddresses) {
+    if (NETWORK == 'SEPOLIA') {
+      if (tokenAddress == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
+        // VORIAN token
+        prices[tokenAddress] = 1_000_000_000;
+        continue;
+      }
+      if (tokenAddress == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
+        // BEEF token
+        prices[tokenAddress] = 40_000_000_000;
+        continue;
+      }
+    }
+
+    let token = getTokenByAddressNoError(tokenAddress);
+    if (!token) {
+      token = await GetERC20Infos(web3Provider, tokenAddress);
+      Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+    }
+
+    if (token.pendleConfiguration) {
+      // fetch price using pendle api
+      prices[tokenAddress] = await GetPendlePriceAtBlock(
+        token.symbol,
+        token.pendleConfiguration,
+        atBlock,
+        timestamp,
+        web3Provider
+      );
+      Log(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${prices[tokenAddress]}`);
+      continue;
+    }
+
+    // if here, it means we will fetch price from defillama
+    defillamaIds.push(`${llamaNetwork}:${token.mainnetAddress || token.address}`);
+  }
+
+  if (defillamaIds.length > 0) {
+    const llamaUrl = `https://coins.llama.fi/prices/historical/${timestamp}/${defillamaIds.join(',')}?searchWidth=4h`;
+    const msToWait = 1000 - (Date.now() - lastCallDefillama);
+    if (msToWait > 0) {
+      await sleep(msToWait);
+    }
+    const priceResponse = await HttpGet<DefiLlamaPriceResponse>(llamaUrl);
+    lastCallDefillama = Date.now();
+    for (const tokenAddress of deduplicatedTokenAddresses) {
+      if (prices[tokenAddress]) {
+        continue;
+      }
+      let token = getTokenByAddressNoError(tokenAddress);
+      if (!token) {
+        token = await GetERC20Infos(web3Provider, tokenAddress);
+        Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+      }
+      const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
+      const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
+
+      prices[tokenAddress] = llamaPrice;
+      Log(`GetTokenPriceMultiAtTimestamp: price for ${token.symbol} from llama: $${prices[tokenAddress]}`);
+    }
+  }
+
+  Log(`GetTokenPriceMultiAtTimestamp: ends with ${Object.keys(prices).length} prices`);
+  return prices;
+}
+
+//    _____  ______ ______ _____ _      _               __  __
+//   |  __ \|  ____|  ____|_   _| |    | |        /\   |  \/  |   /\
+//   | |  | | |__  | |__    | | | |    | |       /  \  | \  / |  /  \
+//   | |  | |  __| |  __|   | | | |    | |      / /\ \ | |\/| | / /\ \
+//   | |__| | |____| |     _| |_| |____| |____ / ____ \| |  | |/ ____ \
+//   |_____/|______|_|    |_____|______|______/_/    \_\_|  |_/_/    \_\
+//
+//
+
+function getDefillamaTokenId(network: string, tokenAddress: string) {
+  const tokenId = network == 'ARBITRUM' ? `arbitrum:${tokenAddress}` : `ethereum:${tokenAddress}`;
+  return tokenId;
+}
+
+async function GetDefiLlamaPriceAtTimestamp(tokenSymbol: string, tokenId: string, timestampSec: number) {
+  const msToWait = 1000 - (Date.now() - lastCallDefillama);
+  if (msToWait > 0) {
+    await sleep(msToWait);
+  }
+  const apiUrl = `https://coins.llama.fi/prices/historical/${timestampSec}/${tokenId}?searchWidth=4h`;
+  const resp = await HttpGet<DefiLlamaPriceResponse>(apiUrl);
+  lastCallDefillama = Date.now();
+
+  if (!resp.coins || !resp.coins[tokenId]) {
+    return undefined;
+  }
+
+  Log(`GetDefiLlamaPriceAtTimestamp: price for ${tokenSymbol} from llama: $${resp.coins[tokenId].price}`);
+  return resp.coins[tokenId].price;
+}
+
+//    _____  ______ _   _ _____  _      ______
+//   |  __ \|  ____| \ | |  __ \| |    |  ____|
+//   | |__) | |__  |  \| | |  | | |    | |__
+//   |  ___/|  __| | . ` | |  | | |    |  __|
+//   | |    | |____| |\  | |__| | |____| |____
+//   |_|    |______|_| \_|_____/|______|______|
+//
+//
+
+async function GetPendlePriceAtBlock(
+  tokenSymbol: string,
+  pendleConfig: PendleConfig,
+  atBlock: number,
+  timestampSec: number,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  // get pendle price vs asset using pendle oracle
+  const pendlePriceVsAsset = await GetPendleOraclePrice(pendleConfig.market, atBlock, web3Provider);
+
+  // get $ price of pendle pricing asset
+  const network = pendleConfig.basePricingAsset.chainId == 1 ? 'ETHEREUM' : 'ARBITRUM';
+  const tokenId = getDefillamaTokenId(network, pendleConfig.basePricingAsset.address);
+  const usdPriceBaseAsset = await GetDefiLlamaPriceAtTimestamp(
+    pendleConfig.basePricingAsset.symbol,
+    tokenId,
+    timestampSec
+  );
+  if (!usdPriceBaseAsset) {
+    throw new Error(`Cannot find price for ${tokenId} at timestamp ${timestampSec}`);
+  }
+
+  const price = pendlePriceVsAsset * usdPriceBaseAsset;
+  Log(`GetPendlePriceAtBlock: price for ${tokenSymbol} from pendle: $${price}`);
+  return price;
+}
+
+/**
+ * Get the PT price vs the asset, example for
+ * @param pendleMarketAddress
+ * @param atBlock
+ * @returns
+ */
+async function GetPendleOraclePrice(
+  pendleMarketAddress: string,
+  atBlock: number,
+  web3Provider: ethers.JsonRpcProvider
+) {
+  // if blocknumber is specified, get an archive node
+  const oracleContract = PendleOracle__factory.connect(GetPendleOracleAddress(), web3Provider);
+  const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 600, { blockTag: atBlock });
+  return norm(priceToAsset);
 }
 
 HistoricalDataFetcher();

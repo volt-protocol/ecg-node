@@ -1,4 +1,4 @@
-import { Log } from './Logger';
+import { Log } from '../../utils/Logger';
 
 const cache: SimpleCache = {};
 
