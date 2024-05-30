@@ -3,13 +3,21 @@ import path from 'path';
 import { GLOBAL_DATA_DIR } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { norm } from '../../utils/TokenUtils';
-import { GetFullConfigFile } from '../../config/Config';
+import { GetFullConfigFile, getAllTokens } from '../../config/Config';
 import { AirdropDataResponse } from '../model/AirdropDataResponse';
 import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
 import PriceService from '../../services/price/PriceService';
 
 class ProtocolDataController {
+  static async GetAllPrices(): Promise<{ [tokenAddress: string]: number }> {
+    const allPrices: { [tokenAddress: string]: number } = {};
+    for (const token of getAllTokens()) {
+      allPrices[token.address] = await PriceService.GetTokenPrice(token.address);
+    }
+
+    return allPrices;
+  }
   static async GetAirdropData(): Promise<AirdropDataResponse> {
     const airdropData: AirdropDataResponse = {
       rebasingSupplyUsd: 0,

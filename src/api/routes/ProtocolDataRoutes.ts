@@ -31,4 +31,24 @@ router.get('/airdropdata', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
   }
 });
+
+/**
+ * @openapi
+ * /api/protocol/prices:
+ *   get:
+ *     tags:
+ *      - protocol
+ *     description: Get latest price of all assets in the protocol
+ *     responses:
+ *       200:
+ *         description: Get latest price of all assets in the protocol
+ */
+router.get('/prices', async (req: Request, res: Response) => {
+  try {
+    const data = await ProtocolDataController.GetAllPrices();
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
 export default router;

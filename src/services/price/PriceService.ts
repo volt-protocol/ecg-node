@@ -1,6 +1,6 @@
 import { median } from 'simple-statistics';
-import { DexEnum, LoadConfiguration, TokenConfig, getAllTokens, getTokenByAddressNoError } from '../../config/Config';
-import { NETWORK } from '../../utils/Constants';
+import { DexEnum, TokenConfig, getAllTokens, getTokenByAddressNoError } from '../../config/Config';
+import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
 import { UniswapV3Pool__factory } from '../../contracts/types';
@@ -55,96 +55,113 @@ export default class PriceService {
 
 // this load all prices from token found in config
 async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number }> {
-  Log('LoadConfigTokenPrices: loading configuration token prices');
-  const allPrices: { [tokenAddress: string]: number } = {};
-  const tokens = getAllTokens();
-  Log(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
-  const genericTokenToFetch: TokenConfig[] = [];
+  let allPrices: { [tokenAddress: string]: number } = {};
+  // this function acts differently if the process must get the prices from the API or not
+  // if the process is the API ==> fetch the data using the price sources normally
+  // if not the API and set to fetch prices from API ==> call the price endpoint of the API
+  // this is done so that every node of a server will query the local API which will query the prices only once
+  if (GET_PRICES_FROM_API && ECG_NODE_API_URI) {
+    // the process is not the API, will call the API
+    Log('LoadConfigTokenPrices: loading prices from local API');
+    const nodeApiPriceUrl = `${ECG_NODE_API_URI}/api/protocol/prices`;
+    allPrices = await HttpGet<{ [tokenAddress: string]: number }>(nodeApiPriceUrl);
+  } else {
+    Log('LoadConfigTokenPrices: loading configuration token prices');
+    const tokens = getAllTokens();
+    Log(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
+    const genericTokenToFetch: TokenConfig[] = [];
 
-  for (const token of tokens) {
-    if (NETWORK == 'SEPOLIA') {
-      if (token.address == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
-        // VORIAN token
-        allPrices[token.address] = 1_000_000_000;
-        continue;
-      }
-      if (token.address == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
-        // BEEF token
-        allPrices[token.address] = 40_000_000_000;
-        continue;
-      }
-    }
-
-    if (token.protocolToken) {
-      // ignoring price for protocol token
-      allPrices[token.address] = 0;
-      continue;
-    }
-
-    if (token.pendleConfiguration) {
-      // fetch price using pendle api
-      allPrices[token.address] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
-      Log(`LoadConfigTokenPrices: price for ${token.symbol} from pendle: ${allPrices[token.address]}`);
-      continue;
-    }
-
-    // if here, it means we will fetch price from defillama
-    genericTokenToFetch.push(token);
-  }
-
-  if (genericTokenToFetch.length > 0) {
-    const wethPrice = await getSafeWethPrice();
-    const priceResults = await Promise.all([
-      GetDefiLlamaPriceMulti(genericTokenToFetch),
-      GetDexPriceMulti(genericTokenToFetch, wethPrice),
-      GetCoinGeckoPriceMulti(genericTokenToFetch),
-      GetCoinCapPriceMulti(genericTokenToFetch),
-      GetOpenOceanPriceMulti(genericTokenToFetch),
-      GetDexGuruPriceMulti(genericTokenToFetch),
-      GetOneInchPriceMulti(genericTokenToFetch)
-    ]);
-
-    for (const token of genericTokenToFetch) {
-      const prices: number[] = [];
-
-      for (const priceResult of priceResults) {
-        const tokenPrice = priceResult.prices[token.address];
-        if (tokenPrice != undefined) {
-          prices.push(tokenPrice);
+    for (const token of tokens) {
+      if (NETWORK == 'SEPOLIA') {
+        if (token.address == '0x50fdf954f95934c7389d304dE2AC961EA14e917E') {
+          // VORIAN token
+          allPrices[token.address] = 1_000_000_000;
+          continue;
+        }
+        if (token.address == '0x723211B8E1eF2E2CD7319aF4f74E7dC590044733') {
+          // BEEF token
+          allPrices[token.address] = 40_000_000_000;
+          continue;
         }
       }
 
-      if (prices.filter((_) => _ == 0).length >= prices.length) {
-        throw new Error(`More than half the prices are zero: ${prices} for token ${token.symbol}`);
-      }
-
-      if (prices.length == 0) {
+      if (token.protocolToken) {
+        // ignoring price for protocol token
         allPrices[token.address] = 0;
-      } else {
-        // use median price from all sources
-        allPrices[token.address] = median(prices);
+        continue;
       }
 
-      for (const priceResult of priceResults) {
-        const priceSource = priceResult.source;
-        const tokenPrice = priceResult.prices[token.address];
-        if (tokenPrice != undefined) {
-          const absDeviation = Math.abs(allPrices[token.address] - tokenPrice) / allPrices[token.address];
-          if (absDeviation >= 20 / 100) {
-            const msg = `Token ${token.symbol} price from source ${priceSource} seems wrong (${Math.round(
-              absDeviation * 100
-            )}% off): $${tokenPrice} vs median $${allPrices[token.address]}`;
-            Warn(msg);
-            await SendNotifications('PriceService', `${token.symbol} ${priceSource} price deviation`, msg);
+      if (token.pendleConfiguration) {
+        // fetch price using pendle api
+        allPrices[token.address] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
+        Log(`LoadConfigTokenPrices: price for ${token.symbol} from pendle: ${allPrices[token.address]}`);
+        continue;
+      }
+
+      // if here, it means we will fetch price from defillama
+      genericTokenToFetch.push(token);
+    }
+
+    if (genericTokenToFetch.length > 0) {
+      const wethPrice = await getSafeWethPrice();
+      const promises = [];
+      promises.push(GetDefiLlamaPriceMulti(genericTokenToFetch));
+      promises.push(GetDexPriceMulti(genericTokenToFetch, wethPrice));
+      promises.push(GetCoinGeckoPriceMulti(genericTokenToFetch));
+      promises.push(GetCoinCapPriceMulti(genericTokenToFetch));
+      promises.push(GetOpenOceanPriceMulti(genericTokenToFetch));
+      if (process.env.DEX_GURU_API_KEY) {
+        promises.push(GetDexGuruPriceMulti(genericTokenToFetch));
+      }
+
+      if (process.env.ONE_INCH_API_KEY) {
+        promises.push(GetOneInchPriceMulti(genericTokenToFetch));
+      }
+
+      const priceResults = await Promise.all(promises);
+
+      for (const token of genericTokenToFetch) {
+        const prices: number[] = [];
+
+        for (const priceResult of priceResults) {
+          const tokenPrice = priceResult.prices[token.address];
+          if (tokenPrice != undefined) {
+            prices.push(tokenPrice);
           }
         }
-      }
 
-      Log(
-        `LoadConfigTokenPrices: price for ${token.symbol}: $${allPrices[token.address]}. Medianed from ${
-          prices.length
-        } sources: ${prices}`
-      );
+        if (prices.filter((_) => _ == 0).length >= prices.length) {
+          throw new Error(`More than half the prices are zero: ${prices} for token ${token.symbol}`);
+        }
+
+        if (prices.length == 0) {
+          allPrices[token.address] = 0;
+        } else {
+          // use median price from all sources
+          allPrices[token.address] = median(prices);
+        }
+
+        for (const priceResult of priceResults) {
+          const priceSource = priceResult.source;
+          const tokenPrice = priceResult.prices[token.address];
+          if (tokenPrice != undefined) {
+            const absDeviation = Math.abs(allPrices[token.address] - tokenPrice) / allPrices[token.address];
+            if (absDeviation >= 20 / 100) {
+              const msg = `Token ${token.symbol} price from source ${priceSource} seems wrong (${Math.round(
+                absDeviation * 100
+              )}% off): $${tokenPrice} vs median $${allPrices[token.address]}`;
+              Warn(msg);
+              await SendNotifications('PriceService', `${token.symbol} ${priceSource} price deviation`, msg);
+            }
+          }
+        }
+
+        Log(
+          `LoadConfigTokenPrices: price for ${token.symbol}: $${allPrices[token.address]}. Medianed from ${
+            prices.length
+          } sources: ${prices}`
+        );
+      }
     }
   }
 
