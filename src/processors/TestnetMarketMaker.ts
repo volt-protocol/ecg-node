@@ -5,13 +5,13 @@ import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
-import { GetTokenPrice } from '../utils/Price';
 import { DATA_DIR } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
 import { MarketMakerState } from '../model/MarketMakerState';
 import { Log } from '../utils/Logger';
 import { TestnetMarketMakerConfig } from '../model/NodeConfig';
+import PriceService from '../services/price/PriceService';
 
 const RUN_EVERY_SEC = 120;
 
@@ -69,8 +69,8 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
     const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
     Log(`checking pair ${token0.symbol}-${token1.symbol}`);
 
-    const priceToken0 = await GetTokenPrice(token0.mainnetAddress || token0.address);
-    const priceToken1 = await GetTokenPrice(token1.mainnetAddress || token1.address);
+    const priceToken0 = await PriceService.GetTokenPrice(token0.mainnetAddress || token0.address);
+    const priceToken1 = await PriceService.GetTokenPrice(token1.mainnetAddress || token1.address);
     if (!priceToken0 || !priceToken1) {
       Log('Cannot market make because real price unknwon', priceToken0, priceToken1);
       return;

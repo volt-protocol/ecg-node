@@ -1,9 +1,8 @@
 import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl } from '../utils/Utils';
+import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
-import { DATA_DIR } from '../utils/Constants';
-import { GetTokenPrice } from '../utils/Price';
+import { DATA_DIR, NETWORK } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
   GetPegTokenAddress,
@@ -15,10 +14,11 @@ import { norm } from '../utils/TokenUtils';
 import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
-import { SendNotifications } from '../utils/Notifications';
+import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
 import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
+import PriceService from '../services/price/PriceService';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -52,12 +52,12 @@ async function TermOffboarder() {
     await FileMutex.WaitForUnlock();
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
-      const termMustBeOffboarded = await checkTermForOffboard(term, offboarderConfig);
-      if (termMustBeOffboarded) {
+      const checkTermReponse = await checkTermForOffboard(term, offboarderConfig);
+      if (checkTermReponse.termMustBeOffboarded) {
         if (!offboarderConfig.onlyLogging) {
           Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
           const web3Provider = GetWeb3Provider();
-          await offboardProcess(web3Provider, term, offboarderConfig.performCleanup);
+          await offboardProcess(web3Provider, term, offboarderConfig.performCleanup, checkTermReponse.reason);
         } else {
           Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
         }
@@ -71,33 +71,47 @@ async function TermOffboarder() {
   }
 }
 
-async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOffboarderConfig) {
+async function checkTermForOffboard(
+  term: LendingTerm,
+  offboarderConfig: TermOffboarderConfig
+): Promise<{ termMustBeOffboarded: boolean; reason: string }> {
   let collateralToken = getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = {
       address: term.collateralAddress,
       decimals: term.collateralDecimals,
       symbol: term.collateralSymbol,
-      permitAllowed: false
+      permitAllowed: false,
+      protocolToken: false
     };
     Warn(
       `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
     );
   }
 
-  const collateralRealPrice = await GetTokenPrice(collateralToken.mainnetAddress || collateralToken.address);
+  const collateralRealPrice = await PriceService.GetTokenPrice(
+    collateralToken.mainnetAddress || collateralToken.address
+  );
   if (!collateralRealPrice) {
     Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
-    return false;
+    return {
+      termMustBeOffboarded: false,
+      reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
+    };
   }
   const pegToken = getTokenByAddress(GetPegTokenAddress());
-  const pegTokenRealPrice = await GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
+  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   if (!pegTokenRealPrice) {
-    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}`);
-    return false;
+    Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
+    return {
+      termMustBeOffboarded: false,
+      reason: `Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`
+    };
   }
 
-  Log(`[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice}`);
+  Log(
+    `[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice} / PegToken price: ${pegTokenRealPrice}`
+  );
   const normBorrowRatio = norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals);
   Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
@@ -113,16 +127,23 @@ async function checkTermForOffboard(term: LendingTerm, offboarderConfig: TermOff
   );
 
   if (currentOvercollateralization < minOvercollateralization) {
-    return true;
+    return {
+      termMustBeOffboarded: true,
+      reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`
+    };
   } else {
-    return false;
+    return {
+      termMustBeOffboarded: false,
+      reason: 'Term healthy'
+    };
   }
 }
 
 async function offboardProcess(
   web3Provider: ethers.JsonRpcProvider,
   term: LendingTerm,
-  performCleanup: boolean | undefined
+  performCleanup: boolean | undefined,
+  reason: string
 ) {
   if (!process.env.ETH_PRIVATE_KEY) {
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
@@ -144,15 +165,27 @@ async function offboardProcess(
     // propose offboard
 
     const proposeResponse = await lendingTermOffboardingContract.proposeOffboard(term.termAddress);
-    await SendNotifications(
+    await SendNotificationsList(
       'Term Offboarder',
       `Created Offboard proposal on term ${term.label} ${term.termAddress}`,
-      `Tx: ${buildTxUrl(proposeResponse.hash)}`
+      [
+        {
+          fieldName: 'Tx',
+          fieldValue: `${buildTxUrl(proposeResponse.hash)}`
+        },
+        {
+          fieldName: 'Reason',
+          fieldValue: reason
+        }
+      ]
     );
     await proposeResponse.wait();
 
     // here, the offboard proposal should have been created, find it by block
     pollBlock = Number(await lendingTermOffboardingContract.lastPollBlock(term.termAddress));
+    if (NETWORK == 'ARBITRUM') {
+      await sleep(15000); // wait 15 sec after offboarding to avoid "ERC20MultiVotes: not a past block" error
+    }
   }
 
   // check if the node already voted for it
@@ -167,12 +200,16 @@ async function offboardProcess(
   } else {
     const supportResponse = await lendingTermOffboardingContract.supportOffboard(pollBlock, term.termAddress);
     await supportResponse.wait();
-
-    await SendNotifications(
-      'Term Offboarder',
-      `Supported Offboard term ${term.label} ${term.termAddress}`,
-      `Tx: ${buildTxUrl(supportResponse.hash)}`
-    );
+    await SendNotificationsList('Term Offboarder', `Supported Offboard term ${term.label} ${term.termAddress}`, [
+      {
+        fieldName: 'Tx',
+        fieldValue: `${buildTxUrl(supportResponse.hash)}`
+      },
+      {
+        fieldName: 'Reason',
+        fieldValue: reason
+      }
+    ]);
   }
 
   /*enum OffboardStatus {
@@ -185,12 +222,16 @@ async function offboardProcess(
   if (canOffboard == 1n) {
     const offboardResp = await lendingTermOffboardingContract.offboard(term.termAddress);
     await offboardResp.wait();
-
-    await SendNotifications(
-      'Term Offboarder',
-      `Offboarded term ${term.label} ${term.termAddress}`,
-      `Tx: ${buildTxUrl(offboardResp.hash)}`
-    );
+    await SendNotificationsList('Term Offboarder', `Offboarded term ${term.label} ${term.termAddress}`, [
+      {
+        fieldName: 'Tx',
+        fieldValue: `${buildTxUrl(offboardResp.hash)}`
+      },
+      {
+        fieldName: 'Reason',
+        fieldValue: reason
+      }
+    ]);
 
     canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
   }

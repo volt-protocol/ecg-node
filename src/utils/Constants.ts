@@ -25,3 +25,6 @@ export const PENDLE_ORACLES: { [network: string]: string } = {
   ETHEREUM: '0x66a1096C6366b2529274dF4f5D8247827fe4CEA8',
   ARBITRUM: '0x1Fd95db7B7C0067De8D45C0cb35D59796adfD187'
 };
+
+export const GET_PRICES_FROM_API = process.env.GET_PRICES_FROM_API == 'true' ? true : false;
+export const ECG_NODE_API_URI = process.env.ECG_NODE_API_URI;
