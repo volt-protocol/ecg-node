@@ -4,7 +4,7 @@ import LokiTransport from 'winston-loki';
 dotenv.config();
 
 const logger = winston.createLogger({
-  level: 'debug',
+  level: 'silly',
   format: winston.format.json(),
   transports: [
     new winston.transports.Console({
@@ -14,7 +14,7 @@ const logger = winston.createLogger({
             log.level
           } | ${log.message}`
       ),
-      level: 'debug'
+      level: 'silly'
     })
   ]
 });

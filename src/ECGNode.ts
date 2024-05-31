@@ -8,25 +8,16 @@ import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
 import { GetNodeConfig, sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
-import logger, { Log } from './utils/Logger';
+import logger from './utils/Logger';
 import { LoadConfiguration } from './config/Config';
 dotenv.config();
 
 async function main() {
   process.title = 'ECG_NODE';
-  logger.info(`[ECG-NODE] STARTED FOR MARKET_ID: ${MARKET_ID}`);
   logger.debug(`[ECG-NODE] STARTED FOR MARKET_ID: ${MARKET_ID}`);
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
-
-  await sleep(10000);
-  logger.info(`NEW TESTING LOKI 1`);
-  await sleep(10000);
-  logger.info(`NEW TESTING LOKI 2`);
-  await sleep(10000);
-  await sleep(10000);
-  await sleep(10000);
 
   // load external config
   await LoadConfiguration();
@@ -87,16 +78,16 @@ async function startProcessors(nodeConfig: NodeConfig) {
 
 function startWithSpawn(processorName: string, appName: string) {
   const nodeProcessFullPath = path.join(process.cwd(), 'processors', `${processorName}.js`);
-  Log(`Starting ${nodeProcessFullPath}`);
+  logger.debug(`Starting ${nodeProcessFullPath}`);
   const updatedEnv = structuredClone(process.env);
   updatedEnv.APP_NAME = appName;
   const child = spawn('node', [nodeProcessFullPath], { stdio: 'inherit', env: updatedEnv });
 
   child.on('close', (code) => {
-    Log(`Child process exited with code ${code}. Restarting after 10sec`);
+    logger.debug(`Child process exited with code ${code}. Restarting after 10sec`);
     setTimeout(() => startWithSpawn(processorName, appName), 10000);
   });
 
-  Log(`Started ${nodeProcessFullPath}`);
+  logger.debug(`Started ${nodeProcessFullPath}`);
 }
 main();

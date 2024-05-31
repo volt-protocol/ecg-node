@@ -4,7 +4,7 @@ import { DATA_DIR, ECG_NODE_CONFIG_FULL_FILENAME, EXPLORER_URI } from './Constan
 import fs from 'fs';
 import path from 'path';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
-import { Log } from './Logger';
+import logger from './Logger';
 import axios from 'axios';
 
 export function JsonBigIntReplacer(key: string, value: any) {
@@ -52,7 +52,7 @@ export async function WaitUntilScheduled(startDateMs: number, runEverySec: numbe
   const durationSec = (now - startDateMs) / 1000;
   const timeToSleepSec = runEverySec - durationSec;
   if (timeToSleepSec > 0) {
-    Log(`WaitUntilScheduled: sleeping ${timeToSleepSec} seconds`);
+    logger.debug(`WaitUntilScheduled: sleeping ${timeToSleepSec} seconds`);
     await sleep(timeToSleepSec * 1000);
   }
 }
@@ -79,19 +79,19 @@ export async function retry<T extends (...arg0: any[]) => any>(
     return result;
   } catch (e) {
     if (currRetry >= maxTry) {
-      Log(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
+      logger.error(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
       throw e;
     }
 
     if (axios.isAxiosError(e)) {
       // Access to config, request, and response
-      Log(
+      logger.debug(
         `Retry ${currRetry} failed calling ${e.request.protocol}//${e.request.host}/${e.request.path}: ${e}. Waiting ${retryCount} second(s)`
       );
     } else {
-      Log(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
+      logger.debug(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
     }
-    // Log(e);
+    // logger.debug(e);
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
   }
@@ -106,7 +106,7 @@ export function GetProtocolData(): ProtocolData {
   const protocolDataFilename = path.join(DATA_DIR, 'protocol-data.json');
 
   const protocolDataFile = ReadJSON(protocolDataFilename) as ProtocolDataFileStructure;
-  Log(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
+  logger.debug(`GetProtocolData: last update ${protocolDataFile.updatedHuman}`);
 
   if (protocolDataFile.updated < Date.now() - 2 * 3600 * 1000) {
     throw new Error(`Protocol data outdated: ${protocolDataFile.updatedHuman}`);

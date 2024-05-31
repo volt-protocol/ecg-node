@@ -10,7 +10,7 @@ import {
 } from 'ethers';
 import { sleep } from './Utils';
 import { average } from 'simple-statistics';
-import { Log } from './Logger';
+import logger from './Logger';
 import { HttpPost } from './HttpHelper';
 import { TokenConfig } from '../config/Config';
 import { ERC20__factory } from '../contracts/types';
@@ -150,7 +150,6 @@ export async function FetchAllEventsMulti(
   blockStepLimit?: number
 ): Promise<DefaultLog[]> {
   const extractedArray: DefaultLog[] = [];
-  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
   let toBlock = 0;
@@ -172,8 +171,6 @@ export async function FetchAllEventsMulti(
     try {
       events = await web3Provider.getLogs(filter);
     } catch (e) {
-      Log('multi query filter error:', e);
-
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -181,7 +178,7 @@ export async function FetchAllEventsMulti(
       toBlock = 0;
       cptError++;
       if (cptError >= 15) {
-        Log(`getPastEvents error: ${e}`);
+        logger.error(`getPastEvents error: ${e}`);
         throw e;
       }
       await sleep(5000);
@@ -224,12 +221,6 @@ export async function FetchAllEventsMulti(
       blockStep = blockStep * 2;
     }
 
-    /*Log(
-      `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
-        toBlock - fromBlock + 1
-      } blocks). Current results: ${extractedArray.length}`
-    );*/
-
     cptError = 0;
     fromBlock = toBlock + 1;
 
@@ -238,9 +229,6 @@ export async function FetchAllEventsMulti(
     }
   }
 
-  /*Log(
-    `${logPrefix}: found ${extractedArray.length} events in range [${startBlock} ${targetBlock}]`
-  );*/
   return extractedArray;
 }
 
@@ -254,7 +242,6 @@ export async function FetchAllEvents(
 ): Promise<DefaultLog[]> {
   const extractedArray: DefaultLog[] = [];
 
-  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
   let toBlock = 0;
@@ -269,8 +256,6 @@ export async function FetchAllEvents(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      Log('all query filter error:', e);
-
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -278,7 +263,7 @@ export async function FetchAllEvents(
       toBlock = 0;
       cptError++;
       if (cptError >= 15) {
-        Log(`getPastEvents error: ${e}`);
+        logger.error(`getPastEvents error: ${e}`);
         throw e;
       }
       await sleep(5000);
@@ -325,12 +310,6 @@ export async function FetchAllEvents(
       blockStep = blockStep * 2;
     }
 
-    /*Log(
-      `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
-        toBlock - fromBlock + 1
-      } blocks). Current results: ${extractedArray.length}`
-    );*/
-
     cptError = 0;
     fromBlock = toBlock + 1;
 
@@ -339,9 +318,6 @@ export async function FetchAllEvents(
     }
   }
 
-  /*Log(
-    `${logPrefix}: found ${extractedArray.length} events in range [${startBlock} ${targetBlock}]`
-  );*/
   return extractedArray;
 }
 
@@ -356,8 +332,6 @@ export async function FetchAllEventsAndExtractStringArray(
 ): Promise<string[]> {
   const extractedArray: Set<string> = new Set<string>();
 
-  const logPrefix = `${contractName}`;
-  //Log(`${logPrefix}: will fetch events for ${targetBlock - startBlock + 1} blocks`);
   let blockStep = blockStepLimit && blockStepLimit < initBlockStep ? blockStepLimit : initBlockStep;
   let fromBlock = startBlock;
   let toBlock = 0;
@@ -372,7 +346,6 @@ export async function FetchAllEventsAndExtractStringArray(
     try {
       events = await contract.queryFilter(eventName, fromBlock, toBlock);
     } catch (e) {
-      Log('query filter error:', e);
       blockStep = Math.round(blockStep / 2);
       if (blockStep < 1000) {
         blockStep = 1000;
@@ -380,7 +353,7 @@ export async function FetchAllEventsAndExtractStringArray(
       toBlock = 0;
       cptError++;
       if (cptError >= 15) {
-        Log(`getPastEvents error: ${e}`);
+        logger.error(`getPastEvents error: ${e}`);
         throw e;
       }
       await sleep(5000);
@@ -415,12 +388,6 @@ export async function FetchAllEventsAndExtractStringArray(
       blockStep = blockStep * 2;
     }
 
-    // Log(
-    //   `${logPrefix}: [${fromBlock} - ${toBlock}] found ${events.length} events after ${cptError} errors (fetched ${
-    //     toBlock - fromBlock + 1
-    //   } blocks). Current results: ${extractedArray.size}`
-    // );
-
     cptError = 0;
     fromBlock = toBlock + 1;
 
@@ -429,9 +396,6 @@ export async function FetchAllEventsAndExtractStringArray(
     }
   }
 
-  /*Log(
-    `${logPrefix}: found ${extractedArray.size} ${argNames.join(',')} in range [${startBlock} ${targetBlock}]`
-  );*/
   return Array.from(extractedArray);
 }
 
