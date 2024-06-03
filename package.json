@@ -69,6 +69,8 @@
         "simple-statistics": "^7.8.3",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.0",
-        "utf-8-validate": "^5.0.10"
+        "utf-8-validate": "^5.0.10",
+        "winston": "^3.13.0",
+        "winston-loki": "^6.1.2"
     }
 }

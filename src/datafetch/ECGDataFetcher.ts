@@ -6,7 +6,7 @@ import { GetDeployBlock } from '../config/Config';
 import { ReadJSON, WriteJSON } from '../utils/Utils';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
-import { Log } from '../utils/Logger';
+import logger, { Log } from '../utils/Logger';
 import { SendNotifications } from '../utils/Notifications';
 import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
@@ -26,7 +26,7 @@ export async function FetchECGData() {
     const dtStart = performance.now();
     const web3Provider = GetWeb3Provider();
     const currentBlock = await web3Provider.getBlockNumber();
-    Log(`FetchECGData: fetching data up to block ${currentBlock}`);
+    logger.debug(`FetchECGData: fetching data up to block ${currentBlock}`);
 
     const syncData: SyncData = getSyncData();
     Log('FetchECGData: start fetching');
