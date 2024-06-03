@@ -250,7 +250,7 @@ async function fetchProposalEvents(
         nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled &&
         proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR
       ) {
-        SendNotificationsList(
+        await SendNotificationsList(
           'TermOnboardingWatcher',
           'New term is proposed',
           [
