@@ -23,7 +23,7 @@ const logger = winston.createLogger({
 if (process.env.LOKI_URI && process.env.LOKI_LOGIN && process.env.LOKI_PWD) {
   logger.add(
     new LokiTransport({
-      level: 'debug',
+      level: 'info',
       host: process.env.LOKI_URI,
       format: winston.format.printf((log) => log.message),
       json: true,
