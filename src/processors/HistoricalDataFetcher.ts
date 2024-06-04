@@ -60,7 +60,7 @@ async function HistoricalDataFetcher() {
     await LoadConfiguration();
     process.title = 'ECG_NODE_HISTORICAL_DATA_FETCHER';
     const startDate = Date.now();
-    logger.debug('starting');
+    logger.info('starting');
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
@@ -910,7 +910,9 @@ async function GetTokenPriceMultiAtTimestamp(
     let token = getTokenByAddressNoError(tokenAddress);
     if (!token) {
       token = await GetERC20Infos(web3Provider, tokenAddress);
-      logger.error(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+      logger.error(
+        `Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`
+      );
     }
 
     if (token.pendleConfiguration) {
@@ -945,7 +947,9 @@ async function GetTokenPriceMultiAtTimestamp(
       let token = getTokenByAddressNoError(tokenAddress);
       if (!token) {
         token = await GetERC20Infos(web3Provider, tokenAddress);
-        logger.error(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+        logger.error(
+          `Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`
+        );
       }
       const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
       const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;

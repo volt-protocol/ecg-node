@@ -13,7 +13,7 @@ import logger from '../../utils/Logger';
 
 export default class GaugesFetcher {
   static async fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
-    logger.debug('FetchECGData[Gauges]: starting');
+    logger.info('FetchECGData[Gauges]: starting');
     let sinceBlock = GetDeployBlock();
     if (syncData.gaugeSync) {
       sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;

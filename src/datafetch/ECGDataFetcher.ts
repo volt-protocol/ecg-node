@@ -26,7 +26,7 @@ export async function FetchECGData() {
     const dtStart = performance.now();
     const web3Provider = GetWeb3Provider();
     const currentBlock = await web3Provider.getBlockNumber();
-    logger.debug(`FetchECGData: fetching data up to block ${currentBlock}`);
+    logger.info(`FetchECGData: fetching data up to block ${currentBlock}`);
 
     const syncData: SyncData = getSyncData();
     logger.debug('FetchECGData: start fetching');
@@ -53,9 +53,9 @@ export async function FetchECGData() {
     logger.debug(`FetchECGData: fetchProposals data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     const durationMs = performance.now() - dtStart;
-    logger.debug(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
+    logger.info(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
   } catch (e) {
-    logger.debug('FetchECGData: unknown failure', e);
+    logger.error('FetchECGData: unknown failure', e);
     lastFetch = 0;
     await SendNotifications('Data Fetcher', 'Unknown exception when fetching data', JSON.stringify(e));
   } finally {

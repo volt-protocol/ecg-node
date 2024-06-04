@@ -26,7 +26,7 @@ const nodeConfig = GetNodeConfig();
 
 export default class TermsProposalFetcher {
   static async fetchProposals(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
-    logger.debug('FetchECGData[Proposals]: starting');
+    logger.info('FetchECGData[Proposals]: starting');
 
     let allProposals: Proposal[] = [];
     const proposalsFilePath = path.join(DATA_DIR, 'proposals.json');

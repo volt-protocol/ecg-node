@@ -19,7 +19,7 @@ import { SendNotifications } from '../../utils/Notifications';
 
 export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
-    logger.debug('FetchECGData[Terms]: starting');
+    logger.info('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);

@@ -168,6 +168,10 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         );
       }
     }
+
+    for (const token of tokens) {
+      logger.info(`${token.symbol} PRICE: ${allPrices[token.address]}`);
+    }
   }
 
   logger.debug(`LoadConfigTokenPrices: ends with ${Object.keys(allPrices).length} prices`);

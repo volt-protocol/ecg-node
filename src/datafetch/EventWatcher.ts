@@ -22,7 +22,7 @@ let termFactoryContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
 export function StartEventListener(onlyTerms = false) {
   const provider = GetListenerWeb3Provider(5000);
-  logger.debug(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
+  logger.info(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
   if (onlyTerms) {
     StartLendingTermListener(provider);
   } else {
@@ -54,7 +54,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     const parsed = iface.parseLog(event.log);
 
     if (!parsed) {
-      logger.debug('Could not parse event', { event });
+      logger.error('Could not parse event', { event });
       return;
     }
 
@@ -110,7 +110,7 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
     const parsed = onboardingContract?.interface.parseLog(event.log);
 
     if (!parsed) {
-      logger.debug('Could not parse event', { event });
+      logger.error('Could not parse event', { event });
       return;
     }
 
@@ -145,7 +145,7 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
     const parsed = termFactoryContract?.interface.parseLog(event.log);
 
     if (!parsed) {
-      logger.debug('Could not parse event', { event });
+      logger.error('Could not parse event', { event });
       return;
     }
 
@@ -189,7 +189,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
       const parsed = iface.parseLog(event.log);
 
       if (!parsed) {
-        logger.debug('Could not parse event', { event });
+        logger.error('Could not parse event', { event });
         return;
       }
 

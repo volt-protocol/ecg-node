@@ -15,7 +15,7 @@ import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
-import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import logger from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
@@ -33,7 +33,7 @@ async function TermOffboarder() {
     const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
 
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
-    logger.debug('starting');
+    logger.info('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     if (!existsSync(termsFilename)) {
       throw new Error('Cannot start TERM OFFBOARDER without terms file. please sync protocol data');
@@ -55,11 +55,11 @@ async function TermOffboarder() {
       const checkTermReponse = await checkTermForOffboard(term, offboarderConfig);
       if (checkTermReponse.termMustBeOffboarded) {
         if (!offboarderConfig.onlyLogging) {
-          logger.debug(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
+          logger.info(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
           const web3Provider = GetWeb3Provider();
           await offboardProcess(web3Provider, term, offboarderConfig.performCleanup, checkTermReponse.reason);
         } else {
-          logger.debug(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
+          logger.info(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
         }
       } else {
         logger.debug(`[${term.label}]: Term is healthy`);

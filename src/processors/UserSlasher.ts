@@ -25,7 +25,7 @@ async function UserSlasher() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_USER_SLASHER';
-    logger.debug('starting');
+    logger.info('starting');
     const config = GetNodeConfig().processors.USER_SLASHER;
 
     if (!process.env.RPC_URL) {
@@ -65,7 +65,7 @@ async function UserSlasher() {
               ).toISOString()}`
             );
           } else {
-            logger.debug(`slashing user ${user.address} for gauge ${gauge.address}`);
+            logger.info(`slashing user ${user.address} for gauge ${gauge.address}`);
             try {
               const web3Provider = GetWeb3Provider();
               const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
@@ -98,7 +98,7 @@ async function UserSlasher() {
                 lastCheckedTimestamp: Date.now()
               };
 
-              logger.debug(`Cannot slash user ${user.address} for gauge ${gauge.address}: ${e.reason}`);
+              logger.warn(`Cannot slash user ${user.address} for gauge ${gauge.address}: ${e.reason}`);
 
               slashMsgfields.push({
                 fieldName: `${gauge.address} / ${user.address}`,

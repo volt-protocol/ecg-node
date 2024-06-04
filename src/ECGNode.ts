@@ -62,10 +62,6 @@ async function startProcessors(nodeConfig: NodeConfig) {
     startWithSpawn('UserSlasher', 'ECG_NODE_USER_SLASHER');
     await sleep(5000);
   }
-  // if (nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled) {
-  //   startWithSpawn('TermOnboardingWatcher');
-  //   await sleep(5000);
-  // }
   if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
     startWithSpawn('TestnetMarketMaker', 'ECG_NODE_TESTNET_MARKET_MAKER');
     await sleep(5000);

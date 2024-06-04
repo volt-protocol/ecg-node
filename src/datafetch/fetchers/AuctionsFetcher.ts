@@ -20,7 +20,7 @@ export default class AuctionsFetcher {
     syncData: SyncData,
     currentBlock: number
   ) {
-    logger.debug('FetchECGData[Auctions]: starting');
+    logger.info('FetchECGData[Auctions]: starting');
     let alreadySavedAuctions: Auction[] = [];
     const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
     if (fs.existsSync(auctionsFilePath)) {

@@ -36,7 +36,7 @@ async function AuctionBidder() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_AUCTION_BIDDER';
-    logger.debug('starting');
+    logger.info('starting');
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
@@ -66,11 +66,11 @@ async function AuctionBidder() {
 
       const bidDetail = await getBidDetails(auction.auctionHouseAddress, web3Provider, auction.loanId);
       if (bidDetail.auctionEnded) {
-        logger.debug('Auction ended, will not try to bid');
+        logger.info('Auction ended, will not try to bid');
         continue;
       }
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {
-        logger.debug(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
+        logger.info(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
         await processForgive(auction, web3Provider);
         continue;
       }
@@ -84,7 +84,7 @@ async function AuctionBidder() {
       );
 
       if (estimatedProfit >= auctionBidderConfig.minProfitPegToken) {
-        logger.debug(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
+        logger.info(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
         await processBid(
           auction,
           term,
@@ -118,7 +118,7 @@ async function getBidDetails(
       auctionEnded: false
     };
   } catch (e) {
-    logger.debug('getBidDetail exception:', e);
+    logger.warn('getBidDetail exception:', e);
     return {
       collateralReceived: -1n,
       creditAsked: -1n,

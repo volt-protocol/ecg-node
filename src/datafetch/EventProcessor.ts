@@ -26,6 +26,7 @@ async function ProcessAsync(event: EventData) {
   logger.debug(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
   if (mustUpdateProtocol(event)) {
     if (lastBlockFetched < event.block) {
+      logger.info(`Important event ${event.eventName} detected at block ${event.block}. Restarting FetchECGData`);
       await FetchECGData();
       lastBlockFetched = event.block;
 
@@ -35,9 +36,7 @@ async function ProcessAsync(event: EventData) {
       }
     }
 
-    const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
-
-    logger.debug(msg);
+    logger.debug('Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`);
   }
 }
 

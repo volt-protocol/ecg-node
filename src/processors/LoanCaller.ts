@@ -21,7 +21,7 @@ async function LoanCaller() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_LOAN_CALLER';
-    logger.debug('starting');
+    logger.info('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
@@ -55,7 +55,7 @@ async function LoanCaller() {
       const partialRepayDelayPassed = checkPartialRepayDelayPassed(loan, term);
 
       if (termDeprecated || aboveMaxBorrow || partialRepayDelayPassed) {
-        logger.debug(
+        logger.info(
           `Call needed on Term: ${term.termAddress} / loan ${loan.id} ` +
             `(termDeprecated: ${termDeprecated}, aboveMaxBorrow: ${aboveMaxBorrow}, partialRepayDelayPassed: ${partialRepayDelayPassed})`
         );

@@ -37,7 +37,7 @@ export default class LastActivityFetcher {
     protocolData: ProtocolData,
     terms: LendingTerm[]
   ) {
-    logger.debug('FetchECGData[LastActivity]: starting');
+    logger.info('FetchECGData[LastActivity]: starting');
 
     // read already saved activity
     let alreadySavedActivities: LastActivity[] = [];

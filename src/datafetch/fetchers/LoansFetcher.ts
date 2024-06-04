@@ -20,7 +20,7 @@ export default class LoansFetcher {
     syncData: SyncData,
     currentBlock: number
   ) {
-    logger.debug('FetchECGData[Loans]: starting');
+    logger.info('FetchECGData[Loans]: starting');
 
     let alreadySavedLoans: Loan[] = [];
     const loansFilePath = path.join(DATA_DIR, 'loans.json');
