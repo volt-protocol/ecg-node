@@ -10,7 +10,7 @@ import { UserSlasherState } from '../model/UserSlasherState';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
-import { Log } from '../utils/Logger';
+import logger from '../utils/Logger';
 
 const RUN_EVERY_SEC = 600;
 const SLASH_DELAY_MS = 12 * 60 * 60 * 1000; // try slashing same user every 12 hours
@@ -25,7 +25,7 @@ async function UserSlasher() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_USER_SLASHER';
-    Log('starting');
+    logger.debug('starting');
     const config = GetNodeConfig().processors.USER_SLASHER;
 
     if (!process.env.RPC_URL) {
@@ -59,13 +59,13 @@ async function UserSlasher() {
         if (user.lastLossApplied < gauge.lastLoss && user.weight > BigInt(config.minSizeToSlash) * 1n ** 18n) {
           const userLastState = userSlasherState.gauges[gauge.address]?.users[user.address];
           if (userLastState && userLastState.lastCheckedTimestamp + SLASH_DELAY_MS > Date.now()) {
-            Log(
+            logger.debug(
               `user ${user.address} for gauge ${gauge.address} was already tried at ${new Date(
                 userLastState.lastCheckedTimestamp
               ).toISOString()}`
             );
           } else {
-            Log(`slashing user ${user.address} for gauge ${gauge.address}`);
+            logger.debug(`slashing user ${user.address} for gauge ${gauge.address}`);
             try {
               const web3Provider = GetWeb3Provider();
               const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
@@ -98,7 +98,7 @@ async function UserSlasher() {
                 lastCheckedTimestamp: Date.now()
               };
 
-              Log(`Cannot slash user ${user.address} for gauge ${gauge.address}: ${e.reason}`);
+              logger.debug(`Cannot slash user ${user.address} for gauge ${gauge.address}: ${e.reason}`);
 
               slashMsgfields.push({
                 fieldName: `${gauge.address} / ${user.address}`,
@@ -121,7 +121,7 @@ async function UserSlasher() {
       }
     }
 
-    // Log(`sending ${calls.length} applyGaugeLoss using Multicall3`);
+    // logger.debug(`sending ${calls.length} applyGaugeLoss using Multicall3`);
     // do & wait multicall of guildToken.applyGaugeLoss(gauge, user)
     // const multicallResponse = await multicallContract.aggregate3(calls, { gasLimit: slashCounter * 200000 });
 

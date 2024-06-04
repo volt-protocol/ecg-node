@@ -5,15 +5,15 @@ import { GuildToken__factory } from '../../contracts/types';
 import { DATA_DIR, MARKET_ID } from '../../utils/Constants';
 import path from 'path';
 import { ReadJSON, WriteJSON } from '../../utils/Utils';
-import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { FetchAllEvents } from '../../utils/Web3Helper';
 import { GaugesFileStructure } from '../../model/Gauge';
 import { GetGaugeForMarketId } from '../../utils/ECGHelper';
+import logger from '../../utils/Logger';
 
 export default class GaugesFetcher {
   static async fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
-    Log('FetchECGData[Gauges]: starting');
+    logger.debug('FetchECGData[Gauges]: starting');
     let sinceBlock = GetDeployBlock();
     if (syncData.gaugeSync) {
       sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;
@@ -104,6 +104,6 @@ export default class GaugesFetcher {
     };
     syncData.gaugeSync.lastBlockFetched = currentBlock;
 
-    Log(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
+    logger.debug(`FetchECGData[Gauges]: Updated ${Object.keys(gaugesFile.gauges).length} gauges`);
   }
 }

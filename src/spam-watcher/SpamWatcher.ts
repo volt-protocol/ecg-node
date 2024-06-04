@@ -5,12 +5,12 @@ import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import PSMAbi from '../contracts/abi/SimplePSM.json';
 import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
-import { Log, Warn } from '../utils/Logger';
 import { EventData } from '../utils/EventQueue';
 import { SendNotificationsSpam } from '../utils/Notifications';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { buildTxUrl } from '../utils/Utils';
 import { HttpGet } from '../utils/HttpHelper';
+import logger from '../utils/Logger';
 dotenv.config();
 
 const GUILD_TOKEN_ADDRESS = '0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978';
@@ -27,7 +27,7 @@ let psmContracts: Contract[] = [];
 let termsContracts: Contract[] = [];
 export function StartSpamEventListener() {
   const provider = GetListenerWeb3Provider(5000);
-  Log('Starting/restarting spam listener');
+  logger.debug('Starting/restarting spam listener');
   StartGuildTokenListener(provider);
   StartLendingTermListener(provider);
   StartPSMListener(provider);
@@ -40,9 +40,9 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     guildTokenContract.removeAllListeners();
   }
 
-  Log('Started the event listener');
+  logger.debug('Started the event listener');
   guildTokenContract = new Contract(GUILD_TOKEN_ADDRESS, GuildTokenAbi, provider);
-  Log(`Starting listener on guild token ${GUILD_TOKEN_ADDRESS}`);
+  logger.debug(`Starting listener on guild token ${GUILD_TOKEN_ADDRESS}`);
 
   const iface = new Interface(GuildTokenAbi);
 
@@ -53,7 +53,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     const parsed = iface.parseLog(event.log);
 
     if (!parsed) {
-      Log('Could not parse event', { event });
+      logger.debug('Could not parse event', { event });
       return;
     }
 
@@ -85,7 +85,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
   // get all lives terms
   const guildTokenContract = GuildToken__factory.connect(GUILD_TOKEN_ADDRESS, provider);
   guildTokenContract.liveGauges().then((liveTerms) => {
-    Log(`Liveterms: ${liveTerms.length}`);
+    logger.debug(`Liveterms: ${liveTerms.length}`);
     // find all gauges with debt ceiling
     const multicallProvider = MulticallWrapper.wrap(GetListenerWeb3Provider(5000));
     Promise.all(
@@ -103,11 +103,11 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
         }
       }
 
-      Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${liveTerms.length} terms`);
+      logger.debug(`Starting terms listener for ${termsWithDebtCeiling.length}/${liveTerms.length} terms`);
       for (const lendingTermAddress of termsWithDebtCeiling) {
         const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
         termsContracts.push(termContract);
-        Log(`Starting listener on term ${lendingTermAddress}`);
+        logger.debug(`Starting listener on term ${lendingTermAddress}`);
         const iface = new Interface(LendingTermAbi);
 
         termContract.removeAllListeners();
@@ -117,7 +117,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
           const parsed = iface.parseLog(event.log);
 
           if (!parsed) {
-            Log('Could not parse event', { event });
+            logger.debug('Could not parse event', { event });
             return;
           }
 
@@ -150,7 +150,7 @@ export function StartPSMListener(provider: JsonRpcProvider) {
   for (const psm of PSM_ADDRESSES) {
     const psmContract = new Contract(psm.address, PSMAbi, provider);
     psmContracts.push(psmContract);
-    Log(`Starting listener on psm ${psm.address}`);
+    logger.debug(`Starting listener on psm ${psm.address}`);
     const iface = new Interface(PSMAbi);
 
     psmContract.removeAllListeners();
@@ -160,7 +160,7 @@ export function StartPSMListener(provider: JsonRpcProvider) {
       const parsed = iface.parseLog(event.log);
 
       if (!parsed) {
-        Log('Could not parse event', { event });
+        logger.debug('Could not parse event', { event });
         return;
       }
 
@@ -205,7 +205,7 @@ async function SendSpamNotif(event: EventData) {
     const formattedNotif = await formatNotif(event, fields);
     await SendNotificationsSpam(formattedNotif.title, formattedNotif.text, formattedNotif.fields);
   } catch (e) {
-    Warn('Error sending notification to spam', e);
+    logger.error('Error sending notification to spam', e);
   }
 }
 

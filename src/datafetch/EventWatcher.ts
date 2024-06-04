@@ -8,14 +8,12 @@ import LendingTermOnbardingAbi from '../contracts/abi/LendingTermOnboarding.json
 import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
 import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
-import { Log } from '../utils/Logger';
-import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
 import { ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
+import logger from '../utils/Logger';
 dotenv.config();
 
 let guildTokenContract: Contract | undefined = undefined;
@@ -24,7 +22,7 @@ let termFactoryContract: Contract | undefined = undefined;
 let termsContracts: Contract[] = [];
 export function StartEventListener(onlyTerms = false) {
   const provider = GetListenerWeb3Provider(5000);
-  Log(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
+  logger.debug(`Starting/restarting events listener, onlyTerms: ${onlyTerms}`);
   if (onlyTerms) {
     StartLendingTermListener(provider);
   } else {
@@ -42,9 +40,9 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     guildTokenContract.removeAllListeners();
   }
 
-  Log('Started the event listener');
+  logger.debug('Started the event listener');
   guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
-  Log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
+  logger.debug(`Starting listener on guild token ${GetGuildTokenAddress()}`);
   const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
 
   const iface = new Interface(GuildTokenAbi);
@@ -56,13 +54,13 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     const parsed = iface.parseLog(event.log);
 
     if (!parsed) {
-      Log('Could not parse event', { event });
+      logger.debug('Could not parse event', { event });
       return;
     }
 
     if (parsed.name.toLowerCase() == 'addgauge') {
       if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
-        Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+        logger.debug(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
         return;
       }
     }
@@ -80,7 +78,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
             originArgName: parsed.fragment.inputs.map((_) => _.name)
           });
         } else {
-          Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+          logger.debug(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
         }
       });
     } else {
@@ -101,9 +99,9 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
     onboardingContract.removeAllListeners();
   }
 
-  Log('Started the event listener');
+  logger.debug('Started the event listener');
   onboardingContract = new Contract(GetLendingTermOnboardingAddress(), LendingTermOnbardingAbi, provider);
-  Log(`Starting listener on onboarding ${GetLendingTermOnboardingAddress()}`);
+  logger.debug(`Starting listener on onboarding ${GetLendingTermOnboardingAddress()}`);
 
   onboardingContract.removeAllListeners();
 
@@ -112,7 +110,7 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
     const parsed = onboardingContract?.interface.parseLog(event.log);
 
     if (!parsed) {
-      Log('Could not parse event', { event });
+      logger.debug('Could not parse event', { event });
       return;
     }
 
@@ -132,9 +130,9 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
     termFactoryContract.removeAllListeners();
   }
 
-  Log('Started the event listener');
+  logger.debug('Started the event listener');
   termFactoryContract = new Contract(GetLendingTermFactoryAddress(), LendingTermFactoryAbi, provider);
-  Log(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
+  logger.debug(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
   const termFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), provider);
 
   termFactoryContract.removeAllListeners();
@@ -147,7 +145,7 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
     const parsed = termFactoryContract?.interface.parseLog(event.log);
 
     if (!parsed) {
-      Log('Could not parse event', { event });
+      logger.debug('Could not parse event', { event });
       return;
     }
 
@@ -168,20 +166,20 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
     termContract.removeAllListeners();
   }
   termsContracts = [];
-  Log('Started the event listener');
+  logger.debug('Started the event listener');
   const termsFileName = path.join(DATA_DIR, 'terms.json');
   if (!fs.existsSync(termsFileName)) {
     throw new Error(`Could not find file ${termsFileName}`);
   }
   const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
   const termsWithDebtCeiling = termsFile.terms.filter((_) => _.debtCeiling != '0');
-  Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
+  logger.debug(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
   // get all lending terms (gauges) from the guild token to start a listener on each one
 
   for (const lendingTermAddress of termsWithDebtCeiling.map((_) => _.termAddress)) {
     const termContract = new Contract(lendingTermAddress, LendingTermAbi, provider);
     termsContracts.push(termContract);
-    Log(`Starting listener on term ${lendingTermAddress}`);
+    logger.debug(`Starting listener on term ${lendingTermAddress}`);
     const iface = new Interface(LendingTermAbi);
 
     termContract.removeAllListeners();
@@ -191,7 +189,7 @@ export function StartLendingTermListener(provider: JsonRpcProvider) {
       const parsed = iface.parseLog(event.log);
 
       if (!parsed) {
-        Log('Could not parse event', { event });
+        logger.debug('Could not parse event', { event });
         return;
       }
 

@@ -17,7 +17,7 @@ import { ethers } from 'ethers';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
 import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
-import { Log, Warn } from '../utils/Logger';
+import logger from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
 
 const RUN_EVERY_SEC = 60 * 5;
@@ -33,7 +33,7 @@ async function TermOffboarder() {
     const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
 
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
-    Log('starting');
+    logger.debug('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     if (!existsSync(termsFilename)) {
       throw new Error('Cannot start TERM OFFBOARDER without terms file. please sync protocol data');
@@ -55,17 +55,17 @@ async function TermOffboarder() {
       const checkTermReponse = await checkTermForOffboard(term, offboarderConfig);
       if (checkTermReponse.termMustBeOffboarded) {
         if (!offboarderConfig.onlyLogging) {
-          Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
+          logger.debug(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
           const web3Provider = GetWeb3Provider();
           await offboardProcess(web3Provider, term, offboarderConfig.performCleanup, checkTermReponse.reason);
         } else {
-          Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
+          logger.debug(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
         }
       } else {
-        Log(`[${term.label}]: Term is healthy`);
+        logger.debug(`[${term.label}]: Term is healthy`);
       }
     }
-    Log('Ending');
+    logger.debug('Ending');
 
     await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
   }
@@ -84,7 +84,7 @@ async function checkTermForOffboard(
       permitAllowed: false,
       protocolToken: false
     };
-    Warn(
+    logger.error(
       `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
     );
   }
@@ -93,7 +93,9 @@ async function checkTermForOffboard(
     collateralToken.mainnetAddress || collateralToken.address
   );
   if (!collateralRealPrice) {
-    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
+    logger.error(
+      `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
+    );
     return {
       termMustBeOffboarded: false,
       reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
@@ -102,18 +104,18 @@ async function checkTermForOffboard(
   const pegToken = getTokenByAddress(GetPegTokenAddress());
   const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   if (!pegTokenRealPrice) {
-    Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
+    logger.error(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
     return {
       termMustBeOffboarded: false,
       reason: `Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`
     };
   }
 
-  Log(
+  logger.debug(
     `[${term.label}]: ${collateralToken.symbol} price: ${collateralRealPrice} / PegToken price: ${pegTokenRealPrice}`
   );
   const normBorrowRatio = norm(term.maxDebtPerCollateralToken, 36 - collateralToken.decimals);
-  Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
+  logger.debug(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
   // find the min overcollateralization config for this token
   let minOvercollateralization = offboarderConfig.defaultMinOvercollateralization;
@@ -122,7 +124,7 @@ async function checkTermForOffboard(
   }
 
   const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
-  Log(
+  logger.debug(
     `[${term.label}]: current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}`
   );
 

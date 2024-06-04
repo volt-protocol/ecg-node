@@ -14,7 +14,6 @@ import {
 import { BLOCK_PER_HOUR, DATA_DIR, EXPLORER_URI, MARKET_ID } from '../../utils/Constants';
 import { GetNodeConfig, ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { FetchAllEvents, GetERC20Infos, GetL1Web3Provider } from '../../utils/Web3Helper';
 import { Proposal, ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
@@ -22,11 +21,12 @@ import { norm } from '../../utils/TokenUtils';
 import path from 'path';
 import fs from 'fs';
 import { SendNotificationsList } from '../../utils/Notifications';
+import logger from '../../utils/Logger';
 const nodeConfig = GetNodeConfig();
 
 export default class TermsProposalFetcher {
   static async fetchProposals(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
-    Log('FetchECGData[Proposals]: starting');
+    logger.debug('FetchECGData[Proposals]: starting');
 
     let allProposals: Proposal[] = [];
     const proposalsFilePath = path.join(DATA_DIR, 'proposals.json');
@@ -93,7 +93,7 @@ export default class TermsProposalFetcher {
     }
 
     syncData.proposalSync.lastBlockFetched = currentBlock;
-    Log('FetchECGData[Proposals]: ending');
+    logger.debug('FetchECGData[Proposals]: ending');
   }
 }
 

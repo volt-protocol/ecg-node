@@ -4,16 +4,10 @@ import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
 import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
-import {
-  GetLendingTermOnboardingAddress,
-  getTokenByAddress,
-  getTokenByAddressNoError,
-  LoadConfiguration,
-  TokenConfig
-} from '../config/Config';
+import { GetLendingTermOnboardingAddress, getTokenByAddressNoError, LoadConfiguration } from '../config/Config';
 import { sleep } from '../utils/Utils';
 import { GetERC20Infos, GetListenerWeb3Provider } from '../utils/Web3Helper';
-import { Log } from '../utils/Logger';
+import logger from '../utils/Logger';
 dotenv.config();
 
 let onboardingContract: Contract | undefined;
@@ -22,7 +16,7 @@ const web3Provider = GetListenerWeb3Provider(15000);
 
 async function TermOnboardingWatcher() {
   process.title = 'ECG_NODE_TERM_ONBOARDING_WATCHER';
-  Log('starting');
+  logger.debug('starting');
 
   const atLeastOneNotificationChannelEnabled =
     (process.env.WATCHER_TG_BOT_ID != undefined && process.env.WATCHER_TG_CHAT_ID != undefined) ||
@@ -39,14 +33,14 @@ async function TermOnboardingWatcher() {
     const onboardingAddress = GetLendingTermOnboardingAddress();
 
     if (onboardingContract) {
-      Log('resetting contract listener');
+      logger.debug('resetting contract listener');
       onboardingContract.removeAllListeners();
     }
 
     onboardingContract = new Contract(onboardingAddress, OnboardingABI, web3Provider);
     const iface = new Interface(OnboardingABI);
 
-    Log(`Create/recreate listener for ProposalCreated events on ${onboardingAddress}`);
+    logger.debug(`Create/recreate listener for ProposalCreated events on ${onboardingAddress}`);
     await onboardingContract.on('*', async (event) => {
       await processEvent(event, web3Provider, iface);
     });

@@ -5,13 +5,13 @@ import { AuctionHouse, AuctionHouse__factory } from '../../contracts/types';
 import { DATA_DIR } from '../../utils/Constants';
 import path from 'path';
 import { ReadJSON, WriteJSON } from '../../utils/Utils';
-import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { FetchAllEvents, FetchAllEventsAndExtractStringArray } from '../../utils/Web3Helper';
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../../model/Auction';
 import LendingTerm from '../../model/LendingTerm';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../../model/AuctionHouse';
+import logger from '../../utils/Logger';
 
 export default class AuctionsFetcher {
   static async fetchAndSaveAuctions(
@@ -20,7 +20,7 @@ export default class AuctionsFetcher {
     syncData: SyncData,
     currentBlock: number
   ) {
-    Log('FetchECGData[Auctions]: starting');
+    logger.debug('FetchECGData[Auctions]: starting');
     let alreadySavedAuctions: Auction[] = [];
     const auctionsFilePath = path.join(DATA_DIR, 'auctions.json');
     if (fs.existsSync(auctionsFilePath)) {
@@ -118,7 +118,7 @@ export default class AuctionsFetcher {
       const index = updateAuctions.auctions.findIndex((_) => _.loanId == loanId);
       if (index < 0) {
         // if not found, it means it might be on another market
-        Log(`Ignoring auction end for loan ${loanId}`);
+        logger.debug(`Ignoring auction end for loan ${loanId}`);
         continue;
       } else {
         updateAuctions.auctions[index].bidTxHash = txHash;
@@ -131,11 +131,11 @@ export default class AuctionsFetcher {
     updateAuctions.updated = endDate;
     updateAuctions.updatedHuman = new Date(endDate).toISOString();
     WriteJSON(auctionsFilePath, updateAuctions);
-    Log('FetchECGData[Auctions]: ending');
+    logger.debug('FetchECGData[Auctions]: ending');
   }
 
   static async fetchAndSaveAuctionHouses(web3Provider: JsonRpcProvider, terms: LendingTerm[]) {
-    Log('FetchECGData[AuctionHouse]: starting');
+    logger.debug('FetchECGData[AuctionHouse]: starting');
     let allAuctionHouses: AuctionHouseData[] = [];
     const auctionHousesFilePath = path.join(DATA_DIR, 'auction-houses.json');
     if (fs.existsSync(auctionHousesFilePath)) {
@@ -167,7 +167,7 @@ export default class AuctionsFetcher {
     };
 
     WriteJSON(auctionHousesFilePath, auctionsFile);
-    Log('FetchECGData[AuctionHouse]: ending');
+    logger.debug('FetchECGData[AuctionHouse]: ending');
     return allAuctionHouses;
   }
 }
@@ -184,9 +184,9 @@ async function fetchAuctionsInfo(
     promises.push(auctionHouseContract.getAuction(loansId.loanId));
   }
 
-  Log(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
+  logger.debug(`FetchECGData[Auctions]: sending getAuction() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  Log('FetchECGData[Auctions]: end multicall');
+  logger.debug('FetchECGData[Auctions]: end multicall');
 
   let cursor = 0;
   const allAuctions: Auction[] = [];
@@ -196,7 +196,7 @@ async function fetchAuctionsInfo(
     const linkedLendingTerm = lendingTerms.find((_) => _.termAddress == auctionData.lendingTerm);
     if (!linkedLendingTerm) {
       // if not found, it means it might be on another market
-      Log(`Ignoring auction for loan ${loan.loanId} and lending term ${auctionData.lendingTerm}`);
+      logger.debug(`Ignoring auction for loan ${loan.loanId} and lending term ${auctionData.lendingTerm}`);
       continue;
     }
 

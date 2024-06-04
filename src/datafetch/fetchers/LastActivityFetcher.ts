@@ -1,11 +1,11 @@
 import { BaseContract, JsonRpcProvider } from 'ethers';
 import { ProtocolData } from '../../model/ProtocolData';
-import { ActivitySyncData, SyncData } from '../../model/SyncData';
+import { SyncData } from '../../model/SyncData';
 import { LastActivity, LastActivityFileStructure } from '../../model/LastActivity';
 import { BLOCK_PER_HOUR, DATA_DIR } from '../../utils/Constants';
 import path from 'path';
 import fs from 'fs';
-import { ReadJSON, WriteJSON, sleep } from '../../utils/Utils';
+import { ReadJSON, WriteJSON } from '../../utils/Utils';
 import LendingTerm from '../../model/LendingTerm';
 import {
   GuildGovernor__factory,
@@ -27,12 +27,8 @@ import {
   getTokenByAddress
 } from '../../config/Config';
 import { norm } from '../../utils/TokenUtils';
-import { Log } from '../../utils/Logger';
+import logger from '../../utils/Logger';
 
-////////////////////////////////////////////////////////////
-/// THIS ONE IS STARTED BY THE HISTORICAL DATA FETCHER /////
-//////////////// THIS IS A HACK FOR NOW ////////////////////
-////////////////////////////////////////////////////////////
 export default class LastActivityFetcher {
   static async fetchAndSaveActivity(
     syncData: SyncData,
@@ -41,7 +37,7 @@ export default class LastActivityFetcher {
     protocolData: ProtocolData,
     terms: LendingTerm[]
   ) {
-    Log('FetchECGData[LastActivity]: starting');
+    logger.debug('FetchECGData[LastActivity]: starting');
 
     // read already saved activity
     let alreadySavedActivities: LastActivity[] = [];
@@ -73,7 +69,7 @@ export default class LastActivityFetcher {
       updated: Date.now(),
       updatedHuman: new Date(Date.now()).toISOString()
     };
-    Log(`FetchECGData[LastActivity]: saving ${activitiesToSave.length} activities`);
+    logger.debug(`FetchECGData[LastActivity]: saving ${activitiesToSave.length} activities`);
 
     WriteJSON(lastActivityPath, lastActivityFile);
     if (!syncData.activitySync) {
@@ -93,7 +89,7 @@ async function getLoanActivity(
   currentBlock: number,
   terms: LendingTerm[]
 ): Promise<LastActivity[]> {
-  Log('FetchECGData[LastActivity]: starting getLoanActivity');
+  logger.debug('FetchECGData[LastActivity]: starting getLoanActivity');
   const allLoanActivities: LastActivity[] = [];
 
   const fromBlock = syncData.activitySync
@@ -112,7 +108,7 @@ async function getLoanActivity(
     allLoanActivities.push(...r);
   }
 
-  Log('FetchECGData[LastActivity]: ending getLoanActivity');
+  logger.debug('FetchECGData[LastActivity]: ending getLoanActivity');
   return allLoanActivities;
 }
 

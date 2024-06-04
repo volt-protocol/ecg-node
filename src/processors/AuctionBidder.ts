@@ -18,13 +18,13 @@ import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
 import { GetAvgGasPrice, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
-import { Log, Warn } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
 import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
 import { OneInchSwapResponse } from '../model/OneInchApi';
 import { HttpGet } from '../utils/HttpHelper';
 import BigNumber from 'bignumber.js';
 import { PendleSwapResponse } from '../model/PendleApi';
+import logger from '../utils/Logger';
 
 const RUN_EVERY_SEC = 15;
 let lastCall1Inch = 0;
@@ -36,7 +36,7 @@ async function AuctionBidder() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_AUCTION_BIDDER';
-    Log('starting');
+    logger.debug('starting');
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
@@ -55,7 +55,7 @@ async function AuctionBidder() {
     const creditMultiplier = GetProtocolData().creditMultiplier;
 
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
-    Log(`Will check ${auctionsToCheck.length} auctions`);
+    logger.debug(`Will check ${auctionsToCheck.length} auctions`);
 
     for (const auction of auctionsToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == auction.lendingTermAddress);
@@ -66,11 +66,11 @@ async function AuctionBidder() {
 
       const bidDetail = await getBidDetails(auction.auctionHouseAddress, web3Provider, auction.loanId);
       if (bidDetail.auctionEnded) {
-        Log('Auction ended, will not try to bid');
+        logger.debug('Auction ended, will not try to bid');
         continue;
       }
       if (bidDetail.creditAsked == 0n && auctionBidderConfig.enableForgive) {
-        Log(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
+        logger.debug(`AuctionBidder[${auction.loanId}]: will forgive auction.`);
         await processForgive(auction, web3Provider);
         continue;
       }
@@ -84,7 +84,7 @@ async function AuctionBidder() {
       );
 
       if (estimatedProfit >= auctionBidderConfig.minProfitPegToken) {
-        Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
+        logger.debug(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
         await processBid(
           auction,
           term,
@@ -97,7 +97,7 @@ async function AuctionBidder() {
         continue;
       }
 
-      Log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
+      logger.debug(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
@@ -118,7 +118,7 @@ async function getBidDetails(
       auctionEnded: false
     };
   } catch (e) {
-    Log('getBidDetail exception:', e);
+    logger.debug('getBidDetail exception:', e);
     return {
       collateralReceived: -1n,
       creditAsked: -1n,
@@ -137,7 +137,7 @@ async function checkBidProfitability(
   let collateralToken = getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = await GetERC20Infos(web3Provider, term.collateralAddress);
-    Warn(
+    logger.warn(
       `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
     );
   }
@@ -169,7 +169,7 @@ async function checkBidProfitability(
   const amountPegToken = norm(getSwapResult.pegTokenReceivedWei, pegToken.decimals);
   const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
 
-  Log(
+  logger.debug(
     `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
       pegToken.symbol
     }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
@@ -243,10 +243,10 @@ async function getSwapPendle(
     `&syTokenOutAddr=${pendleConf.syTokenOut}` +
     '&slippage=0.05';
 
-  Log(`pendle url: ${pendleHostedSdkUrl}`);
+  logger.debug(`pendle url: ${pendleHostedSdkUrl}`);
   const msToWait = 6000 - (Date.now() - lastCallPendle); // 1 call every 6 seconds
   if (msToWait > 0) {
-    Log(`Waiting ${msToWait} ms before calling pendle api`);
+    logger.debug(`Waiting ${msToWait} ms before calling pendle api`);
     await sleep(msToWait);
   }
   const pendleSwapResponse = await HttpGet<PendleSwapResponse>(pendleHostedSdkUrl);
@@ -283,7 +283,7 @@ async function getSwap1Inch(
     '&disableEstimate=true' + // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
     `&excludedProtocols=${get1inchExcludedProtocols(chainCode)}`;
 
-  Log(`getSwap1Inch: ${oneInchApiUrl}`);
+  logger.debug(`getSwap1Inch: ${oneInchApiUrl}`);
   const msToWait = 1000 - (Date.now() - lastCall1Inch);
   if (msToWait > 0) {
     await sleep(msToWait);
@@ -322,7 +322,7 @@ async function getSwapOpenOcean(
 ): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
   // when calling openocena, the amount must be normalzed
   const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals).toFixed(8);
-  Log(`getSwapOpenOcean: amount ${collateralAmountNorm}`);
+  logger.debug(`getSwapOpenOcean: amount ${collateralAmountNorm}`);
 
   const chainId = (await web3Provider.getNetwork()).chainId;
   const chainCode = GetOpenOceanChainCodeByChainId(chainId);
@@ -339,7 +339,7 @@ async function getSwapOpenOcean(
     `&account=${GetGatewayAddress()}` +
     `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
 
-  Log(`getSwapOpenOcean: ${openOceanURL}`);
+  logger.debug(`getSwapOpenOcean: ${openOceanURL}`);
 
   const openOceanResponse = await HttpGet<OpenOceanSwapQuoteResponse>(openOceanURL);
 

@@ -8,10 +8,10 @@ import path from 'path';
 import { ReadJSON, WriteJSON, sleep } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import LendingTerm from '../../model/LendingTerm';
-import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { Loan, LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { FetchAllEvents, FetchAllEventsMulti } from '../../utils/Web3Helper';
+import logger from '../../utils/Logger';
 
 export default class LoansFetcher {
   static async fetchAndSaveLoans(
@@ -20,7 +20,7 @@ export default class LoansFetcher {
     syncData: SyncData,
     currentBlock: number
   ) {
-    Log('FetchECGData[Loans]: starting');
+    logger.debug('FetchECGData[Loans]: starting');
 
     let alreadySavedLoans: Loan[] = [];
     const loansFilePath = path.join(DATA_DIR, 'loans.json');
@@ -37,7 +37,7 @@ export default class LoansFetcher {
     };
 
     if (terms.length == 0) {
-      Log('FetchECGData[Loans]: no terms to fetch');
+      logger.debug('FetchECGData[Loans]: no terms to fetch');
       WriteJSON(loansFilePath, updateLoans);
       return;
     }
@@ -87,7 +87,7 @@ export default class LoansFetcher {
     updateLoans.updated = endDate;
     updateLoans.updatedHuman = new Date(endDate).toISOString();
     WriteJSON(loansFilePath, updateLoans);
-    Log('FetchECGData[Loans]: ending');
+    logger.debug('FetchECGData[Loans]: ending');
   }
 }
 
@@ -97,7 +97,7 @@ async function fetchNewLoanOpen(
   web3Provider: JsonRpcProvider,
   currentBlock: number
 ): Promise<{ termAddress: string; loanId: string; txHash: string }[]> {
-  Log('FetchECGData[Loans]: fetchNewLoanOpen starting');
+  logger.debug('FetchECGData[Loans]: fetchNewLoanOpen starting');
   const termContractInterface = LendingTerm__factory.createInterface();
   const topics = termContractInterface.encodeFilterTopics('LoanOpen', []);
   let sinceBlock = GetDeployBlock();
@@ -125,7 +125,7 @@ async function fetchNewLoanOpen(
     });
   }
 
-  Log('FetchECGData[Loans]: fetchNewLoanOpen ending');
+  logger.debug('FetchECGData[Loans]: fetchNewLoanOpen ending');
   return allNewLoansIds;
 }
 
@@ -141,9 +141,9 @@ async function fetchLoansInfo(
     promises.push(lendingTermContract.getLoanDebt(loanData.loanId));
   }
 
-  Log(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
+  logger.debug(`FetchECGData[Loans]: sending loans() multicall for ${allLoanIds.length} loans`);
   await Promise.all(promises);
-  Log('FetchECGData[Loans]: end multicall');
+  logger.debug('FetchECGData[Loans]: end multicall');
 
   let cursor = 0;
   const allLoans: Loan[] = [];
@@ -188,7 +188,7 @@ async function fetchClosedEventsAndUpdateLoans(
   syncData: SyncData,
   currentBlock: number
 ) {
-  Log('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans starting');
+  logger.debug('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans starting');
   const termContractInterface = LendingTerm__factory.createInterface();
   const topics = termContractInterface.encodeFilterTopics('LoanClose', []);
   let sinceBlock = GetDeployBlock();
@@ -217,7 +217,7 @@ async function fetchClosedEventsAndUpdateLoans(
     loan.debtRepaid = debtRepaid;
   }
 
-  Log('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans ending');
+  logger.debug('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans ending');
 }
 async function getLoanCloseEventsForTerm(
   syncData: SyncData,

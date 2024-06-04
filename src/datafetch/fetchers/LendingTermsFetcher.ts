@@ -1,11 +1,5 @@
 import { JsonRpcProvider } from 'ethers';
-import { ProtocolData } from '../../model/ProtocolData';
-import {
-  GetGuildTokenAddress,
-  GetProfitManagerAddress,
-  getTokenByAddress,
-  getTokenByAddressNoError
-} from '../../config/Config';
+import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddressNoError } from '../../config/Config';
 import {
   GuildToken__factory,
   LendingTerm as LendingTermType,
@@ -19,13 +13,13 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { Log, Warn } from '../../utils/Logger';
+import logger from '../../utils/Logger';
 import { GetERC20Infos } from '../../utils/Web3Helper';
 import { SendNotifications } from '../../utils/Notifications';
 
 export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
-    Log('FetchECGData[Terms]: starting');
+    logger.debug('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
@@ -35,7 +29,7 @@ export default class LendingTermsFetcher {
     promises.push(profitManagerContract.minBorrow());
     promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of gauges) {
-      // Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
+      // logger.debug(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
       const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
       promises.push(lendingTermContract.getParameters());
       promises.push(lendingTermContract.issuance());
@@ -46,9 +40,9 @@ export default class LendingTermsFetcher {
     }
 
     // wait the promises
-    Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
+    logger.debug(`FetchECGData[Terms]: sending ${promises.length} multicall`);
     await Promise.all(promises);
-    Log('FetchECGData[Terms]: end multicall');
+    logger.debug('FetchECGData[Terms]: end multicall');
 
     const lendingTerms: LendingTerm[] = [];
     let cursor = 0;
@@ -68,7 +62,7 @@ export default class LendingTermsFetcher {
       let collateralToken = getTokenByAddressNoError(termParameters.collateralToken);
       if (!collateralToken) {
         collateralToken = await GetERC20Infos(web3Provider, termParameters.collateralToken);
-        Warn(
+        logger.error(
           `Token ${termParameters.collateralToken} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
         );
         await SendNotifications(

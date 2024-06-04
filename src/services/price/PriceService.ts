@@ -1,7 +1,6 @@
 import { median } from 'simple-statistics';
 import { DexEnum, TokenConfig, getAllTokens, getTokenByAddressNoError } from '../../config/Config';
 import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
-import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
 import { UniswapV3Pool__factory } from '../../contracts/types';
 import SimpleCacheService from '../cache/CacheService';
@@ -15,6 +14,7 @@ import { CoincapAssetsResponse } from '../../model/Coincap';
 import { TokenListResponse } from '../../model/OpenOceanApi';
 import { DexGuruTokensResponse } from '../../model/DexGuru';
 import { SendNotifications } from '../../utils/Notifications';
+import logger from '../../utils/Logger';
 
 interface PriceResult {
   source: string;
@@ -32,7 +32,7 @@ export default class PriceService {
     );
 
     if (allPrices[tokenAddress] == undefined) {
-      Warn(`GetTokenPrice: price not found in cache for ${tokenAddress}, fetching price from defillama only`);
+      logger.error(`GetTokenPrice: price not found in cache for ${tokenAddress}, fetching price from defillama only`);
       const unkTokenPrice = await SimpleCacheService.GetAndCache(
         `unk-token-price-${tokenAddress}`,
         async () => {
@@ -62,13 +62,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
   // this is done so that every node of a server will query the local API which will query the prices only once
   if (GET_PRICES_FROM_API && ECG_NODE_API_URI) {
     // the process is not the API, will call the API
-    Log('LoadConfigTokenPrices: loading prices from local API');
+    logger.debug('LoadConfigTokenPrices: loading prices from local API');
     const nodeApiPriceUrl = `${ECG_NODE_API_URI}/api/protocol/prices`;
     allPrices = await HttpGet<{ [tokenAddress: string]: number }>(nodeApiPriceUrl);
   } else {
-    Log('LoadConfigTokenPrices: loading configuration token prices');
+    logger.debug('LoadConfigTokenPrices: loading configuration token prices');
     const tokens = getAllTokens();
-    Log(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
+    logger.debug(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
     const genericTokenToFetch: TokenConfig[] = [];
 
     for (const token of tokens) {
@@ -99,7 +99,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       if (token.pendleConfiguration) {
         // fetch price using pendle api
         allPrices[token.address] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
-        Log(`LoadConfigTokenPrices: price for ${token.symbol} from pendle: ${allPrices[token.address]}`);
+        logger.debug(`LoadConfigTokenPrices: price for ${token.symbol} from pendle: ${allPrices[token.address]}`);
         continue;
       }
 
@@ -155,13 +155,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
               const msg = `Token ${token.symbol} price from source ${priceSource} seems wrong (${Math.round(
                 absDeviation * 100
               )}% off): $${tokenPrice} vs median $${allPrices[token.address]}`;
-              Warn(msg);
+              logger.error(msg);
               await SendNotifications('PriceService', `${token.symbol} ${priceSource} price deviation`, msg);
             }
           }
         }
 
-        Log(
+        logger.debug(
           `LoadConfigTokenPrices: price for ${token.symbol}: $${allPrices[token.address]}. Medianed from ${
             prices.length
           } sources: ${prices}`
@@ -170,7 +170,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
     }
   }
 
-  Log(`LoadConfigTokenPrices: ends with ${Object.keys(allPrices).length} prices`);
+  logger.debug(`LoadConfigTokenPrices: ends with ${Object.keys(allPrices).length} prices`);
 
   return allPrices;
 }
@@ -193,7 +193,7 @@ async function getSafeWethPrice(): Promise<number> {
       if (price == 0) {
         throw new Error('getSafeWethPrice: error when fetching weth price');
       }
-      Log(`getSafeWethPrice: returning 1 WETH = $${price} from binance`);
+      logger.debug(`getSafeWethPrice: returning 1 WETH = $${price} from binance`);
       return price;
     },
     5 * 60 * 1000 // 5 min cache
@@ -278,7 +278,7 @@ async function GetDexPriceMulti(tokens: TokenConfig[], wethPriceUsd: number): Pr
         }
 
         const tokenPrice = median(pricesForToken);
-        Log(
+        logger.debug(
           `GetDexPriceMulti: price for ${token.symbol} from DEX: $${tokenPrice} from ${pricesForToken.length} prices: ${pricesForToken}`
         );
         prices[token.address] = tokenPrice;
@@ -335,14 +335,14 @@ async function GetDefiLlamaPriceMulti(tokens: TokenConfig[]): Promise<PriceResul
       const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
 
       llamaPrices[token.address] = llamaPrice;
-      Log(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: $${llamaPrices[token.address]}`);
+      logger.debug(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: $${llamaPrices[token.address]}`);
     }
   } catch (e) {
-    Warn('Exception calling defillama price api', e);
+    logger.error('Exception calling defillama price api', e);
     for (const token of tokens) {
       llamaPrices[token.address] = 0;
 
-      Log(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: $${llamaPrices[token.address]}`);
+      logger.debug(`getDefiLlamaPriceMulti: price for ${token.symbol} from llama: $${llamaPrices[token.address]}`);
     }
   }
 
@@ -378,16 +378,16 @@ async function GetCoinGeckoPriceMulti(tokens: TokenConfig[]): Promise<PriceResul
           prices[token.address] = 0;
         }
 
-        Log(`GetCoinGeckoPriceMulti: price for ${token.symbol} from coingecko: $${prices[token.address]}`);
+        logger.debug(`GetCoinGeckoPriceMulti: price for ${token.symbol} from coingecko: $${prices[token.address]}`);
       }
     }
   } catch (e) {
-    Warn('Exception calling coingecko price api', e);
+    logger.error('Exception calling coingecko price api', e);
     for (const token of tokens) {
       if (token.coingeckoId) {
         prices[token.address] = 0;
 
-        Log(`GetCoinGeckoPriceMulti: price for ${token.symbol} from coingecko: $${prices[token.address]}`);
+        logger.debug(`GetCoinGeckoPriceMulti: price for ${token.symbol} from coingecko: $${prices[token.address]}`);
       }
     }
   }
@@ -425,16 +425,16 @@ async function GetCoinCapPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
           prices[token.address] = 0;
         }
 
-        Log(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
+        logger.debug(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
       }
     }
   } catch (e) {
-    Warn('Exception calling coincap price api', e);
+    logger.error('Exception calling coincap price api', e);
     for (const token of tokens) {
       if (token.coingeckoId) {
         prices[token.address] = 0;
 
-        Log(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
+        logger.debug(`GetCoinCapPriceMulti: price for ${token.symbol} from coincap: $${prices[token.address]}`);
       }
     }
   }
@@ -468,16 +468,16 @@ async function GetOpenOceanPriceMulti(tokens: TokenConfig[]): Promise<PriceResul
           prices[token.address] = 0;
         }
 
-        Log(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
+        logger.debug(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
       }
     }
   } catch (e) {
-    Warn('Exception calling coincap price api', e);
+    logger.error('Exception calling coincap price api', e);
     for (const token of tokens) {
       if (token.coingeckoId) {
         prices[token.address] = 0;
 
-        Log(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
+        logger.debug(`GetOpenOceanPriceMulti: price for ${token.symbol} from openocean: $${prices[token.address]}`);
       }
     }
   }
@@ -525,15 +525,15 @@ async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
         prices[token.address] = 0;
       }
 
-      Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
+      logger.debug(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
     }
   } catch (e) {
-    Warn('Exception calling DexGuru price api', e);
+    logger.error('Exception calling DexGuru price api', e);
     for (const token of tokens) {
       if (token.coingeckoId) {
         prices[token.address] = 0;
 
-        Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
+        logger.debug(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
       }
     }
   }
@@ -577,15 +577,15 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
         prices[token.address] = 0;
       }
 
-      Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
+      logger.debug(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
     }
   } catch (e) {
-    Warn('Exception calling 1inch price api', e);
+    logger.error('Exception calling 1inch price api', e);
     for (const token of tokens) {
       if (token.coingeckoId) {
         prices[token.address] = 0;
 
-        Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
+        logger.debug(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
       }
     }
   }

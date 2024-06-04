@@ -3,7 +3,7 @@ import path from 'path';
 import { DATA_DIR } from './Constants';
 import { sleep } from './Utils';
 import { SendNotifications } from './Notifications';
-import { Log } from './Logger';
+import logger from './Logger';
 
 const lockFile = path.join(DATA_DIR, 'data.lock');
 
@@ -21,7 +21,7 @@ export class FileMutex {
           if (lockedMsg == `LOCKED BY ${process.title}`) {
             isLocked = false;
           } else {
-            Log(`WaitForUnlock: ${lockedMsg}`);
+            logger.debug(`WaitForUnlock: ${lockedMsg}`);
             if (waitDuration > 15 * 60 * 1000) {
               // if more than 10 min wait, notify and throw
               await SendNotifications('FileMutex', 'Timeout', `WaitForUnlock: timeout waiting on ${lockedMsg}`);

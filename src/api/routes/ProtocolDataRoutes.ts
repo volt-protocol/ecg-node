@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import SimpleCacheService from '../../services/cache/CacheService';
-import MarketDataController from '../controllers/MarketDataController';
 import ProtocolDataController from '../controllers/ProtocolDataController';
 
 const router = express.Router();

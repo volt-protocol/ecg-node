@@ -9,9 +9,9 @@ import { DATA_DIR } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
 import { MarketMakerState } from '../model/MarketMakerState';
-import { Log } from '../utils/Logger';
 import { TestnetMarketMakerConfig } from '../model/NodeConfig';
 import PriceService from '../services/price/PriceService';
+import logger from '../utils/Logger';
 
 const RUN_EVERY_SEC = 120;
 
@@ -31,7 +31,7 @@ async function TestnetMarketMaker() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_TESTNET_MARKET_MAKER';
-    Log('starting');
+    logger.debug('starting');
     const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
 
     const rpcURL = process.env.RPC_URL;
@@ -46,7 +46,7 @@ async function TestnetMarketMaker() {
     }
 
     await MakeMarket(config);
-    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
+    logger.debug(`sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }
@@ -67,12 +67,12 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
     const threshold = config.threshold;
     const pairAddress = config.uniswapPairs[i].poolAddress;
     const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
-    Log(`checking pair ${token0.symbol}-${token1.symbol}`);
+    logger.debug(`checking pair ${token0.symbol}-${token1.symbol}`);
 
     const priceToken0 = await PriceService.GetTokenPrice(token0.mainnetAddress || token0.address);
     const priceToken1 = await PriceService.GetTokenPrice(token1.mainnetAddress || token1.address);
     if (!priceToken0 || !priceToken1) {
-      Log('Cannot market make because real price unknwon', priceToken0, priceToken1);
+      logger.debug('Cannot market make because real price unknwon', priceToken0, priceToken1);
       return;
     }
     const targetRatio = priceToken1 / priceToken0;
@@ -82,10 +82,10 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
       Number(reserves[1] * BigInt(10 ** (18 - token1.decimals)));
 
     const diff = Math.abs((spotRatio - targetRatio) / targetRatio);
-    Log(`price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`);
+    logger.debug(`price diff is ${roundTo(diff * 100, 2)}%. Acceptable diff: ${config.threshold * 100}%`);
 
     if (diff < threshold) {
-      Log(`pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`);
+      logger.debug(`pair almost balanced, no need to swap spotRatio = ${spotRatio} / targetRatio = ${targetRatio}`);
     } else {
       // if we have to swap token0 for token1
       if (spotRatio < targetRatio) {
@@ -100,7 +100,7 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
-        Log(
+        logger.debug(
           `swap ${norm(amountIn, token0.decimals)} ${token0.symbol} -> ${norm(amountOut, token1.decimals)} ${
             token1.symbol
           }`
@@ -133,7 +133,7 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
             Number(reservesAfter[0] * BigInt(10 ** (18 - token0.decimals))) /
             Number(reservesAfter[1] * BigInt(10 ** (18 - token1.decimals)));
         }
-        Log(
+        logger.debug(
           `swap ${norm(amountIn, token1.decimals)} ${token1.symbol} -> ${norm(amountOut, token0.decimals)} ${
             token0.symbol
           }`

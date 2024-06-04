@@ -39,11 +39,11 @@ import {
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Loan, LoanStatus } from '../model/Loan';
 import { HistoricalDataStateLoanBorrow } from '../model/HistoricalDataState';
-import { Log, Warn } from '../utils/Logger';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { CreditTransferFile } from '../model/CreditTransfer';
 import { HttpGet } from '../utils/HttpHelper';
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
+import logger from '../utils/Logger';
 dotenv.config();
 let lastCallDefillama = 0;
 
@@ -60,7 +60,7 @@ async function HistoricalDataFetcher() {
     await LoadConfiguration();
     process.title = 'ECG_NODE_HISTORICAL_DATA_FETCHER';
     const startDate = Date.now();
-    Log('starting');
+    logger.debug('starting');
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
@@ -75,7 +75,7 @@ async function FetchHistoricalData() {
   const web3Provider = GetArchiveWeb3Provider();
 
   const currentBlock = await web3Provider.getBlockNumber();
-  Log(`fetching data up to block ${currentBlock}`);
+  logger.debug(`fetching data up to block ${currentBlock}`);
 
   const historicalDataDir = path.join(DATA_DIR, 'history');
 
@@ -120,7 +120,7 @@ async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchBlocks: data already up to date');
+    logger.debug('fetchBlocks: data already up to date');
     return fullHistoricalData.blockTimes;
   }
 
@@ -128,7 +128,7 @@ async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3
     const blockData = await retry(GetBlock, [web3Provider, blockToFetch]);
     fullHistoricalData.blockTimes[blockToFetch] = blockData.timestamp;
 
-    Log(`fetchBlocks: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) block saved`);
+    logger.debug(`fetchBlocks: [${blockToFetch}] (${new Date(blockData.timestamp * 1000).toISOString()}) block saved`);
     WriteJSON(historyFilename, fullHistoricalData);
   }
   WriteJSON(historyFilename, fullHistoricalData);
@@ -156,7 +156,7 @@ async function fetchCreditTotalSupply(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchCreditTotalSupply: data already up to date');
+    logger.debug('fetchCreditTotalSupply: data already up to date');
     return;
   }
 
@@ -166,7 +166,7 @@ async function fetchCreditTotalSupply(
     const totalSupplyAtBlock = await creditTokenContract.targetTotalSupply({ blockTag: blockToFetch });
     fullHistoricalData.values[blockToFetch] = norm(totalSupplyAtBlock);
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
-    Log(
+    logger.debug(
       `fetchCreditTotalSupply: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) total supply : ${fullHistoricalData.values[blockToFetch]}`
@@ -197,7 +197,7 @@ async function fetchCreditTotalIssuance(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchCreditTotalIssuance: data already up to date');
+    logger.debug('fetchCreditTotalIssuance: data already up to date');
     return;
   }
 
@@ -207,7 +207,7 @@ async function fetchCreditTotalIssuance(
     const totalIssuanceAtBlock = await profitManagerContract.totalIssuance({ blockTag: blockToFetch });
     fullHistoricalData.values[blockToFetch] = norm(totalIssuanceAtBlock);
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
-    Log(
+    logger.debug(
       `fetchCreditTotalIssuance: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) total issuance : ${fullHistoricalData.values[blockToFetch]}`
@@ -238,7 +238,7 @@ async function fetchCreditMultiplier(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchCreditMultiplier: data already up to date');
+    logger.debug('fetchCreditMultiplier: data already up to date');
     return;
   }
 
@@ -248,7 +248,7 @@ async function fetchCreditMultiplier(
     const creditMultiplier = await retry(() => profitManagerContract.creditMultiplier({ blockTag: blockToFetch }), []);
     fullHistoricalData.values[blockToFetch] = norm(creditMultiplier);
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
-    Log(
+    logger.debug(
       `fetchCreditMultiplier: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) credit multiplier: ${fullHistoricalData.values[blockToFetch]}`
@@ -281,7 +281,7 @@ async function fetchAverageInterestRate(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchAverageInterestRate: data already up to date');
+    logger.debug('fetchAverageInterestRate: data already up to date');
     return;
   }
 
@@ -318,7 +318,7 @@ async function fetchAverageInterestRate(
     fullHistoricalData.values[blockToFetch] = avgInterestRate;
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchAverageInterestRate: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) avg interest rate : ${fullHistoricalData.values[blockToFetch]}`
@@ -351,7 +351,7 @@ async function fetchTVL(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchTVL: data already up to date');
+    logger.debug('fetchTVL: data already up to date');
     return;
   }
 
@@ -400,7 +400,7 @@ async function fetchTVL(
       let tokenConf = getTokenByAddressNoError(collateralAddress);
       if (!tokenConf) {
         tokenConf = await GetERC20Infos(web3Provider, collateralAddress);
-        Warn(
+        logger.error(
           `Token ${collateralAddress} not found in config. ERC20 infos: ${tokenConf.symbol} / ${tokenConf.decimals} decimals`
         );
       }
@@ -414,7 +414,7 @@ async function fetchTVL(
     fullHistoricalData.values[blockToFetch] = tvlInUsd + psmPegTokenValue;
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchTVL: [${blockToFetch}] (${new Date(blockTimes[blockToFetch] * 1000).toISOString()}) TVL : ${
         fullHistoricalData.values[blockToFetch]
       }. TCL: $${tvlInUsd}, PSM pegTokenValue: $${psmPegTokenValue}`
@@ -448,7 +448,7 @@ async function fetchDebtCeilingAndIssuance(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchDebtCeilingAndIssuance: data already up to date');
+    logger.debug('fetchDebtCeilingAndIssuance: data already up to date');
     return;
   }
 
@@ -482,7 +482,7 @@ async function fetchDebtCeilingAndIssuance(
 
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchDebtCeilingAndIssuance: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) total debtCeiling: ${totalDebtCeiling} | total issuance: ${totalIssuance}`
@@ -515,7 +515,7 @@ async function fetchGaugeWeight(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchGaugeWeight: data already up to date');
+    logger.debug('fetchGaugeWeight: data already up to date');
     return;
   }
 
@@ -543,7 +543,7 @@ async function fetchGaugeWeight(
 
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchGaugeWeight: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) total weight: ${totalWeight}`
@@ -576,7 +576,7 @@ async function fetchSurplusBuffer(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchSurplusBuffer: data already up to date');
+    logger.debug('fetchSurplusBuffer: data already up to date');
     return;
   }
 
@@ -605,7 +605,7 @@ async function fetchSurplusBuffer(
 
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchSurplusBuffer: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) total surplus buffer: ${totalBuffer}`
@@ -648,7 +648,7 @@ async function fetchLoansData(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchLoansData: data already up to date');
+    logger.debug('fetchLoansData: data already up to date');
     return;
   }
 
@@ -747,7 +747,7 @@ async function fetchLoansData(
     fullHistoricalData.values[blockToFetch].borrowValue = totalBorrowPegToken;
     fullHistoricalData.values[blockToFetch].totalUnpaidInterests = totalUnpaidInterests;
 
-    Log(
+    logger.debug(
       `fetchLoansData: [${blockToFetch}] (${new Date(
         blockTimes[blockToFetch] * 1000
       ).toISOString()}) openLoans: ${currentlyOpenedLoans}, borrowValue: ${totalBorrowPegToken}, unpaid interests: ${totalUnpaidInterests}`
@@ -784,7 +784,7 @@ async function fetchAPRData(
   }
 
   if (startBlock > currentBlock) {
-    Log('fetchDebtCeilingAndIssuance: data already up to date');
+    logger.debug('fetchDebtCeilingAndIssuance: data already up to date');
     return;
   }
 
@@ -805,7 +805,7 @@ async function fetchAPRData(
     fullHistoricalData.values[blockToFetch].sharePrice = sharePrice;
     fullHistoricalData.blockTimes[blockToFetch] = blockTimes[blockToFetch];
 
-    Log(
+    logger.debug(
       `fetchAPRData: [${blockToFetch}] (${new Date(blockTimes[blockToFetch] * 1000).toISOString()}) | ` +
         `rebasingSupply ${fullHistoricalData.values[blockToFetch].rebasingSupply}` +
         `, totalSupply ${fullHistoricalData.values[blockToFetch].totalSupply}` +
@@ -910,7 +910,7 @@ async function GetTokenPriceMultiAtTimestamp(
     let token = getTokenByAddressNoError(tokenAddress);
     if (!token) {
       token = await GetERC20Infos(web3Provider, tokenAddress);
-      Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+      logger.error(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
     }
 
     if (token.pendleConfiguration) {
@@ -922,7 +922,7 @@ async function GetTokenPriceMultiAtTimestamp(
         timestamp,
         web3Provider
       );
-      Log(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${prices[tokenAddress]}`);
+      logger.debug(`GetTokenPriceMulti: price for ${token.symbol} from pendle: ${prices[tokenAddress]}`);
       continue;
     }
 
@@ -945,17 +945,17 @@ async function GetTokenPriceMultiAtTimestamp(
       let token = getTokenByAddressNoError(tokenAddress);
       if (!token) {
         token = await GetERC20Infos(web3Provider, tokenAddress);
-        Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
+        logger.error(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
       }
       const llamaId = `${llamaNetwork}:${token.mainnetAddress || token.address}`;
       const llamaPrice = priceResponse.coins[llamaId] ? priceResponse.coins[llamaId].price : 0;
 
       prices[tokenAddress] = llamaPrice;
-      Log(`GetTokenPriceMultiAtTimestamp: price for ${token.symbol} from llama: $${prices[tokenAddress]}`);
+      logger.debug(`GetTokenPriceMultiAtTimestamp: price for ${token.symbol} from llama: $${prices[tokenAddress]}`);
     }
   }
 
-  Log(`GetTokenPriceMultiAtTimestamp: ends with ${Object.keys(prices).length} prices`);
+  logger.debug(`GetTokenPriceMultiAtTimestamp: ends with ${Object.keys(prices).length} prices`);
   return prices;
 }
 
@@ -986,7 +986,7 @@ async function GetDefiLlamaPriceAtTimestamp(tokenSymbol: string, tokenId: string
     return undefined;
   }
 
-  Log(`GetDefiLlamaPriceAtTimestamp: price for ${tokenSymbol} from llama: $${resp.coins[tokenId].price}`);
+  logger.debug(`GetDefiLlamaPriceAtTimestamp: price for ${tokenSymbol} from llama: $${resp.coins[tokenId].price}`);
   return resp.coins[tokenId].price;
 }
 
@@ -1022,7 +1022,7 @@ async function GetPendlePriceAtBlock(
   }
 
   const price = pendlePriceVsAsset * usdPriceBaseAsset;
-  Log(`GetPendlePriceAtBlock: price for ${tokenSymbol} from pendle: $${price}`);
+  logger.debug(`GetPendlePriceAtBlock: price for ${tokenSymbol} from pendle: $${price}`);
   return price;
 }
 

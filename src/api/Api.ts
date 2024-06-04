@@ -11,8 +11,8 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import dotenv from 'dotenv';
-import { Log } from '../utils/Logger';
 import { LoadTokens } from '../config/Config';
+import logger from '../utils/Logger';
 dotenv.config();
 const port = process.env.API_PORT || 17777;
 
@@ -54,7 +54,7 @@ app.use('/api/markets/', marketDataRoutes);
 app.use('/api/protocol/', protocolDataRoutes);
 
 app.listen(port, () => {
-  Log(`⚡️[server]: Server is running. See doc: http://localhost:${port}/api-docs`);
+  logger.debug(`⚡️[server]: Server is running. See doc: http://localhost:${port}/api-docs`);
 });
 
 process.on('SIGINT', cleanup);
@@ -62,6 +62,6 @@ process.on('SIGTERM', cleanup);
 
 async function cleanup() {
   // do cleanup if needed
-  Log('shutdown requested');
+  logger.debug('shutdown requested');
   process.exit();
 }

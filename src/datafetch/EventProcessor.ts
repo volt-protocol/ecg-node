@@ -1,17 +1,12 @@
 import { EventData, EventQueue } from '../utils/EventQueue';
 import { buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
-import { SendNotifications, SendNotificationsSpam } from '../utils/Notifications';
-import { Log, Warn } from '../utils/Logger';
+import logger from '../utils/Logger';
 import { StartEventListener } from './EventWatcher';
-import { MARKET_ID } from '../utils/Constants';
-import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
-import { GetWeb3Provider } from '../utils/Web3Helper';
-import { GetGuildTokenAddress } from '../config/Config';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
-  Log('Started the event processor');
+  logger.debug('Started the event processor');
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -21,14 +16,14 @@ export async function StartEventProcessor() {
         await ProcessAsync(event);
       }
     } else {
-      // Log('EventProcessor: sleeping');
+      // logger.debug('EventProcessor: sleeping');
       await sleep(1000);
     }
   }
 }
 
 async function ProcessAsync(event: EventData) {
-  Log(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
+  logger.debug(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
   if (mustUpdateProtocol(event)) {
     if (lastBlockFetched < event.block) {
       await FetchECGData();
@@ -42,7 +37,7 @@ async function ProcessAsync(event: EventData) {
 
     const msg = 'Updated backend data\n' + `Tx: ${buildTxUrl(event.txHash)}`;
 
-    Log(msg);
+    logger.debug(msg);
   }
 }
 
@@ -69,7 +64,7 @@ function mustUpdateProtocol(event: EventData): boolean {
 function guildTokenMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      Log(`GuildToken ${event.eventName} is not important`);
+      logger.debug(`GuildToken ${event.eventName} is not important`);
       return false;
     case 'addgauge':
     case 'removegauge':
@@ -82,7 +77,7 @@ function guildTokenMustUpdate(event: EventData): boolean {
 function lendingTermMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      Log(`LendingTerm ${event.eventName} is not important`);
+      logger.debug(`LendingTerm ${event.eventName} is not important`);
       return false;
     case 'loanopen':
     case 'loanaddcollateral':
@@ -90,7 +85,7 @@ function lendingTermMustUpdate(event: EventData): boolean {
     case 'loanclose':
     case 'loancall':
     case 'setauctionhouse':
-      Log(`LendingTerm ${event.eventName} must force an update`);
+      logger.debug(`LendingTerm ${event.eventName} must force an update`);
       return true;
   }
 }
@@ -98,10 +93,10 @@ function lendingTermMustUpdate(event: EventData): boolean {
 function termFactoryMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      Log(`TermFactory ${event.eventName} is not important`);
+      logger.debug(`TermFactory ${event.eventName} is not important`);
       return false;
     case 'termcreated':
-      Log(`TermFactory ${event.eventName} must force an update`);
+      logger.debug(`TermFactory ${event.eventName} must force an update`);
       return true;
   }
 }
@@ -109,13 +104,13 @@ function termFactoryMustUpdate(event: EventData): boolean {
 function onboardingMustUpdate(event: EventData): boolean {
   switch (event.eventName.toLowerCase()) {
     default:
-      Log(`Onboarding ${event.eventName} is not important`);
+      logger.debug(`Onboarding ${event.eventName} is not important`);
       return false;
     // case 'proposalexecuted': // dont check proposal executed as it will add a gauge anyway which is already fetched
     case 'proposalcreated':
     case 'proposalqueued':
     case 'proposalcanceled':
-      Log(`Onboarding ${event.eventName} must force an update`);
+      logger.debug(`Onboarding ${event.eventName} must force an update`);
       return true;
   }
 }

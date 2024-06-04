@@ -6,7 +6,7 @@ import { GetDeployBlock } from '../config/Config';
 import { ReadJSON, WriteJSON } from '../utils/Utils';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
-import logger, { Log } from '../utils/Logger';
+import logger from '../utils/Logger';
 import { SendNotifications } from '../utils/Notifications';
 import ProtocolDataFetcher from './fetchers/ProtocolDataFetcher';
 import LendingTermsFetcher from './fetchers/LendingTermsFetcher';
@@ -29,33 +29,33 @@ export async function FetchECGData() {
     logger.debug(`FetchECGData: fetching data up to block ${currentBlock}`);
 
     const syncData: SyncData = getSyncData();
-    Log('FetchECGData: start fetching');
+    logger.debug('FetchECGData: start fetching');
     let fetchStart = performance.now();
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
-    Log(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: protocol data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const terms = await LendingTermsFetcher.fetchAndSaveTerms(web3Provider, currentBlock);
-    Log(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: terms data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const loans = await LoansFetcher.fetchAndSaveLoans(web3Provider, terms, syncData, currentBlock);
-    Log(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: loan data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const gauges = await GaugesFetcher.fetchAndSaveGauges(web3Provider, syncData, currentBlock);
-    Log(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: gauges data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const auctions = await AuctionsFetcher.fetchAndSaveAuctions(web3Provider, terms, syncData, currentBlock);
-    Log(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: auctions data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const auctionsHouses = await AuctionsFetcher.fetchAndSaveAuctionHouses(web3Provider, terms);
-    Log(`FetchECGData: auction house data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: auction house data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     fetchStart = performance.now();
     const proposals = await TermsProposalFetcher.fetchProposals(web3Provider, syncData, currentBlock);
-    Log(`FetchECGData: fetchProposals data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    logger.debug(`FetchECGData: fetchProposals data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     const durationMs = performance.now() - dtStart;
-    Log(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
+    logger.debug(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
   } catch (e) {
-    Log('FetchECGData: unknown failure', e);
+    logger.debug('FetchECGData: unknown failure', e);
     lastFetch = 0;
     await SendNotifications('Data Fetcher', 'Unknown exception when fetching data', JSON.stringify(e));
   } finally {
@@ -86,9 +86,9 @@ function getSyncData() {
 
 export async function FetchIfTooOld() {
   if (lastFetch + SECONDS_BETWEEN_FETCHES * 1000 > Date.now()) {
-    Log('FetchIfTooOld: no fetch needed');
+    logger.debug('FetchIfTooOld: no fetch needed');
   } else {
-    Log('FetchIfTooOld: start fetching data');
+    logger.debug('FetchIfTooOld: start fetching data');
     await FetchECGData();
   }
 }

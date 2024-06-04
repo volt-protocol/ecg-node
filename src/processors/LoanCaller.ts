@@ -9,7 +9,7 @@ import { LendingTerm__factory } from '../contracts/types';
 import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
-import { Log } from '../utils/Logger';
+import logger from '../utils/Logger';
 import { LoadConfiguration } from '../config/Config';
 
 const RUN_EVERY_SEC = 15;
@@ -21,7 +21,7 @@ async function LoanCaller() {
     // load external config
     await LoadConfiguration();
     process.title = 'ECG_NODE_LOAN_CALLER';
-    Log('starting');
+    logger.debug('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const loansFilename = path.join(DATA_DIR, 'loans.json');
     checks(termsFilename, loansFilename);
@@ -43,7 +43,7 @@ async function LoanCaller() {
     const loansToCall: { [termAddress: string]: string[] } = {};
 
     const loansToCheck = loanFileData.loans.filter((_) => _.status == LoanStatus.ACTIVE);
-    Log(`will check ${loansToCheck.length} loans`);
+    logger.debug(`will check ${loansToCheck.length} loans`);
     for (const loan of loansToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == loan.lendingTermAddress);
       if (!term) {
@@ -55,7 +55,7 @@ async function LoanCaller() {
       const partialRepayDelayPassed = checkPartialRepayDelayPassed(loan, term);
 
       if (termDeprecated || aboveMaxBorrow || partialRepayDelayPassed) {
-        Log(
+        logger.debug(
           `Call needed on Term: ${term.termAddress} / loan ${loan.id} ` +
             `(termDeprecated: ${termDeprecated}, aboveMaxBorrow: ${aboveMaxBorrow}, partialRepayDelayPassed: ${partialRepayDelayPassed})`
         );
@@ -69,7 +69,7 @@ async function LoanCaller() {
 
     // call if any
     await callMany(loansToCall);
-    Log(`sleeping ${RUN_EVERY_SEC} seconds`);
+    logger.debug(`sleeping ${RUN_EVERY_SEC} seconds`);
     await sleep(RUN_EVERY_SEC * 1000);
   }
 }
