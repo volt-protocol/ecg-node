@@ -82,42 +82,45 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
             originArgName: parsed.fragment.inputs.map((_) => _.name)
           });
 
-          // find the term in terms
-          const termsFileName = path.join(DATA_DIR, 'terms.json');
-          if (!fs.existsSync(termsFileName)) {
-            throw new Error(`Could not find file ${termsFileName}`);
-          }
-          const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
-          const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
-          if (foundTerm) {
-            if (GetNodeConfig().processors.TERM_ONBOARDING_WATCHER.enabled) {
-              SendNotificationsList(
-                'TermOffboardingWatcher',
-                `Term ${foundTerm.label} offboarded`,
-                [
-                  {
-                    fieldName: 'Term address',
-                    fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
-                  },
-                  {
-                    fieldName: 'Collateral',
-                    fieldValue: foundTerm.collateralSymbol
-                  },
-                  {
-                    fieldName: 'Hard Cap',
-                    fieldValue: foundTerm.hardCap
-                  },
-                  {
-                    fieldName: 'Interest rate',
-                    fieldValue: norm(foundTerm.interestRate).toString()
-                  },
-                  {
-                    fieldName: 'maxDebtPerCollateralToken',
-                    fieldValue: foundTerm.maxDebtPerCollateralToken
-                  }
-                ],
-                true
-              );
+          // if remove gauge, send notification
+          if ('removegauge' == parsed.name.toLowerCase()) {
+            // find the term in terms
+            const termsFileName = path.join(DATA_DIR, 'terms.json');
+            if (!fs.existsSync(termsFileName)) {
+              throw new Error(`Could not find file ${termsFileName}`);
+            }
+            const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+            const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
+            if (foundTerm) {
+              if (GetNodeConfig().processors.TERM_ONBOARDING_WATCHER.enabled) {
+                SendNotificationsList(
+                  'TermOffboardingWatcher',
+                  `Term ${foundTerm.label} offboarded`,
+                  [
+                    {
+                      fieldName: 'Term address',
+                      fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
+                    },
+                    {
+                      fieldName: 'Collateral',
+                      fieldValue: foundTerm.collateralSymbol
+                    },
+                    {
+                      fieldName: 'Hard Cap',
+                      fieldValue: foundTerm.hardCap
+                    },
+                    {
+                      fieldName: 'Interest rate',
+                      fieldValue: norm(foundTerm.interestRate).toString()
+                    },
+                    {
+                      fieldName: 'maxDebtPerCollateralToken',
+                      fieldValue: foundTerm.maxDebtPerCollateralToken
+                    }
+                  ],
+                  true
+                );
+              }
             }
           }
         } else {
