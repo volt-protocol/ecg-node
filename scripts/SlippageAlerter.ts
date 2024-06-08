@@ -23,6 +23,8 @@ import BigNumber from 'bignumber.js';
 import { PendleSwapResponse } from '../src/model/PendleApi';
 
 async function SlippageAlerter() {
+  process.title = 'SLIPPAGE_ALERTER';
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const startDate = Date.now();
@@ -116,12 +118,10 @@ async function CheckSlippage() {
             : WETH.address
         }` +
         `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-        '&slippage=0.05';
+        '&slippage=0.10';
 
       const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-      console.log(dataGet);
-
-      slippage = Math.abs(1 - Number(dataGet.data.priceImpact));
+      slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
     } else {
       const amountFull = new BigNumber(collateralData.totalAmount)
         .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
