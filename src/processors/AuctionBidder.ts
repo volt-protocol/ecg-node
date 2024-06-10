@@ -241,6 +241,7 @@ async function getSwapPendle(
     `&amountPtIn=${collateralReceivedWei.toString()}` +
     `&tokenOutAddr=${pegToken.address}` +
     `&syTokenOutAddr=${pendleConf.syTokenOut}` +
+    `&excludedSources=${getPendleExcludedProtocols(chainId)}` +
     '&slippage=0.05';
 
   logger.debug(`pendle url: ${pendleHostedSdkUrl}`);
@@ -258,6 +259,17 @@ async function getSwapPendle(
     swapData: pendleSwapResponse.transaction.data,
     routerAddress: pendleSwapResponse.transaction.to
   };
+}
+
+function getPendleExcludedProtocols(chainCode: bigint) {
+  switch (chainCode) {
+    case 1n:
+      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+    case 42161n:
+      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+    default:
+      throw new Error(`Unknown chaincode: ${chainCode}`);
+  }
 }
 
 async function getSwap1Inch(

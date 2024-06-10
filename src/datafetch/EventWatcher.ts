@@ -8,12 +8,14 @@ import LendingTermOnbardingAbi from '../contracts/abi/LendingTermOnboarding.json
 import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
 import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, EXPLORER_URI, MARKET_ID } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
-import { ReadJSON } from '../utils/Utils';
+import { GetNodeConfig, ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 import logger from '../utils/Logger';
+import { SendNotificationsList } from '../utils/Notifications';
+import { norm } from '../utils/TokenUtils';
 dotenv.config();
 
 let guildTokenContract: Contract | undefined = undefined;
@@ -77,6 +79,48 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
             sourceContract: 'GuildToken',
             originArgName: parsed.fragment.inputs.map((_) => _.name)
           });
+
+          // if remove gauge, send notification
+          if ('removegauge' == parsed.name.toLowerCase()) {
+            // find the term in terms
+            const termsFileName = path.join(DATA_DIR, 'terms.json');
+            if (!fs.existsSync(termsFileName)) {
+              throw new Error(`Could not find file ${termsFileName}`);
+            }
+            const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+            const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
+            if (foundTerm) {
+              if (GetNodeConfig().processors.TERM_ONBOARDING_WATCHER.enabled) {
+                SendNotificationsList(
+                  'TermOffboardingWatcher',
+                  `Term ${foundTerm.label} offboarded`,
+                  [
+                    {
+                      fieldName: 'Term address',
+                      fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
+                    },
+                    {
+                      fieldName: 'Collateral',
+                      fieldValue: foundTerm.collateralSymbol
+                    },
+                    {
+                      fieldName: 'Hard Cap',
+                      fieldValue: foundTerm.hardCap
+                    },
+                    {
+                      fieldName: 'Interest rate',
+                      fieldValue: norm(foundTerm.interestRate).toString()
+                    },
+                    {
+                      fieldName: 'maxDebtPerCollateralToken',
+                      fieldValue: foundTerm.maxDebtPerCollateralToken
+                    }
+                  ],
+                  true
+                );
+              }
+            }
+          }
         } else {
           logger.debug(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
         }

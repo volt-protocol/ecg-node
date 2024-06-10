@@ -14,3 +14,6 @@ Save market address
 find syTokenOut using this api: https://api-v2.pendle.finance/sdk/api/v1/syTokenInOut?chainId=42161&marketAddr=0x2dfaf9a5e4f293bceede49f2dba29aacdd88e0c4
 Save outputToken address
 
+## Base pricing asset
+
+From the first API (to find the market), find the "accountingAsset" node and check what is the chainid and the asset used to price the token
