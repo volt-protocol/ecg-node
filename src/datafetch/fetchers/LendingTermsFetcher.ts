@@ -25,8 +25,7 @@ export default class LendingTermsFetcher {
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
     const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let promises: any[] = [];
-    const results: any[] = [];
+    const promises: any[] = [];
     promises.push(profitManagerContract.minBorrow());
     promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of gauges) {
@@ -38,34 +37,25 @@ export default class LendingTermsFetcher {
       promises.push(lendingTermContract.auctionHouse());
       promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
       promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
-
-      if (promises.length >= 500) {
-        logger.debug(`FetchECGData[Terms]: sending ${promises.length} multicall`);
-        const subResults = await Promise.all(promises);
-        logger.debug('FetchECGData[Terms]: end multicall');
-        results.push(...subResults);
-        promises = [];
-      }
     }
 
     // wait the promises
     logger.debug(`FetchECGData[Terms]: sending ${promises.length} multicall`);
-    const subResults = await Promise.all(promises);
-    results.push(...subResults);
+    await Promise.all(promises);
     logger.debug('FetchECGData[Terms]: end multicall');
 
     const lendingTerms: LendingTerm[] = [];
     let cursor = 0;
-    const minBorrow: bigint = results[cursor++];
-    const totalTypeWeight: bigint = results[cursor++];
+    const minBorrow: bigint = await promises[cursor++];
+    const totalTypeWeight: bigint = await promises[cursor++];
     for (const lendingTermAddress of gauges) {
-      // read results in the same order as the multicall
-      const termParameters: LendingTermType.LendingTermParamsStructOutput = results[cursor++];
-      const issuance: bigint = results[cursor++];
-      const debtCeiling: bigint = results[cursor++];
-      const auctionHouseAddress: string = results[cursor++];
-      const gaugeWeight: bigint = results[cursor++];
-      const termSurplusBuffer: bigint = results[cursor++];
+      // read promises in the same order as the multicall
+      const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
+      const issuance: bigint = await promises[cursor++];
+      const debtCeiling: bigint = await promises[cursor++];
+      const auctionHouseAddress: string = await promises[cursor++];
+      const gaugeWeight: bigint = await promises[cursor++];
+      const termSurplusBuffer: bigint = await promises[cursor++];
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
