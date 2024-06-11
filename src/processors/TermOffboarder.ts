@@ -174,7 +174,9 @@ function getMinOvercollateralizationForToken(
     for (const auctionDurationSpecificParams of specificConfig.auctionDurationSpecifics) {
       if (auctionHouseForTerm.midPoint <= auctionDurationSpecificParams.maxMidpointDuration) {
         Log(
-          `Using specific params ${auctionDurationSpecificParams} for auction house with midPoint ${auctionHouseForTerm.midPoint}`
+          `Using specific params ${JSON.stringify(auctionDurationSpecificParams)} for auction house with midPoint ${
+            auctionHouseForTerm.midPoint
+          }`
         );
         return auctionDurationSpecificParams.minOvercollateralization;
       }
