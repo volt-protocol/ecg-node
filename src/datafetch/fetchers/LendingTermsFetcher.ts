@@ -39,7 +39,7 @@ export default class LendingTermsFetcher {
       promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
       promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
 
-      if (promises.length >= 500) {
+      if (promises.length >= 400) {
         Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
         const subResults = await Promise.all(promises);
         Log('FetchECGData[Terms]: end multicall');
@@ -49,7 +49,7 @@ export default class LendingTermsFetcher {
     }
 
     // wait the promises
-    Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
+    Log(`FetchECGData[Terms]: sending last ${promises.length} multicall`);
     const subResults = await Promise.all(promises);
     results.push(...subResults);
     Log('FetchECGData[Terms]: end multicall');
