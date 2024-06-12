@@ -1,7 +1,6 @@
-import { GetProtocolData, ReadJSON, WaitUntilScheduled, WriteJSON, roundTo } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, WriteJSON, roundTo } from '../utils/Utils';
 import {
   GetFullConfigFile,
-  LoadConfiguration,
   LoadTokens,
   TokenConfig,
   getAllTokens,
@@ -16,15 +15,12 @@ import { LoanStatus, LoansFileStructure } from '../model/Loan';
 import * as notif from '../utils/Notifications';
 import { formatCurrencyValue, norm } from '../utils/TokenUtils';
 import PriceService from '../services/price/PriceService';
-import { ethers } from 'ethers';
 import { HttpGet, HttpPost } from '../utils/HttpHelper';
-import { OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
 import BigNumber from 'bignumber.js';
 import { PendleSwapResponse } from '../model/PendleApi';
 import { ProtocolDataFileStructure } from '../model/ProtocolData';
 import { MessageBuilder } from 'discord-webhook-node';
 import { SendMessageBuilder } from '../utils/DiscordHelper';
-import { Webhook } from '@hyunsdev/discord-webhook';
 
 async function SlippageAlerter() {
   process.title = 'SLIPPAGE_ALERTER';
@@ -85,9 +81,6 @@ async function CheckSlippagePerMarket() {
 
   // get all config
   const config = await GetFullConfigFile();
-  const allTokens = getAllTokens();
-  const WETH = getTokenBySymbol('WETH');
-  const USDC = getTokenBySymbol('USDC');
 
   const marketDirs = readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
   let reportSent = false;
