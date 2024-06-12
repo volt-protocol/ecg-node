@@ -1,11 +1,5 @@
 import { JsonRpcProvider } from 'ethers';
-import { ProtocolData } from '../../model/ProtocolData';
-import {
-  GetGuildTokenAddress,
-  GetProfitManagerAddress,
-  getTokenByAddress,
-  getTokenByAddressNoError
-} from '../../config/Config';
+import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddressNoError } from '../../config/Config';
 import {
   GuildToken__factory,
   LendingTerm as LendingTermType,
@@ -31,11 +25,12 @@ export default class LendingTermsFetcher {
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
     const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const promises: any[] = [];
+    let promises: any[] = [];
+    const results: any[] = [];
     promises.push(profitManagerContract.minBorrow());
     promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of gauges) {
-      // Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
+      //Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
       const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
       promises.push(lendingTermContract.getParameters());
       promises.push(lendingTermContract.issuance());
@@ -43,25 +38,34 @@ export default class LendingTermsFetcher {
       promises.push(lendingTermContract.auctionHouse());
       promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
       promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
+
+      if (promises.length >= 400) {
+        Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
+        const subResults = await Promise.all(promises);
+        Log('FetchECGData[Terms]: end multicall');
+        results.push(...subResults);
+        promises = [];
+      }
     }
 
     // wait the promises
-    Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
-    await Promise.all(promises);
+    Log(`FetchECGData[Terms]: sending last ${promises.length} multicall`);
+    const subResults = await Promise.all(promises);
+    results.push(...subResults);
     Log('FetchECGData[Terms]: end multicall');
 
     const lendingTerms: LendingTerm[] = [];
     let cursor = 0;
-    const minBorrow: bigint = await promises[cursor++];
-    const totalTypeWeight: bigint = await promises[cursor++];
+    const minBorrow: bigint = results[cursor++];
+    const totalTypeWeight: bigint = results[cursor++];
     for (const lendingTermAddress of gauges) {
-      // read promises in the same order as the multicall
-      const termParameters: LendingTermType.LendingTermParamsStructOutput = await promises[cursor++];
-      const issuance: bigint = await promises[cursor++];
-      const debtCeiling: bigint = await promises[cursor++];
-      const auctionHouseAddress: string = await promises[cursor++];
-      const gaugeWeight: bigint = await promises[cursor++];
-      const termSurplusBuffer: bigint = await promises[cursor++];
+      // read results in the same order as the multicall
+      const termParameters: LendingTermType.LendingTermParamsStructOutput = results[cursor++];
+      const issuance: bigint = results[cursor++];
+      const debtCeiling: bigint = results[cursor++];
+      const auctionHouseAddress: string = results[cursor++];
+      const gaugeWeight: bigint = results[cursor++];
+      const termSurplusBuffer: bigint = results[cursor++];
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
