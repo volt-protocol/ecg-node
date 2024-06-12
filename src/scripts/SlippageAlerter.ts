@@ -1,5 +1,5 @@
 import { ReadJSON, WaitUntilScheduled, WriteJSON, roundTo } from '../utils/Utils';
-import { GetFullConfigFile, LoadTokens, getTokenByAddress } from '../config/Config';
+import { GetFullConfigFile, LoadTokens, getAllTokens, getTokenByAddress, getTokenBySymbol } from '../config/Config';
 import { GLOBAL_DATA_DIR } from '../utils/Constants';
 import { existsSync, readdirSync } from 'fs';
 import path from 'path';
@@ -14,37 +14,36 @@ import { PendleSwapResponse } from '../model/PendleApi';
 import { ProtocolDataFileStructure } from '../model/ProtocolData';
 import { MessageBuilder } from 'discord-webhook-node';
 import { SendMessageBuilder } from '../utils/DiscordHelper';
-import { LastRunData, PerMarketCollateralData, PerMarketResult } from './SlippageAlerterModels';
+import { CollateralData, LastRunData, PerMarketCollateralData, PerMarketResult } from './SlippageAlerterModels';
 
 const lastRunDataFileFullPath = path.join(GLOBAL_DATA_DIR, 'slippage-alerter-last-run-data.json');
 
 async function SlippageAlerter() {
   process.title = 'SLIPPAGE_ALERTER';
+  // const startDate = Date.now();
+  try {
+    let lastRunData: LastRunData = {
+      lastRecapMsgSentMs: 0,
+      slippageAlertSentPerToken: {}
+    };
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const startDate = Date.now();
-    try {
-      await CheckSlippagePerMarket();
-      // await CheckSlippage();
-    } catch (e) {
-      console.error(e);
-      await notif.SendNotifications('SlippageAlerter', 'Error when fetching slippage', JSON.stringify(e), false);
+    if (existsSync(lastRunDataFileFullPath)) {
+      lastRunData = ReadJSON(lastRunDataFileFullPath);
     }
-    await WaitUntilScheduled(startDate, 30 * 60 * 1000);
+
+    await CheckSlippagePerMarket(lastRunData);
+    await CheckSlippage(lastRunData);
+
+    WriteJSON(lastRunDataFileFullPath, lastRunData);
+  } catch (e) {
+    console.error(e);
+    await notif.SendNotifications('SlippageAlerter', 'Error when fetching slippage', JSON.stringify(e), false);
   }
+  // await WaitUntilScheduled(startDate, 30 * 60 * 1000);
 }
 
-async function CheckSlippagePerMarket() {
+async function CheckSlippagePerMarket(lastRunData: LastRunData) {
   await LoadTokens();
-  let lastRunData: LastRunData = {
-    lastRecapMsgSentMs: 0,
-    slippageAlertSentPerToken: {}
-  };
-
-  if (existsSync(lastRunDataFileFullPath)) {
-    lastRunData = ReadJSON(lastRunDataFileFullPath);
-  }
 
   // get all config
   const config = await GetFullConfigFile();
@@ -143,20 +142,17 @@ async function CheckSlippagePerMarket() {
           '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
 
         const dataGet = await HttpGet<any>(urlGet);
-        const urlPost = 'https://aggregator-api.kyberswap.com/arbitrum/api/v1/route/build';
-        const dataPost = await HttpPost<any>(urlPost, {
-          routeSummary: dataGet.data.routeSummary,
-          slippageTolerance: 0.5 * 10_000,
-          sender: '0x69e2D90935E438c26fFE72544dEE4C1306D80A56',
-          recipient: '0x69e2D90935E438c26fFE72544dEE4C1306D80A56'
-        });
 
-        result.slippage = roundTo(
-          Math.abs(1 - Number(dataPost.data.amountOutUsd) / Number(dataPost.data.amountInUsd)) * 100,
-          2
-        );
+        if (Number(dataGet.data.routeSummary.amountOutUsd) >= Number(dataGet.data.routeSummary.amountInUsd)) {
+          result.slippage = 0;
+        } else {
+          result.slippage = roundTo(
+            (1 - Number(dataGet.data.routeSummary.amountOutUsd) / Number(dataGet.data.routeSummary.amountInUsd)) * 100,
+            2
+          );
+        }
 
-        result.soldAmountPegToken = norm(dataPost.data.amountOut, pegToken.decimals);
+        result.soldAmountPegToken = norm(dataGet.data.routeSummary.amountOut, pegToken.decimals);
       }
 
       result.overCollateralizationWithSlippage = result.soldAmountPegToken / result.totalDebtPegToken;
@@ -178,15 +174,19 @@ async function CheckSlippagePerMarket() {
           },
           {
             fieldName: 'Total debt',
-            fieldValue: `${result.totalDebtPegToken} ($${formatCurrencyValue(result.debtAmountUsd)})`
+            fieldValue: `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(
+              result.debtAmountUsd
+            )})`
           },
           {
             fieldName: 'Total collateral',
-            fieldValue: `${result.totalAmount} ($${formatCurrencyValue(result.collateralAmountUsd)})`
+            fieldValue: `${formatCurrencyValue(result.totalAmount)} ($${formatCurrencyValue(
+              result.collateralAmountUsd
+            )})`
           },
           {
             fieldName: 'Max recoverable debt',
-            fieldValue: `${result.soldAmountPegToken} ($${formatCurrencyValue(
+            fieldValue: `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
               result.soldAmountPegToken * result.pegTokenPrice
             )})`
           },
@@ -208,7 +208,7 @@ async function CheckSlippagePerMarket() {
     }
 
     // only send recap every 24 hours
-    if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL) {
+    if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL && results.length >= 0) {
       if (lastRunData.lastRecapMsgSentMs < Date.now() - 24 * 3600 * 1000) {
         const msgBuilder = new MessageBuilder()
           .setTitle(`[MARKET ${marketId} - ${pegToken.symbol}] Slippage Report`)
@@ -250,113 +250,128 @@ async function CheckSlippagePerMarket() {
   if (reportSent) {
     lastRunData.lastRecapMsgSentMs = Date.now();
   }
-
-  WriteJSON(lastRunDataFileFullPath, lastRunData);
 }
 
-// async function CheckSlippage() {
-//   await LoadTokens();
-//   if (!existsSync('slippage-alerter-last-run-data.json')) {
-//     WriteJSON('slippage-alerter-last-run-data.json', {
-//       lastRecapMsgSentMs: 0
-//     });
-//   }
-//   const lastRunData: LastRunData = ReadJSON('slippage-alerter-last-run-data.json');
+async function CheckSlippage(lastRunData: LastRunData) {
+  await LoadTokens();
 
-//   // get all config
-//   const config = await GetFullConfigFile();
-//   const allTokens = getAllTokens();
-//   const WETH = getTokenBySymbol('WETH');
-//   const USDC = getTokenBySymbol('USDC');
+  // get all config
+  const config = await GetFullConfigFile();
+  const allTokens = getAllTokens();
+  const WETH = getTokenBySymbol('WETH');
+  const USDC = getTokenBySymbol('USDC');
 
-//   const marketDirs = readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
-//   const totalCollateral: { [token: string]: CollateralData } = {};
+  const marketDirs = readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
+  const totalCollateral: { [token: string]: CollateralData } = {};
 
-//   for (const marketDir of marketDirs) {
-//     const marketId = marketDir.split('_')[1];
-//     if (Number(marketId) > 1e6) {
-//       // ignore test market
-//       continue;
-//     }
+  for (const marketDir of marketDirs) {
+    const marketId = marketDir.split('_')[1];
+    if (Number(marketId) > 1e6) {
+      // ignore test market
+      continue;
+    }
 
-//     const marketPath = path.join(GLOBAL_DATA_DIR, marketDir);
-//     const termsFileName = path.join(marketPath, 'terms.json');
-//     const termFile: LendingTermsFileStructure = ReadJSON(termsFileName);
-//     const loansFileName = path.join(marketPath, 'loans.json');
-//     const loansFile: LoansFileStructure = ReadJSON(loansFileName);
-//     for (const loan of loansFile.loans.filter((_) => _.status == LoanStatus.ACTIVE)) {
-//       const termForLoan = termFile.terms.find((_) => _.termAddress == loan.lendingTermAddress);
-//       if (!termForLoan) {
-//         throw new Error(`Cannot find lending term with address ${loan.lendingTermAddress} on market ${marketId}`);
-//       }
+    const marketPath = path.join(GLOBAL_DATA_DIR, marketDir);
+    const termsFileName = path.join(marketPath, 'terms.json');
+    const termFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+    const loansFileName = path.join(marketPath, 'loans.json');
+    const loansFile: LoansFileStructure = ReadJSON(loansFileName);
+    for (const loan of loansFile.loans.filter((_) => _.status == LoanStatus.ACTIVE)) {
+      const termForLoan = termFile.terms.find((_) => _.termAddress == loan.lendingTermAddress);
+      if (!termForLoan) {
+        throw new Error(`Cannot find lending term with address ${loan.lendingTermAddress} on market ${marketId}`);
+      }
 
-//       const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
-//       if (!totalCollateral[collateralToken.address]) {
-//         totalCollateral[collateralToken.address] = {
-//           totalAmount: 0,
-//           tokenInfo: collateralToken,
-//           tokenPrice: await PriceService.GetTokenPrice(collateralToken.address),
-//           nbLoans: 0
-//         };
-//       }
+      const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
+      if (!totalCollateral[collateralToken.address]) {
+        totalCollateral[collateralToken.address] = {
+          totalAmount: 0,
+          tokenInfo: collateralToken,
+          tokenPrice: await PriceService.GetTokenPrice(collateralToken.address),
+          nbLoans: 0
+        };
+      }
 
-//       totalCollateral[collateralToken.address].nbLoans++;
-//       totalCollateral[collateralToken.address].totalAmount += norm(loan.collateralAmount, collateralToken.decimals);
-//     }
-//   }
+      totalCollateral[collateralToken.address].nbLoans++;
+      totalCollateral[collateralToken.address].totalAmount += norm(loan.collateralAmount, collateralToken.decimals);
+    }
+  }
 
-//   for (const collateralData of Object.values(totalCollateral)) {
-//     let slippage = 0;
-//     if (collateralData.tokenInfo.pendleConfiguration) {
-//       const amountFull = new BigNumber(collateralData.totalAmount)
-//         .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
-//         .toFixed(0);
-//       const urlGet =
-//         'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-//         'chainId=42161' +
-//         '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-//         `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
-//         `&amountPtIn=${amountFull}` +
-//         `&tokenOutAddr=${
-//           collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
-//             ? USDC.address
-//             : WETH.address
-//         }` +
-//         `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-//         '&slippage=0.10';
+  for (const collateralData of Object.values(totalCollateral)) {
+    let slippagePct = 0;
+    if (collateralData.tokenInfo.pendleConfiguration) {
+      const amountFull = new BigNumber(collateralData.totalAmount)
+        .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
+        .toFixed(0);
+      const urlGet =
+        'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+        'chainId=42161' +
+        '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+        `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
+        `&amountPtIn=${amountFull}` +
+        `&tokenOutAddr=${
+          collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
+            ? USDC.address
+            : WETH.address
+        }` +
+        `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+        '&slippage=0.10';
 
-//       const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-//       slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
-//     } else {
-//       const amountFull = new BigNumber(collateralData.totalAmount)
-//         .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
-//         .toFixed(0);
-//       const urlGet =
-//         'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
-//         `tokenIn=${collateralData.tokenInfo.address}` +
-//         `&tokenOut=${WETH.address == collateralData.tokenInfo.address ? USDC.address : WETH.address}` +
-//         `&amountIn=${amountFull}` +
-//         '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+      const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
+      slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+    } else {
+      const amountFull = new BigNumber(collateralData.totalAmount)
+        .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
+        .toFixed(0);
+      const urlGet =
+        'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
+        `tokenIn=${collateralData.tokenInfo.address}` +
+        `&tokenOut=${WETH.address == collateralData.tokenInfo.address ? USDC.address : WETH.address}` +
+        `&amountIn=${amountFull}` +
+        '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
 
-//       const dataGet = await HttpGet<any>(urlGet);
-//       const urlPost = 'https://aggregator-api.kyberswap.com/arbitrum/api/v1/route/build';
-//       const dataPost = await HttpPost<any>(urlPost, {
-//         routeSummary: dataGet.data.routeSummary,
-//         slippageTolerance: 0.5 * 10_000,
-//         sender: '0x69e2D90935E438c26fFE72544dEE4C1306D80A56',
-//         recipient: '0x69e2D90935E438c26fFE72544dEE4C1306D80A56'
-//       });
+      const dataGet = await HttpGet<any>(urlGet);
 
-//       slippage = roundTo(Math.abs(1 - Number(dataPost.data.amountOutUsd) / Number(dataPost.data.amountInUsd)) * 100, 2);
-//     }
+      if (Number(dataGet.data.routeSummary.amountOutUsd) >= Number(dataGet.data.routeSummary.amountInUsd)) {
+        slippagePct = 0;
+      } else {
+        slippagePct = roundTo(
+          (1 - Number(dataGet.data.routeSummary.amountOutUsd) / Number(dataGet.data.routeSummary.amountInUsd)) * 100,
+          2
+        );
+      }
+    }
 
-//     console.log(
-//       `[${collateralData.tokenInfo.symbol}]` +
-//         ` Total collateral: ${collateralData.totalAmount}` +
-//         ` | $${collateralData.totalAmount * collateralData.tokenPrice}` +
-//         ` | Slippage: ${slippage}%`
-//     );
-//   }
-// }
+    if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL) {
+      if (slippagePct >= 5) {
+        if (
+          !lastRunData.slippageAlertSentPerToken[collateralData.tokenInfo.symbol] ||
+          lastRunData.slippageAlertSentPerToken[collateralData.tokenInfo.symbol] <= Date.now() - 6 * 3600 * 1000
+        ) {
+          const msgBuilder = new MessageBuilder().setTitle('SLIPPAGE ALERT').setTimestamp();
+          msgBuilder.setDescription(`${collateralData.tokenInfo.symbol} slippage is too high: ${slippagePct}%`);
+          msgBuilder.addField(
+            'Total collateral to sell',
+            `${formatCurrencyValue(collateralData.totalAmount)} ($${formatCurrencyValue(
+              collateralData.totalAmount * collateralData.tokenPrice
+            )})`,
+            false
+          );
+
+          await SendMessageBuilder(msgBuilder, process.env.SLIPPAGE_REPORT_WEBHOOK_URL);
+
+          lastRunData.slippageAlertSentPerToken[collateralData.tokenInfo.symbol] = Date.now();
+        }
+      }
+    }
+
+    console.log(
+      `[${collateralData.tokenInfo.symbol}]` +
+        ` Total collateral: ${collateralData.totalAmount}` +
+        ` | $${collateralData.totalAmount * collateralData.tokenPrice}` +
+        ` | Slippage: ${slippagePct}%`
+    );
+  }
+}
 
 SlippageAlerter();
