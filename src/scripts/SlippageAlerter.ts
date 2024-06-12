@@ -208,7 +208,7 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
     }
 
     // only send recap every 24 hours
-    if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL && results.length >= 0) {
+    if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL && results.length > 0) {
       if (lastRunData.lastRecapMsgSentMs < Date.now() - 24 * 3600 * 1000) {
         const msgBuilder = new MessageBuilder()
           .setTitle(`[MARKET ${marketId} - ${pegToken.symbol}] Slippage Report`)
