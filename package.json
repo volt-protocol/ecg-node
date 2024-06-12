@@ -55,7 +55,6 @@
         "typescript": "^5.3.3"
     },
     "dependencies": {
-        "@hyunsdev/discord-webhook": "^1.0.2",
         "axios": "^1.6.8",
         "bignumber.js": "^9.1.2",
         "bufferutil": "^4.0.8",

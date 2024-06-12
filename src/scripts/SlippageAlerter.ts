@@ -1,12 +1,5 @@
 import { ReadJSON, WaitUntilScheduled, WriteJSON, roundTo } from '../utils/Utils';
-import {
-  GetFullConfigFile,
-  LoadTokens,
-  TokenConfig,
-  getAllTokens,
-  getTokenByAddress,
-  getTokenBySymbol
-} from '../config/Config';
+import { GetFullConfigFile, LoadTokens, getTokenByAddress } from '../config/Config';
 import { GLOBAL_DATA_DIR } from '../utils/Constants';
 import { existsSync, readdirSync } from 'fs';
 import path from 'path';
@@ -21,6 +14,9 @@ import { PendleSwapResponse } from '../model/PendleApi';
 import { ProtocolDataFileStructure } from '../model/ProtocolData';
 import { MessageBuilder } from 'discord-webhook-node';
 import { SendMessageBuilder } from '../utils/DiscordHelper';
+import { LastRunData, PerMarketCollateralData, PerMarketResult } from './SlippageAlerterModels';
+
+const lastRunDataFileFullPath = path.join(GLOBAL_DATA_DIR, 'slippage-alerter-last-run-data.json');
 
 async function SlippageAlerter() {
   process.title = 'SLIPPAGE_ALERTER';
@@ -39,45 +35,16 @@ async function SlippageAlerter() {
   }
 }
 
-interface LastRunData {
-  lastRecapMsgSentMs: number; // timestamp ms
-  slippageAlertSentPerToken: { [tokenSymbol: string]: number }; // timestamp ms
-}
-
-interface CollateralData {
-  totalAmount: number;
-  tokenInfo: TokenConfig;
-  tokenPrice: number;
-  nbLoans: number;
-}
-
-interface PerMarketCollateralData {
-  totalAmount: number;
-  totalDebtPegToken: number;
-  pegTokenPrice: number;
-  tokenInfo: TokenConfig;
-  tokenPrice: number;
-  nbLoans: number;
-}
-
-interface PerMarketResult extends PerMarketCollateralData {
-  marketId: number;
-  collateralAmountUsd: number;
-  soldAmountPegToken: number;
-  debtAmountUsd: number;
-  slippage: number;
-  overCollateralizationWithSlippage: number;
-  pegTokenInfo: TokenConfig;
-}
-
 async function CheckSlippagePerMarket() {
   await LoadTokens();
-  if (!existsSync('slippage-alerter-last-run-data.json')) {
-    WriteJSON('slippage-alerter-last-run-data.json', {
-      lastRecapMsgSentMs: 0
-    });
+  let lastRunData: LastRunData = {
+    lastRecapMsgSentMs: 0,
+    slippageAlertSentPerToken: {}
+  };
+
+  if (existsSync(lastRunDataFileFullPath)) {
+    lastRunData = ReadJSON(lastRunDataFileFullPath);
   }
-  const lastRunData: LastRunData = ReadJSON('slippage-alerter-last-run-data.json');
 
   // get all config
   const config = await GetFullConfigFile();
@@ -197,7 +164,7 @@ async function CheckSlippagePerMarket() {
     }
 
     // sort by diff between soldAmount and debt amount
-    results.sort((a, b) => a.overCollateralizationWithSlippage - b.overCollateralizationWithSlippage);
+    results.sort((a, b) => b.slippage - a.slippage);
     for (const result of results) {
       if (result.soldAmountPegToken < result.totalDebtPegToken) {
         await notif.SendNotificationsList('Slippage Alerter', 'TOO MUCH SLIPPAGE DETECTED', [
@@ -211,17 +178,16 @@ async function CheckSlippagePerMarket() {
           },
           {
             fieldName: 'Total debt',
-            fieldValue: `${result.totalDebtPegToken} ($${roundTo(result.debtAmountUsd, 2)})`
+            fieldValue: `${result.totalDebtPegToken} ($${formatCurrencyValue(result.debtAmountUsd)})`
           },
           {
             fieldName: 'Total collateral',
-            fieldValue: `${result.totalAmount} ($${roundTo(result.collateralAmountUsd, 2)})`
+            fieldValue: `${result.totalAmount} ($${formatCurrencyValue(result.collateralAmountUsd)})`
           },
           {
-            fieldName: 'Amount of peg token obtained by selling collateral',
-            fieldValue: `${result.soldAmountPegToken} ($${roundTo(
-              result.soldAmountPegToken * result.pegTokenPrice,
-              2
+            fieldName: 'Max recoverable debt',
+            fieldValue: `${result.soldAmountPegToken} ($${formatCurrencyValue(
+              result.soldAmountPegToken * result.pegTokenPrice
             )})`
           },
           {
@@ -237,12 +203,11 @@ async function CheckSlippagePerMarket() {
           ` | $${result.totalAmount * result.tokenPrice}` +
           ` | Slippage: ${result.slippage}% | soldAmountPegToken ${result.soldAmountPegToken} | debt ${
             result.totalDebtPegToken
-          } | overcollateralization ${roundTo(result.overCollateralizationWithSlippage * 100, 2)}%`
+          } | overcollateralization ${roundTo(result.overCollateralizationWithSlippage, 2)}`
       );
     }
 
     // only send recap every 24 hours
-
     if (process.env.SLIPPAGE_REPORT_WEBHOOK_URL) {
       if (lastRunData.lastRecapMsgSentMs < Date.now() - 24 * 3600 * 1000) {
         const msgBuilder = new MessageBuilder()
@@ -286,7 +251,7 @@ async function CheckSlippagePerMarket() {
     lastRunData.lastRecapMsgSentMs = Date.now();
   }
 
-  WriteJSON('slippage-alerter-last-run-data.json', lastRunData);
+  WriteJSON(lastRunDataFileFullPath, lastRunData);
 }
 
 // async function CheckSlippage() {
