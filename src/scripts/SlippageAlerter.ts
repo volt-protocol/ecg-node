@@ -248,7 +248,7 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
   }
 
   if (reportSent) {
-    lastRunData.lastRecapMsgSentMs = Date.now();
+    lastRunData.lastRecapMsgSentMs = Date.now() - 10 * 60 * 1000;
   }
 }
 
