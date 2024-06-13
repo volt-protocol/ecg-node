@@ -1,6 +1,6 @@
 {
 	"999999998": {
-		"PEGTOKEN": "WETH",
+		"PEGTOKEN": "WETH-test",
 		"deployBlock": 197600000,
 		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
@@ -17,7 +17,7 @@
 		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28"
 	},
 	"999999999": {
-		"PEGTOKEN": "USDC",
+		"PEGTOKEN": "USDC-test",
 		"deployBlock": 197600000,
 		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
