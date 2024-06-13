@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "main": "ECGNode.ts",
     "scripts": {
-        "start": "node --inspect -r ts-node/register ./src/ECGNode.ts",
+        "start": "node -r ts-node/register ./src/ECGNode.ts",
+        "debug": "node --inspect -r ts-node/register ./src/ECGNode.ts",
         "start:api": "node --inspect -r ts-node/register ./src/api/Api.ts",
         "start:spam-watcher": "node --inspect -r ts-node/register ./src/spam-watcher/SpamWatcher.ts",
         "debug:auction-bidder": "node --inspect -r ts-node/register ./src/processors/AuctionBidder.ts",

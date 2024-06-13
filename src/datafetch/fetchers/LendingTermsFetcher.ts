@@ -1,20 +1,22 @@
 import { JsonRpcProvider } from 'ethers';
 import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddressNoError } from '../../config/Config';
 import {
+  GuildToken,
   GuildToken__factory,
   LendingTerm as LendingTermType,
   LendingTerm__factory,
+  ProfitManager,
   ProfitManager__factory
 } from '../../contracts/types';
 import { DATA_DIR, MARKET_ID } from '../../utils/Constants';
 import path from 'path';
-import { WriteJSON, roundTo } from '../../utils/Utils';
-import { MulticallWrapper } from 'ethers-multicall-provider';
+import { WriteJSON, retry, roundTo } from '../../utils/Utils';
+import { MulticallProvider, MulticallWrapper } from 'ethers-multicall-provider';
 import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
 import { Log, Warn } from '../../utils/Logger';
-import { GetERC20Infos } from '../../utils/Web3Helper';
+import { GetERC20Infos, GetMulticallProvider, GetWeb3Provider } from '../../utils/Web3Helper';
 import { SendNotifications } from '../../utils/Notifications';
 
 export default class LendingTermsFetcher {
@@ -23,36 +25,8 @@ export default class LendingTermsFetcher {
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
     const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let promises: any[] = [];
-    const results: any[] = [];
-    promises.push(profitManagerContract.minBorrow());
-    promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
-    for (const lendingTermAddress of gauges) {
-      //Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
-      const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
-      promises.push(lendingTermContract.getParameters());
-      promises.push(lendingTermContract.issuance());
-      promises.push(lendingTermContract['debtCeiling()']());
-      promises.push(lendingTermContract.auctionHouse());
-      promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
-      promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
-
-      if (promises.length >= 400) {
-        Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
-        const subResults = await Promise.all(promises);
-        Log('FetchECGData[Terms]: end multicall');
-        results.push(...subResults);
-        promises = [];
-      }
-    }
-
-    // wait the promises
-    Log(`FetchECGData[Terms]: sending last ${promises.length} multicall`);
-    const subResults = await Promise.all(promises);
-    results.push(...subResults);
-    Log('FetchECGData[Terms]: end multicall');
+    const results: any[] = await retry(() => LendingTermsFetcher.multicallLendingTermData(gauges), [], 5, 10);
 
     const lendingTerms: LendingTerm[] = [];
     let cursor = 0;
@@ -132,5 +106,30 @@ export default class LendingTermsFetcher {
 
     WriteJSON(lendingTermsPath, termFileData);
     return lendingTerms;
+  }
+
+  private static async multicallLendingTermData(terms: string[]) {
+    const multicallProvider = GetMulticallProvider();
+    const promises: any[] = [];
+    const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+    promises.push(profitManagerContract.minBorrow());
+    promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
+    for (const lendingTermAddress of terms) {
+      //Log(`FetchECGData: adding call for on lending term ${lendingTermAddress}`);
+      const lendingTermContract = LendingTerm__factory.connect(lendingTermAddress, multicallProvider);
+      promises.push(lendingTermContract.getParameters());
+      promises.push(lendingTermContract.issuance());
+      promises.push(lendingTermContract['debtCeiling()']());
+      promises.push(lendingTermContract.auctionHouse());
+      promises.push(guildTokenContract.getGaugeWeight(lendingTermAddress));
+      promises.push(profitManagerContract.termSurplusBuffer(lendingTermAddress));
+    }
+
+    // wait the promises
+    Log(`FetchECGData[Terms]: sending ${promises.length} multicall`);
+    const results = await Promise.all(promises);
+    Log('FetchECGData[Terms]: end multicall');
+    return results;
   }
 }
