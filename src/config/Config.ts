@@ -1,5 +1,5 @@
 import { ProtocolConstants } from '../model/ProtocolConstants';
-import { MARKET_ID, TOKENS_FILE, CONFIG_FILE } from '../utils/Constants';
+import { MARKET_ID, TOKENS_FILE, CONFIG_FILE, NETWORK, PENDLE_ORACLES } from '../utils/Constants';
 import { readFileSync } from 'fs';
 import { HttpGet } from '../utils/HttpHelper';
 
@@ -42,7 +42,7 @@ async function LoadProtocolConstants() {
   }
 }
 
-async function LoadTokens() {
+export async function LoadTokens() {
   // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
   if (TOKENS_FILE.startsWith('http')) {
     // load via http
@@ -65,12 +65,34 @@ export interface TokenConfig {
   symbol: string;
   decimals: number;
   permitAllowed: boolean;
+  protocolToken: boolean;
   pendleConfiguration?: PendleConfig;
+  dexConfiguration?: DexConfig;
+  coingeckoId?: string;
+  coincapId?: string;
+  openoceanId?: number;
+}
+
+export interface DexConfig {
+  dex: DexEnum;
+  addresses: string[]; // must list pool addresses (if multiple) for token vs USDC/USDT or WETH. For univ3 it's because it exists multiple pools
+  viaWETH: boolean; // if true, means the pool is Token/WETH and the price should be multiplied by WETH price
+}
+
+export enum DexEnum {
+  UNISWAP_V3 = 'UNISWAP_V3'
 }
 
 export interface PendleConfig {
   market: string;
   syTokenOut: string;
+  basePricingAsset: PendleBasePricingConfig;
+}
+
+export interface PendleBasePricingConfig {
+  chainId: number;
+  symbol: string;
+  address: string;
 }
 /**
  * Get a token by its symbol, throw if not found
@@ -206,4 +228,12 @@ export function GetLendingTermFactoryAddress() {
     throw new Error(`'lendingTermFactoryAddress' not set in configuration ${CONFIG_FILE}`);
   }
   return configuration.lendingTermFactoryAddress;
+}
+
+export function GetPendleOracleAddress() {
+  const pendleOracle = PENDLE_ORACLES[NETWORK];
+  if (!pendleOracle) {
+    throw new Error(`Cannot find pendle oracle for network ${NETWORK}`);
+  }
+  return pendleOracle;
 }

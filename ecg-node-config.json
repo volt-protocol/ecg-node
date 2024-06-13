@@ -9,8 +9,14 @@
             "onlyLogging": true,
             "defaultMinOvercollateralization": 1.2,
             "tokens": {
-                "sDAI": {
-                    "minOvercollateralization": 1.035
+                "USDC": {
+                    "defaultMinOvercollateralization": 1.2,
+                    "auctionDurationSpecifics": [
+                        {
+                            "maxMidpointDuration": 1800,
+                            "minOvercollateralization": 1.1
+                        }
+                    ]
                 }
             }
         },

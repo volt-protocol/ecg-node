@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { ProtocolData, ProtocolDataFileStructure } from '../model/ProtocolData';
 import { Log } from './Logger';
+import axios from 'axios';
 
 export function JsonBigIntReplacer(key: string, value: any) {
   if (typeof value === 'bigint') {
@@ -69,7 +70,7 @@ export async function retry<T extends (...arg0: any[]) => any>(
   fn: T,
   args: Parameters<T>,
   maxTry = 10,
-  incrSleepDelay = 10000,
+  incrSleepDelay = 1000,
   retryCount = 1
 ): Promise<Awaited<ReturnType<T>>> {
   const currRetry = typeof retryCount === 'number' ? retryCount : 1;
@@ -81,7 +82,15 @@ export async function retry<T extends (...arg0: any[]) => any>(
       Log(`Retry ${currRetry} failed. All ${maxTry} retry attempts exhausted`);
       throw e;
     }
-    Log(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
+
+    if (axios.isAxiosError(e)) {
+      // Access to config, request, and response
+      Log(
+        `Retry ${currRetry} failed calling ${e.request.protocol}//${e.request.host}/${e.request.path}: ${e}. Waiting ${retryCount} second(s)`
+      );
+    } else {
+      Log(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
+    }
     // Log(e);
     await sleep(incrSleepDelay * retryCount);
     return retry(fn, args, maxTry, incrSleepDelay, currRetry + 1);
@@ -104,4 +113,12 @@ export function GetProtocolData(): ProtocolData {
   } else {
     return protocolDataFile.data;
   }
+}
+
+export function truncateString(value: string, maxLen = 1000) {
+  if (value.length >= maxLen) {
+    return value.substring(0, maxLen - 1);
+  }
+
+  return value;
 }

@@ -5,7 +5,7 @@ import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
 import { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { getAllTokens } from '../../config/Config';
+import { TokenConfig, getAllTokens } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
@@ -16,10 +16,10 @@ import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
 import { ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
 import { ProposalApiStatus, ProposalsApiResponse } from '../model/ProposalsApiResponse';
-import { GetTokenPriceMulti } from '../../utils/Price';
 import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
+import PriceService from '../../services/price/PriceService';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
@@ -251,7 +251,9 @@ class MarketDataController {
     }
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
 
-    const allTokens = getAllTokens(); // all tokens from the config
+    const allTokens: TokenConfig[] = [];
+    allTokens.push(...getAllTokens());
+
     // add all tokens from lending terms that might be unknown
 
     for (const term of termsFile.terms) {
@@ -260,12 +262,11 @@ class MarketDataController {
           address: term.collateralAddress,
           symbol: term.collateralSymbol,
           decimals: term.collateralDecimals,
-          permitAllowed: false
+          permitAllowed: false,
+          protocolToken: false
         });
       }
     }
-
-    const tokenPrices = await GetTokenPriceMulti(allTokens.map((_) => _.address));
 
     for (const token of allTokens) {
       coinDetails.push({
@@ -273,7 +274,7 @@ class MarketDataController {
         decimals: token.decimals,
         name: token.symbol,
         symbol: token.symbol,
-        price: tokenPrices[token.address]
+        price: await PriceService.GetTokenPrice(token.address)
       });
     }
 

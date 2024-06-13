@@ -1,12 +1,9 @@
-import { GetWeb3Provider } from '../src/utils/Web3Helper';
-import { GuildToken__factory } from '../src/contracts/types/factories/GuildToken__factory';
-import { LendingTermOnboarding__factory } from '../src/contracts/types/factories/LendingTermOnboarding__factory';
-import { LendingTermFactory__factory } from '../src/contracts/types/factories/LendingTermFactory__factory';
-import { LendingTerm__factory } from '../src/contracts/types/factories/LendingTerm__factory';
-import { ERC20__factory } from '../src/contracts/types/factories/ERC20__factory';
+import { GetWeb3Provider } from '../utils/Web3Helper';
+import { LendingTerm__factory } from '../contracts/types/factories/LendingTerm__factory';
 import * as dotenv from 'dotenv';
 import { ethers } from 'ethers';
-import { sleep } from '../src/utils/Utils';
+import { sleep } from '../utils/Utils';
+import { Log } from '../utils/Logger';
 dotenv.config();
 /**
  * everytime this script is launched, it will open a new loan

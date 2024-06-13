@@ -33,6 +33,12 @@ export function GetArchiveWeb3Provider(pollingIntervalMs = 500_000): JsonRpcProv
   return web3Provider;
 }
 
+export function GetMulticallProvider(): JsonRpcProvider {
+  const multicallLength = process.env.MULTICALL_LENGTH ? Number(process.env.MULTICALL_LENGTH) : 480_000;
+  const multicallProvider = MulticallWrapper.wrap(GetWeb3Provider(), multicallLength);
+  return multicallProvider;
+}
+
 /**
  * @param pollingInterval Default 15 sec. Used when checking new events, set low (5 or 10 sec) if using web3 provider for reacting to events
  * @returns {JsonRpcProvider}
@@ -443,6 +449,7 @@ export async function GetERC20Infos(web3Provider: JsonRpcProvider, tokenAddress:
     address: tokenAddress,
     symbol: erc20Data[0],
     permitAllowed: false,
-    decimals: Number(erc20Data[2])
+    decimals: Number(erc20Data[2]),
+    protocolToken: false
   };
 }

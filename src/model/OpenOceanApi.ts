@@ -38,3 +38,16 @@ export function GetOpenOceanChainCodeByChainId(chainId: bigint) {
       return 'arbitrum';
   }
 }
+
+export interface TokenListResponse {
+  data: TokenListToken[];
+}
+
+export interface TokenListToken {
+  id: number;
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  usd: string;
+}
