@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
 import { existsSync, writeFileSync } from 'fs';
 import path from 'path';
-import { GetFullConfigFile, ConfigFile } from '../config/Config';
+import { GetFullConfigFile, ConfigFile, LoadTokens } from '../config/Config';
 import { ERC20__factory, GuildToken__factory, LendingTerm__factory } from '../contracts/types';
 import { SurplusGuildMinter } from '../contracts/types/SurplusGuildMinter';
 import { SurplusGuildMinter__factory } from '../contracts/types/factories/SurplusGuildMinter__factory';
@@ -15,41 +15,33 @@ import { norm } from '../utils/TokenUtils';
 import { ReadJSON, retry, WriteJSON } from '../utils/Utils';
 import { GetArchiveWeb3Provider, FetchAllEvents } from '../utils/Web3Helper';
 import * as dotenv from 'dotenv';
+import { GetTokenPriceMultiAtTimestamp } from '../processors/HistoricalDataFetcher';
 
 dotenv.config();
 
-// Epoch = 2024-04-19 to 2024-05-17 (28 days)
-// Reward over epoch : 10M
-// Rewards per day : 357,143 GUILD
-// Rewards for lenders : 60%
-// Rewards for borrowers : 20%
-// Rewards for stakers : 15%
-// Rewards for liquidators : 5%
+// Epoch = 2024-05-17 to 2024-06-14
+// For epoch 2, the change is to make lender
+//  rewards proportional to utilization as you note
+// (the calculation I want to use is based on $ value borrowed, so if WETH market has on average 60%
+//  of our total borrower value, it gets 60% of the lender rewards). And an adjustment of the per-category breakdown as follows:
 
-// Daily stats to collect for every address that ever interacted with the protocol :
-// - Avg gUSDC-1 balance -> convert to $
-// - Avg gWETH-3 balance -> convert to $
-// - Avg gARB-4 balance -> convert to $
-// - Avg gUSDC-1 staked in SGM -> convert to $
-// - Avg gWETH-3 staked in SGM -> convert to $
-// - Avg gARB-4 staked in SGM -> convert to $
-// - Avg borrow $ value
+// 7M tokens to lenders
+// 1M tokens to borrowers
+// 1.7M tokens to stakers
+// 300k tokens to liquidators
 
-// Then, daily :
-// - for each user, if sum(avg credit balances) + sum (avg staked) > sum (avg borrow value), type = lender, else type = borrower
-// - for each user, if type = lender, totalLenders += sum(avg credit balances) + sum (avg staked)
-// - for each user, if type = borrower, totalLenders += sum(avg credit balances)
-// - for each user, totalBorrowers += sum(avg borrow value)
-// - for each user, totalStakers += sum (avg staked)
-// - lender airdrop = (sum(avg credit balances) + sum (avg staked)) / totalLenders * 60% * 357143
-// - borrower airdrop = sum (avg borrow value) / totalBorrowers * 20% * 357143
-// - staker airdrop = sum (avg staked) / totalStakers * 15% * 357143
+const TARGET_FILENAME = 'aidrop-data-2.json';
 
 const marketSgm: { [marketId: number]: string } = {
-  1: '0xb94aaae7472a694dd959c8497b2f09730391dc52',
-  3: '0x55ab4c8a5f11f8e62d7822d5aed778784df12afd',
-  4: '0x6995aa07b177918423d2127b885b67e7a3cec265'
+  1: '0xB94AaAe7472a694Dd959C8497b2f09730391dc52',
+  3: '0x55aB4C8a5f11f8E62d7822d5AEd778784DF12aFD',
+  4: '0x6995aA07B177918423d2127B885b67E7A3ceC265'
 };
+
+interface AirdropData {
+  marketUtilizationUsd: { [dayIso: string]: { [marketId: number]: number } };
+  userData: UserDailyData;
+}
 
 interface UserDailyData {
   [userAddress: string]: DailyData;
@@ -72,11 +64,12 @@ interface MarketBalance {
 
 async function computeAirdropData() {
   const fullConfig = await GetFullConfigFile();
+  await LoadTokens();
   const web3ProviderArchival = GetArchiveWeb3Provider();
   const currentBlock = await web3ProviderArchival.getBlockNumber();
-  const multicallArchivalProvider = MulticallWrapper.wrap(web3ProviderArchival);
-  const startDate = new Date(2024, 3, 19, 9, 0, 0);
-  const endDate = new Date(2024, 4, 17, 9, 0, 0);
+  const multicallArchivalProvider = MulticallWrapper.wrap(web3ProviderArchival, 500_000);
+  const startDate = new Date(2024, 4, 16, 8, 57, 0);
+  const endDate = new Date(2024, 5, 14, 8, 57, 0);
   let currentDate = startDate;
   let blockStart = await getBlockAtTimestamp('arbitrum', Math.round(currentDate.getTime() / 1000));
   const marketAddresses: { [marketId: number]: string[] } = {};
@@ -97,7 +90,10 @@ async function computeAirdropData() {
     console.log('Got ' + marketAddresses[Number(marketId)].length + ' unique addresses for market ' + marketId);
   }
 
-  const fullData: UserDailyData = {};
+  const fullData: AirdropData = {
+    marketUtilizationUsd: {},
+    userData: {}
+  };
 
   while (currentDate < endDate) {
     const stopDate = structuredClone(currentDate);
@@ -111,7 +107,7 @@ async function computeAirdropData() {
     const dateStr = stopDate.toISOString().split('T')[0];
 
     // init all addresses with 0 for all markets
-    initAllUsersData(marketAddresses, fullData, fullConfig, dateStr);
+    initAllUsersData(marketAddresses, fullData.userData, fullConfig, dateStr);
 
     const blockToUse = blockEnd; // blockStart + Math.floor(Math.random() * (blockEnd - blockStart + 1));
     for (const marketId of Object.keys(fullConfig)) {
@@ -123,6 +119,9 @@ async function computeAirdropData() {
       if (config.deployBlock > blockToUse) {
         continue; // ignore market if deployed later
       }
+
+      fullData.marketUtilizationUsd[dateStr] = {};
+      fullData.marketUtilizationUsd[dateStr][Number(marketId)] = 0;
 
       // fetch all loans
       const loansFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
@@ -155,16 +154,30 @@ async function computeAirdropData() {
       const allLoansValue = await retry(
         () =>
           Promise.all(
-            loansFile.loans.map((_) => {
-              const lendingTermContract = LendingTerm__factory.connect(_.lendingTermAddress, multicallArchivalProvider);
-              return lendingTermContract.getLoanDebt(_.id, { blockTag: blockToUse });
-            })
+            loansFile.loans
+              // only keep loan on terms that were at the blockToUse block
+              .filter((_) => liveTerms.includes(_.lendingTermAddress))
+              .map(async (_) => {
+                const lendingTermContract = LendingTerm__factory.connect(
+                  _.lendingTermAddress,
+                  multicallArchivalProvider
+                );
+                const debt = await lendingTermContract.getLoanDebt(_.id, { blockTag: blockToUse });
+                return { borrower: _.borrowerAddress, debt: debt };
+              })
           ),
         []
       );
 
       const blockTimestamp = Math.round(stopDate.getTime() / 1000);
-      const pegTokenValue = await GetTokenPriceAtTimestamp(config.pegTokenAddress, blockTimestamp);
+      const pegTokenValue = (
+        await GetTokenPriceMultiAtTimestamp(
+          [config.pegTokenAddress],
+          blockTimestamp,
+          blockToUse,
+          GetArchiveWeb3Provider()
+        )
+      )[config.pegTokenAddress];
 
       if (!pegTokenValue) {
         throw new Error(`Cannot find peg token price at timestamp ${blockTimestamp}`);
@@ -187,39 +200,40 @@ async function computeAirdropData() {
         }
 
         let totalUserBorrowValueCredit = 0;
-        for (let cursorLoan = 0; cursorLoan < loansFile.loans.length; cursorLoan++) {
-          const loan = loansFile.loans[cursorLoan];
-          if (loan.borrowerAddress == address) {
-            totalUserBorrowValueCredit += norm(allLoansValue[cursorLoan]);
-          }
+        const userLoans = allLoansValue.filter((_) => _.borrower == address);
+        for (const loan of userLoans) {
+          totalUserBorrowValueCredit += norm(loan.debt);
         }
 
-        if (!fullData[address]) {
-          fullData[address] = {
+        if (!fullData.userData[address]) {
+          fullData.userData[address] = {
             userAddress: address,
             dailyBalances: {}
           };
         }
 
-        if (!fullData[address].dailyBalances[dateStr]) {
-          fullData[address].dailyBalances[dateStr] = {};
+        if (!fullData.userData[address].dailyBalances[dateStr]) {
+          fullData.userData[address].dailyBalances[dateStr] = {};
         }
 
-        fullData[address].dailyBalances[dateStr][`market_${marketId}`] = {
+        fullData.userData[address].dailyBalances[dateStr][`market_${marketId}`] = {
           creditBalanceUsd: userCreditBalance * pegTokenValue,
           stakedBalanceUsd: totalUserStakeCredit * pegTokenValue,
           borrowBalanceUsd: totalUserBorrowValueCredit * pegTokenValue
         };
+
+        fullData.marketUtilizationUsd[dateStr][Number(marketId)] +=
+          fullData.userData[address].dailyBalances[dateStr][`market_${marketId}`].borrowBalanceUsd;
       }
 
-      WriteJSON('aidrop-data.json', fullData);
+      WriteJSON(TARGET_FILENAME, fullData);
     }
 
-    WriteJSON('aidrop-data.json', fullData);
+    WriteJSON(TARGET_FILENAME, fullData);
     blockStart = blockEnd + 1;
     currentDate = stopDate;
   }
-  WriteJSON('aidrop-data.json', fullData);
+  WriteJSON(TARGET_FILENAME, fullData);
 }
 
 // Define the interface for the API response
@@ -294,47 +308,6 @@ async function getUniqueAddresses(
   const creditTokenContract = ERC20__factory.connect(config.creditTokenAddress, web3Provider);
   const creditTransfers = await FetchAllEvents(creditTokenContract, 'credit token', 'Transfer', startBlock, endBlock);
   return Array.from(new Set<string>(creditTransfers.map((_) => _.args.to)));
-}
-
-async function airdropDataToCsv() {
-  const fullData = ReadJSON('aidrop-data.json') as UserDailyData;
-
-  const averages: { [userAddress: string]: { averageCredit: number; averageStaked: number; averageBorrowed: number } } =
-    {};
-
-  for (const userAddress in fullData) {
-    let totalCredit = 0;
-    let totalStaked = 0;
-    let totalBorrowed = 0;
-    let countDays = 0;
-
-    for (const date in fullData[userAddress].dailyBalances) {
-      for (const market in fullData[userAddress].dailyBalances[date]) {
-        totalCredit += fullData[userAddress].dailyBalances[date][market].creditBalanceUsd;
-        totalStaked += fullData[userAddress].dailyBalances[date][market].stakedBalanceUsd;
-        totalBorrowed += fullData[userAddress].dailyBalances[date][market].borrowBalanceUsd;
-      }
-      countDays++;
-    }
-
-    averages[userAddress] = {
-      averageCredit: totalCredit / countDays,
-      averageStaked: totalStaked / countDays,
-      averageBorrowed: totalBorrowed / countDays
-    };
-  }
-
-  console.log(averages);
-  const csv: string[] = [];
-  csv.push('User Address,Average Credit,Average Staked,Average Borrowed');
-
-  for (const userAddress in averages) {
-    const userAverages = averages[userAddress];
-    const csvLine = `${userAddress},${userAverages.averageCredit},${userAverages.averageStaked},${userAverages.averageBorrowed}`;
-    csv.push(csvLine);
-  }
-
-  writeFileSync('airdrop.csv', csv.join('\n'));
 }
 
 // Function to get the block at a specific timestamp

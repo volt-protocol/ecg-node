@@ -881,7 +881,7 @@ async function fetchAllCreditTransfers(
   WriteJSON(historyFilename, transferFile);
 }
 
-async function GetTokenPriceMultiAtTimestamp(
+export async function GetTokenPriceMultiAtTimestamp(
   tokenAddresses: string[],
   timestamp: number,
   atBlock: number,
