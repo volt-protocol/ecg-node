@@ -287,39 +287,14 @@ async function computeAirdropData() {
           fullData.userData[creditHolder].dailyBalances[dateStr] = {};
         }
 
-        fullData.userData[creditHolder].dailyBalances[dateStr][`market_${marketId}`] = {
+        fullData.userData[creditHolder].dailyBalances[dateStr][marketId] = {
           creditBalanceUsd: userCreditBalance * pegTokenValue,
           borrowBalanceUsd: totalUserBorrowValueCredit * pegTokenValue
         };
 
         fullData.marketUtilizationUsd[dateStr][Number(marketId)] +=
-          fullData.userData[creditHolder].dailyBalances[dateStr][`market_${marketId}`].borrowBalanceUsd;
+          fullData.userData[creditHolder].dailyBalances[dateStr][marketId].borrowBalanceUsd;
       }
-
-      // for (const guildHolder of guildHolders) {
-      //   if (!creditHolders.includes(guildHolder)) {
-      //     // guild holder never held any credit, so we should add only his guild stakes
-      //     if (guildStakeResults[guildHolder].total == 0) {
-      //       continue;
-      //     }
-
-      //     if (!fullData.userData[guildHolder]) {
-      //       fullData.userData[guildHolder] = {
-      //         userAddress: guildHolder,
-      //         dailyBalances: {}
-      //       };
-      //     }
-
-      //     if (!fullData.userData[guildHolder].dailyBalances[dateStr]) {
-      //       fullData.userData[guildHolder].dailyBalances[dateStr] = {};
-      //     }
-
-      //     fullData.userData[guildHolder].dailyBalances[dateStr][`market_${marketId}`] = {
-      //       creditBalanceUsd: 0,
-      //       borrowBalanceUsd: 0
-      //     };
-      //   }
-      // }
 
       for (const term of liveTerms) {
         const termData = termIssuanceAndInterestRate[term];
@@ -524,7 +499,7 @@ function initAllUsersData(
           fullData[address].dailyBalances[dateStr] = {};
         }
 
-        fullData[address].dailyBalances[dateStr][`market_${marketId}`] = {
+        fullData[address].dailyBalances[dateStr][marketId] = {
           creditBalanceUsd: 0,
           borrowBalanceUsd: 0
         };
