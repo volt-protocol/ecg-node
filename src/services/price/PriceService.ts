@@ -96,6 +96,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         continue;
       }
 
+      if (token.address == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
+        // fix price of $1 for Open Dollar
+        // TODO CHANGE THAT
+        allPrices[token.address] = 1;
+        continue;
+      }
+
       if (token.pendleConfiguration) {
         // fetch price using pendle api
         allPrices[token.address] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
