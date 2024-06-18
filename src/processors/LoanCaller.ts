@@ -10,7 +10,6 @@ import { SendNotifications } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log } from '../utils/Logger';
-import { LoadConfiguration } from '../config/Config';
 
 const RUN_EVERY_SEC = 15;
 const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
@@ -18,8 +17,6 @@ const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     process.title = 'ECG_NODE_LOAN_CALLER';
     Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');

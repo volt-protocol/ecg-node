@@ -12,10 +12,10 @@ import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import { Log } from './Logger';
 import { HttpPost } from './HttpHelper';
-import { TokenConfig } from '../config/Config';
 import { ERC20__factory } from '../contracts/types';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { NETWORK } from './Constants';
+import { TokenConfig } from '../model/Config';
 const initBlockStep = NETWORK == 'ARBITRUM' ? 500_000 : 100_000;
 
 /**

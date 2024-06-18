@@ -12,7 +12,6 @@ import swaggerJsdoc from 'swagger-jsdoc';
 
 import dotenv from 'dotenv';
 import { Log } from '../utils/Logger';
-import { LoadTokens } from '../config/Config';
 dotenv.config();
 const port = process.env.API_PORT || 17777;
 
@@ -44,8 +43,6 @@ const options = {
 };
 
 const openapiSpecification = swaggerJsdoc(options);
-
-LoadTokens();
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpecification));
 

@@ -53,7 +53,7 @@ export default class TermsProposalFetcher {
       if (l1BlockNumber > p.voteEnd && p.status == ProposalStatus.PROPOSED) {
         // check if quorum reached
         const lendingTermOnboarding = LendingTermOnboarding__factory.connect(
-          GetLendingTermOnboardingAddress(),
+          await GetLendingTermOnboardingAddress(),
           web3Provider
         );
         const proposalVotes = await lendingTermOnboarding.proposalVotes(p.proposalId);
@@ -102,9 +102,9 @@ async function fetchNewCreatedLendingTerms(
   syncData: SyncData,
   currentBlock: number
 ): Promise<Proposal[]> {
-  const lendingTermFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), web3Provider);
+  const lendingTermFactory = LendingTermFactory__factory.connect(await GetLendingTermFactoryAddress(), web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = await GetDeployBlock();
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }
@@ -142,7 +142,7 @@ async function fetchNewCreatedLendingTerms(
     const interestRate = termParameters.interestRate.toString(10);
     const maxDebtPerCol = termParameters.maxDebtPerCollateralToken.toString(10);
     const collateralTokenAddress = termParameters.collateralToken;
-    let collateralToken = getTokenByAddressNoError(collateralTokenAddress);
+    let collateralToken = await getTokenByAddressNoError(collateralTokenAddress);
     let knownToken = true;
     if (!collateralToken) {
       collateralToken = await GetERC20Infos(web3Provider, collateralTokenAddress);
@@ -189,9 +189,12 @@ async function fetchProposalEvents(
   currentBlock: number,
   allProposals: Proposal[]
 ) {
-  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
+  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(
+    await GetLendingTermOnboardingAddress(),
+    web3Provider
+  );
 
-  let startBlock = GetDeployBlock();
+  let startBlock = await GetDeployBlock();
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }

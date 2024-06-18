@@ -8,7 +8,7 @@ import { WriteJSON } from '../../utils/Utils';
 
 export default class ProtocolDataFetcher {
   static async fetchAndSaveProtocolData(web3Provider: JsonRpcProvider): Promise<ProtocolData> {
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+    const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), web3Provider);
     const creditMultiplier = await profitManagerContract.creditMultiplier();
 
     const data: ProtocolData = {

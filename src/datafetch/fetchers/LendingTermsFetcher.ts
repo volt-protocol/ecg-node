@@ -27,9 +27,9 @@ export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
     Log('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
-    const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+    const guildTokenContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+    const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), web3Provider);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const promises: any[] = [];
     promises.push(profitManagerContract.minBorrow());
@@ -65,7 +65,7 @@ export default class LendingTermsFetcher {
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
-      let collateralToken = getTokenByAddressNoError(termParameters.collateralToken);
+      let collateralToken = await getTokenByAddressNoError(termParameters.collateralToken);
       if (!collateralToken) {
         collateralToken = await GetERC20Infos(web3Provider, termParameters.collateralToken);
         Warn(

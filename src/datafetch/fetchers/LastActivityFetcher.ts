@@ -188,10 +188,10 @@ async function getMintRedeemActivity(
     ? syncData.activitySync.lastBlockFetched + 1
     : currentBlock - 7 * 24 * BLOCK_PER_HOUR;
 
-  const psmContract = SimplePSM__factory.connect(GetPSMAddress(), web3Provider);
+  const psmContract = SimplePSM__factory.connect(await GetPSMAddress(), web3Provider);
 
-  const creditToken = getTokenByAddress(GetCreditTokenAddress());
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const creditToken = await getTokenByAddress(await GetCreditTokenAddress());
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
 
   const allMints = await FetchAllEvents(psmContract, `psm-${GetPSMAddress()}`, 'Mint', fromBlock, currentBlock);
   for (const mint of allMints) {
@@ -247,11 +247,14 @@ async function getVoteActivities(
     ? syncData.activitySync.lastBlockFetched + 1
     : currentBlock - 7 * 24 * BLOCK_PER_HOUR;
 
-  const offboardingContract = LendingTermOffboarding__factory.connect(GetLendingTermOffboardingAddress(), web3Provider);
+  const offboardingContract = LendingTermOffboarding__factory.connect(
+    await GetLendingTermOffboardingAddress(),
+    web3Provider
+  );
 
   const allOffboardSupport = await FetchAllEvents(
     offboardingContract,
-    `offboardingContract-${GetLendingTermOffboardingAddress()}`,
+    `offboardingContract-${await GetLendingTermOffboardingAddress()}`,
     'OffboardSupport',
     fromBlock,
     currentBlock
@@ -273,7 +276,10 @@ async function getVoteActivities(
       vote: 'for'
     });
   }
-  const onboardingContract = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
+  const onboardingContract = LendingTermOnboarding__factory.connect(
+    await GetLendingTermOnboardingAddress(),
+    web3Provider
+  );
   const onboardingVotes = await getGovernorActivities(
     onboardingContract,
     'LendingTermOnboarding',
@@ -283,7 +289,7 @@ async function getVoteActivities(
   );
   voteActivities.push(...onboardingVotes);
 
-  const daoGuildGovernorContract = GuildGovernor__factory.connect(GetDaoGovernorGuildAddress(), web3Provider);
+  const daoGuildGovernorContract = GuildGovernor__factory.connect(await GetDaoGovernorGuildAddress(), web3Provider);
   const daoGovernorVotes = await getGovernorActivities(
     daoGuildGovernorContract,
     'Governor',
@@ -293,7 +299,7 @@ async function getVoteActivities(
   );
   voteActivities.push(...daoGovernorVotes);
 
-  const daoVetoGovernorContract = GuildVetoGovernor__factory.connect(GetDaoVetoGuildAddress(), web3Provider);
+  const daoVetoGovernorContract = GuildVetoGovernor__factory.connect(await GetDaoVetoGuildAddress(), web3Provider);
   const daoVetoVotes = await getGovernorActivities(
     daoVetoGovernorContract,
     'VetoGovernor',

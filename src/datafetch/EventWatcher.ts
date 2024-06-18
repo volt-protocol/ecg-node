@@ -9,8 +9,6 @@ import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboa
 import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
-import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { DATA_DIR, MARKET_ID } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
@@ -42,57 +40,59 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
     guildTokenContract.removeAllListeners();
   }
 
-  Log('Started the event listener');
-  guildTokenContract = new Contract(GetGuildTokenAddress(), GuildTokenAbi, provider);
-  Log(`Starting listener on guild token ${GetGuildTokenAddress()}`);
-  const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), provider);
+  GetGuildTokenAddress().then((guildTokenAddress) => {
+    Log('Started the event listener');
+    guildTokenContract = new Contract(guildTokenAddress, GuildTokenAbi, provider);
+    Log(`Starting listener on guild token ${guildTokenAddress}`);
+    const guildToken = GuildToken__factory.connect(guildTokenAddress, provider);
 
-  const iface = new Interface(GuildTokenAbi);
+    const iface = new Interface(GuildTokenAbi);
 
-  guildTokenContract.removeAllListeners();
+    guildTokenContract.removeAllListeners();
 
-  guildTokenContract.on('*', (event) => {
-    // The `event.log` has the entire EventLog
-    const parsed = iface.parseLog(event.log);
+    guildTokenContract.on('*', (event) => {
+      // The `event.log` has the entire EventLog
+      const parsed = iface.parseLog(event.log);
 
-    if (!parsed) {
-      Log('Could not parse event', { event });
-      return;
-    }
-
-    if (parsed.name.toLowerCase() == 'addgauge') {
-      if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
-        Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+      if (!parsed) {
+        Log('Could not parse event', { event });
         return;
       }
-    }
 
-    if (['removegauge', 'incrementgaugeweight', 'decrementgaugeweight'].includes(parsed.name.toLowerCase())) {
-      const gaugeAddress = parsed.args.gauge;
-      guildToken.gaugeType(gaugeAddress).then((gaugeType: bigint) => {
-        if (Number(gaugeType) == MARKET_ID) {
-          EventQueue.push({
-            txHash: event.log.transactionHash,
-            eventName: parsed.name,
-            block: event.log.blockNumber,
-            originArgs: parsed.args,
-            sourceContract: 'GuildToken',
-            originArgName: parsed.fragment.inputs.map((_) => _.name)
-          });
-        } else {
+      if (parsed.name.toLowerCase() == 'addgauge') {
+        if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
           Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+          return;
         }
-      });
-    } else {
-      EventQueue.push({
-        txHash: event.log.transactionHash,
-        eventName: parsed.name,
-        block: event.log.blockNumber,
-        originArgs: parsed.args,
-        sourceContract: 'GuildToken',
-        originArgName: parsed.fragment.inputs.map((_) => _.name)
-      });
-    }
+      }
+
+      if (['removegauge', 'incrementgaugeweight', 'decrementgaugeweight'].includes(parsed.name.toLowerCase())) {
+        const gaugeAddress = parsed.args.gauge;
+        guildToken.gaugeType(gaugeAddress).then((gaugeType: bigint) => {
+          if (Number(gaugeType) == MARKET_ID) {
+            EventQueue.push({
+              txHash: event.log.transactionHash,
+              eventName: parsed.name,
+              block: event.log.blockNumber,
+              originArgs: parsed.args,
+              sourceContract: 'GuildToken',
+              originArgName: parsed.fragment.inputs.map((_) => _.name)
+            });
+          } else {
+            Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+          }
+        });
+      } else {
+        EventQueue.push({
+          txHash: event.log.transactionHash,
+          eventName: parsed.name,
+          block: event.log.blockNumber,
+          originArgs: parsed.args,
+          sourceContract: 'GuildToken',
+          originArgName: parsed.fragment.inputs.map((_) => _.name)
+        });
+      }
+    });
   });
 }
 
@@ -102,27 +102,28 @@ export function StartOnboardingListener(provider: JsonRpcProvider) {
   }
 
   Log('Started the event listener');
-  onboardingContract = new Contract(GetLendingTermOnboardingAddress(), LendingTermOnbardingAbi, provider);
-  Log(`Starting listener on onboarding ${GetLendingTermOnboardingAddress()}`);
+  GetLendingTermOnboardingAddress().then((lendingTermOnboardingAddress) => {
+    onboardingContract = new Contract(lendingTermOnboardingAddress, LendingTermOnbardingAbi, provider);
+    Log(`Starting listener on onboarding ${lendingTermOnboardingAddress}`);
+    onboardingContract.removeAllListeners();
 
-  onboardingContract.removeAllListeners();
+    onboardingContract.on('*', (event) => {
+      // The `event.log` has the entire EventLog
+      const parsed = onboardingContract?.interface.parseLog(event.log);
 
-  onboardingContract.on('*', (event) => {
-    // The `event.log` has the entire EventLog
-    const parsed = onboardingContract?.interface.parseLog(event.log);
+      if (!parsed) {
+        Log('Could not parse event', { event });
+        return;
+      }
 
-    if (!parsed) {
-      Log('Could not parse event', { event });
-      return;
-    }
-
-    EventQueue.push({
-      txHash: event.log.transactionHash,
-      eventName: parsed.name,
-      block: event.log.blockNumber,
-      originArgs: parsed.args,
-      sourceContract: 'Onboarding',
-      originArgName: parsed.fragment.inputs.map((_) => _.name)
+      EventQueue.push({
+        txHash: event.log.transactionHash,
+        eventName: parsed.name,
+        block: event.log.blockNumber,
+        originArgs: parsed.args,
+        sourceContract: 'Onboarding',
+        originArgName: parsed.fragment.inputs.map((_) => _.name)
+      });
     });
   });
 }
@@ -131,33 +132,33 @@ export function StartTermFactoryListener(provider: JsonRpcProvider) {
   if (termFactoryContract) {
     termFactoryContract.removeAllListeners();
   }
+  GetLendingTermFactoryAddress().then((lendingTermFactoryAddress) => {
+    termFactoryContract = new Contract(lendingTermFactoryAddress, LendingTermFactoryAbi, provider);
+    Log(`Starting listener on term factory ${lendingTermFactoryAddress}`);
+    const termFactory = LendingTermFactory__factory.connect(lendingTermFactoryAddress, provider);
+    termFactoryContract.removeAllListeners();
 
-  Log('Started the event listener');
-  termFactoryContract = new Contract(GetLendingTermFactoryAddress(), LendingTermFactoryAbi, provider);
-  Log(`Starting listener on term factory ${GetLendingTermFactoryAddress()}`);
-  const termFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), provider);
+    // only listen to term created for the current node market
+    const filter = termFactory.filters.TermCreated(undefined, MARKET_ID, undefined, undefined);
+    Log('Started the event listener');
 
-  termFactoryContract.removeAllListeners();
+    termFactoryContract.on(filter, (event) => {
+      // The `event.log` has the entire EventLog
+      const parsed = termFactoryContract?.interface.parseLog(event.log);
 
-  // only listen to term created for the current node market
-  const filter = termFactory.filters.TermCreated(undefined, MARKET_ID, undefined, undefined);
+      if (!parsed) {
+        Log('Could not parse event', { event });
+        return;
+      }
 
-  termFactoryContract.on(filter, (event) => {
-    // The `event.log` has the entire EventLog
-    const parsed = termFactoryContract?.interface.parseLog(event.log);
-
-    if (!parsed) {
-      Log('Could not parse event', { event });
-      return;
-    }
-
-    EventQueue.push({
-      txHash: event.log.transactionHash,
-      eventName: parsed.name,
-      block: event.log.blockNumber,
-      originArgs: parsed.args,
-      sourceContract: 'TermFactory',
-      originArgName: parsed.fragment.inputs.map((_) => _.name)
+      EventQueue.push({
+        txHash: event.log.transactionHash,
+        eventName: parsed.name,
+        block: event.log.blockNumber,
+        originArgs: parsed.args,
+        sourceContract: 'TermFactory',
+        originArgName: parsed.fragment.inputs.map((_) => _.name)
+      });
     });
   });
 }

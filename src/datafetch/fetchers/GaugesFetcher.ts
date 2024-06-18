@@ -14,7 +14,7 @@ import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 export default class GaugesFetcher {
   static async fetchAndSaveGauges(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
     Log('FetchECGData[Gauges]: starting');
-    let sinceBlock = GetDeployBlock();
+    let sinceBlock = await GetDeployBlock();
     if (syncData.gaugeSync) {
       sinceBlock = syncData.gaugeSync.lastBlockFetched + 1;
     } else {
@@ -36,7 +36,7 @@ export default class GaugesFetcher {
     }
 
     // fetch & handle data
-    const guild = GuildToken__factory.connect(GetGuildTokenAddress(), web3Provider);
+    const guild = GuildToken__factory.connect(await GetGuildTokenAddress(), web3Provider);
 
     const filters = [
       (await guild.filters.IncrementGaugeWeight().getTopicFilter()).toString(),

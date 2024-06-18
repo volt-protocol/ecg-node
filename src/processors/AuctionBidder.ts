@@ -8,8 +8,6 @@ import {
   GetPSMAddress,
   GetPegTokenAddress,
   GetUniswapV2RouterAddress,
-  LoadConfiguration,
-  TokenConfig,
   getTokenByAddress,
   getTokenByAddressNoError
 } from '../config/Config';
@@ -25,6 +23,7 @@ import { OneInchSwapResponse } from '../model/OneInchApi';
 import { HttpGet } from '../utils/HttpHelper';
 import BigNumber from 'bignumber.js';
 import { PendleSwapResponse } from '../model/PendleApi';
+import { TokenConfig } from '../model/Config';
 
 const RUN_EVERY_SEC = 15;
 let lastCall1Inch = 0;
@@ -33,8 +32,6 @@ let lastCallPendle = 0;
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     process.title = 'ECG_NODE_AUCTION_BIDDER';
     Log('starting');
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
@@ -134,7 +131,7 @@ async function checkBidProfitability(
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint
 ): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = await GetERC20Infos(web3Provider, term.collateralAddress);
     Warn(
@@ -142,7 +139,7 @@ async function checkBidProfitability(
     );
   }
 
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
 
   let getSwapFunction;
   // specific case for pendle, use pendle amm
@@ -196,7 +193,7 @@ async function getSwapUniv2(
   collateralReceivedWei: bigint,
   web3Provider: ethers.JsonRpcProvider
 ): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
-  const univ2RouterAddress = GetUniswapV2RouterAddress();
+  const univ2RouterAddress = await GetUniswapV2RouterAddress();
   const uniswapRouterContract = UniswapV2Router__factory.connect(univ2RouterAddress, web3Provider);
 
   const path = [collateralToken.address, pegToken.address];
@@ -375,9 +372,9 @@ async function processBid(
     throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
   }
   const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
-  const gatewayContract = GatewayV1__factory.connect(GetGatewayAddress(), signer);
+  const gatewayContract = GatewayV1__factory.connect(await GetGatewayAddress(), signer);
   const minProfitWei = new BigNumber(minProfit)
-    .times(new BigNumber(10).pow(getTokenByAddress(GetPegTokenAddress()).decimals))
+    .times(new BigNumber(10).pow((await getTokenByAddress(await GetPegTokenAddress())).decimals))
     .toString(10);
   const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
     auction.loanId,
@@ -391,7 +388,7 @@ async function processBid(
     { gasLimit: 2_000_000 }
   );
   await txReceipt.wait();
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
 
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
     await SendNotifications(

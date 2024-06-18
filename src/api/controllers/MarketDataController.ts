@@ -5,7 +5,7 @@ import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
 import { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { getAllTokens } from '../../config/Config';
+import { GetAllTokensFromConfiguration } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
@@ -251,7 +251,7 @@ class MarketDataController {
     }
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
 
-    const allTokens = getAllTokens(); // all tokens from the config
+    const allTokens = await GetAllTokensFromConfiguration(); // all tokens from the config
     // add all tokens from lending terms that might be unknown
 
     for (const term of termsFile.terms) {

@@ -1,12 +1,11 @@
 import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, GetProtocolData, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
+import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR, NETWORK } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
   GetPegTokenAddress,
-  LoadConfiguration,
   getTokenByAddress,
   getTokenByAddressNoError
 } from '../config/Config';
@@ -15,7 +14,7 @@ import { TermOffboarderConfig } from '../model/NodeConfig';
 import { LendingTermOffboarding__factory } from '../contracts/types';
 import { ethers } from 'ethers';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
-import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
@@ -27,8 +26,6 @@ TermOffboarder();
 async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     const startDate = Date.now();
     const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
 
@@ -75,7 +72,7 @@ async function checkTermForOffboard(
   term: LendingTerm,
   offboarderConfig: TermOffboarderConfig
 ): Promise<{ termMustBeOffboarded: boolean; reason: string }> {
-  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = {
       address: term.collateralAddress,
@@ -99,7 +96,7 @@ async function checkTermForOffboard(
       reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
     };
   }
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
   const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   if (!pegTokenRealPrice) {
     Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
@@ -152,7 +149,7 @@ async function offboardProcess(
   const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
 
   const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
-    GetLendingTermOffboardingAddress(),
+    await GetLendingTermOffboardingAddress(),
     signer
   );
 

@@ -4,13 +4,7 @@ import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
 import OnboardingABI from '../contracts/abi/LendingTermOnboarding.json';
 import * as dotenv from 'dotenv';
-import {
-  GetLendingTermOnboardingAddress,
-  getTokenByAddress,
-  getTokenByAddressNoError,
-  LoadConfiguration,
-  TokenConfig
-} from '../config/Config';
+import { GetLendingTermOnboardingAddress, getTokenByAddressNoError } from '../config/Config';
 import { sleep } from '../utils/Utils';
 import { GetERC20Infos, GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
@@ -34,9 +28,7 @@ async function TermOnboardingWatcher() {
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
-    const onboardingAddress = GetLendingTermOnboardingAddress();
+    const onboardingAddress = await GetLendingTermOnboardingAddress();
 
     if (onboardingContract) {
       Log('resetting contract listener');
@@ -82,7 +74,7 @@ async function processEvent(event: any, web3Provider: JsonRpcProvider, iface: In
 
   let collateralTokenStr = params.collateralToken;
 
-  let foundToken = getTokenByAddressNoError(collateralTokenStr);
+  let foundToken = await getTokenByAddressNoError(collateralTokenStr);
   if (!foundToken) {
     foundToken = await GetERC20Infos(web3Provider, collateralTokenStr);
   }
