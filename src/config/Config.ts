@@ -3,12 +3,15 @@ import { readFileSync } from 'fs';
 import { HttpGet } from '../utils/HttpHelper';
 import SimpleCacheService from '../services/cache/CacheService';
 import { ConfigFile, ProtocolConstants, TokenConfig } from '../model/Config';
+import { Log } from '../utils/Logger';
+
+const CONFIG_CACHE_MS = 15 * 60 * 1000; // 15 minutes cache
 
 export async function GetFullConfigFile(): Promise<ConfigFile> {
   const configFile = await SimpleCacheService.GetAndCache(
     'config-file',
     async () => {
-      // Log(`LoadConfiguration: loading protocol data from ${CONFIG_FILE}`);
+      Log(`GetFullConfigFile: loading protocol data from ${CONFIG_FILE}`);
       if (CONFIG_FILE.startsWith('http')) {
         // load via http
         const resp = await HttpGet<ConfigFile>(CONFIG_FILE);
@@ -18,7 +21,7 @@ export async function GetFullConfigFile(): Promise<ConfigFile> {
         return JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'));
       }
     },
-    5 * 60 * 1000
+    CONFIG_CACHE_MS
   );
 
   return configFile;
@@ -39,7 +42,7 @@ export async function GetAllTokensFromConfiguration(): Promise<TokenConfig[]> {
   const tokens = await SimpleCacheService.GetAndCache(
     'config-tokens',
     async () => {
-      // Log(`LoadConfiguration: loading tokens data from ${TOKENS_FILE}`);
+      Log(`GetAllTokensFromConfiguration: loading tokens data from ${TOKENS_FILE}`);
       if (TOKENS_FILE.startsWith('http')) {
         // load via http
         const resp = await HttpGet<TokenConfig[]>(TOKENS_FILE);
@@ -49,7 +52,7 @@ export async function GetAllTokensFromConfiguration(): Promise<TokenConfig[]> {
         return JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'));
       }
     },
-    5 * 60 * 1000
+    CONFIG_CACHE_MS
   );
 
   if (!tokens || tokens.length == 0) {
