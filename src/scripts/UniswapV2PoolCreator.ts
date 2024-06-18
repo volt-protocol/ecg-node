@@ -1,10 +1,11 @@
-import { GetWeb3Provider } from '../src/utils/Web3Helper';
-import { getTokenBySymbol } from '../src/config/Config';
+import { GetWeb3Provider } from '../utils/Web3Helper';
+import { getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
-import { UniswapV2Router__factory } from '../src/contracts/types/factories/UniswapV2Router__factory';
-import { ERC20__factory } from '../src/contracts/types/factories/ERC20__factory';
-import { sleep } from '../src/utils/Utils';
+import { UniswapV2Router__factory } from '../contracts/types/factories/UniswapV2Router__factory';
+import { ERC20__factory } from '../contracts/types/factories/ERC20__factory';
+import { sleep } from '../utils/Utils';
+import { Log } from '../utils/Logger';
 
 dotenv.config();
 

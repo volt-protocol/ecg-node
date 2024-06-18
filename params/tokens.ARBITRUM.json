@@ -238,7 +238,7 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
-			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"syTokenOut": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "USDe",

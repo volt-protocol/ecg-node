@@ -1,6 +1,12 @@
 import { MessageBuilder, Webhook } from 'discord-webhook-node';
 import { truncateString } from './Utils';
 
+export async function SendMessageBuilder(msgBuilder: MessageBuilder, hookUrl: string) {
+  const hook = new Webhook(hookUrl);
+
+  await hook.send(msgBuilder);
+}
+
 export async function SendDiscordMessage(hookUrl: string, sender: string, title: string, msg: string) {
   const hook = new Webhook(hookUrl);
 

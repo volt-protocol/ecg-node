@@ -18,6 +18,8 @@ import { GetWeb3Provider } from '../utils/Web3Helper';
 import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
+import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
+import { TokenConfig } from '../model/Config';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -32,8 +34,13 @@ async function TermOffboarder() {
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
     Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
+    const auctionHousesFilename = path.join(DATA_DIR, 'auction-houses.json');
+
     if (!existsSync(termsFilename)) {
       throw new Error('Cannot start TERM OFFBOARDER without terms file. please sync protocol data');
+    }
+    if (!existsSync(auctionHousesFilename)) {
+      throw new Error('Cannot start TERM OFFBOARDER without auction houses file. please sync protocol data');
     }
 
     if (!process.env.ETH_PRIVATE_KEY) {
@@ -47,9 +54,10 @@ async function TermOffboarder() {
 
     // wait for unlock just before reading data file
     await FileMutex.WaitForUnlock();
+    const auctionHousesFile: AuctionHousesFileStructure = ReadJSON(auctionHousesFilename);
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
     for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.LIVE)) {
-      const checkTermReponse = await checkTermForOffboard(term, offboarderConfig);
+      const checkTermReponse = await checkTermForOffboard(term, offboarderConfig, auctionHousesFile.auctionHouses);
       if (checkTermReponse.termMustBeOffboarded) {
         if (!offboarderConfig.onlyLogging) {
           Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED`);
@@ -70,7 +78,8 @@ async function TermOffboarder() {
 
 async function checkTermForOffboard(
   term: LendingTerm,
-  offboarderConfig: TermOffboarderConfig
+  offboarderConfig: TermOffboarderConfig,
+  auctionHouses: AuctionHouseData[]
 ): Promise<{ termMustBeOffboarded: boolean; reason: string }> {
   let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
@@ -113,10 +122,12 @@ async function checkTermForOffboard(
   Log(`[${term.label}]: borrow ratio: ${normBorrowRatio} ${pegToken.symbol} / ${collateralToken.symbol}`);
 
   // find the min overcollateralization config for this token
-  let minOvercollateralization = offboarderConfig.defaultMinOvercollateralization;
-  if (offboarderConfig.tokens[collateralToken.symbol]) {
-    minOvercollateralization = offboarderConfig.tokens[collateralToken.symbol].minOvercollateralization;
-  }
+  const minOvercollateralization = getMinOvercollateralizationForToken(
+    collateralToken,
+    offboarderConfig,
+    auctionHouses,
+    term.auctionHouseAddress
+  );
 
   const currentOvercollateralization = collateralRealPrice / pegTokenRealPrice / normBorrowRatio;
   Log(
@@ -134,6 +145,45 @@ async function checkTermForOffboard(
       reason: 'Term healthy'
     };
   }
+}
+
+function getMinOvercollateralizationForToken(
+  collateralToken: TokenConfig,
+  offboarderConfig: TermOffboarderConfig,
+  auctionHouses: AuctionHouseData[],
+  auctionHouseAddress: string
+): number {
+  const specificConfig = offboarderConfig.tokens[collateralToken.symbol];
+  if (!specificConfig) {
+    Log(`using global defaultMinOvercollateralization: ${offboarderConfig.defaultMinOvercollateralization}`);
+    return offboarderConfig.defaultMinOvercollateralization;
+  }
+
+  // if there are auctionHouseDuration specific parameters, check if the auction house mid point
+  // is <= the specific config
+  if (specificConfig.auctionDurationSpecifics.length > 0) {
+    // find the auction house
+    const auctionHouseForTerm = auctionHouses.find((_) => _.address == auctionHouseAddress);
+    if (!auctionHouseForTerm) {
+      throw new Error(`Cannot find auction house with address ${auctionHouseAddress}`);
+    }
+
+    for (const auctionDurationSpecificParams of specificConfig.auctionDurationSpecifics) {
+      if (auctionHouseForTerm.midPoint <= auctionDurationSpecificParams.maxMidpointDuration) {
+        Log(
+          `Using specific params ${JSON.stringify(auctionDurationSpecificParams)} for auction house with midPoint ${
+            auctionHouseForTerm.midPoint
+          }`
+        );
+        return auctionDurationSpecificParams.minOvercollateralization;
+      }
+    }
+  }
+
+  Log(
+    `using ${collateralToken.symbol} defaultMinOvercollateralization: ${specificConfig.defaultMinOvercollateralization}`
+  );
+  return specificConfig.defaultMinOvercollateralization;
 }
 
 async function offboardProcess(

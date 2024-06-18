@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { GLOBAL_DATA_DIR } from '../../utils/Constants';
+import { GLOBAL_DATA_DIR, NETWORK } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { norm } from '../../utils/TokenUtils';
 import { GetAllTokensFromConfiguration, GetFullConfigFile } from '../../config/Config';
@@ -27,6 +27,10 @@ class ProtocolDataController {
       marketTVL: {},
       marketDebt: {}
     };
+
+    if (NETWORK == 'SEPOLIA') {
+      return airdropData;
+    }
 
     const fullConfig = await GetFullConfigFile();
 

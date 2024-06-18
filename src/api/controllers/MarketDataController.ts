@@ -20,6 +20,7 @@ import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
 import PriceService from '../../services/price/PriceService';
+import { TokenConfig } from '../../model/Config';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
@@ -251,7 +252,9 @@ class MarketDataController {
     }
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
 
-    const allTokens = await GetAllTokensFromConfiguration(); // all tokens from the config
+    const allTokens: TokenConfig[] = [];
+    allTokens.push(...(await GetAllTokensFromConfiguration()));
+
     // add all tokens from lending terms that might be unknown
 
     for (const term of termsFile.terms) {

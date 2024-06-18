@@ -1,6 +1,6 @@
 {
 	"999999998": {
-		"PEGTOKEN": "WETH",
+		"PEGTOKEN": "WETH-test",
 		"deployBlock": 197600000,
 		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
@@ -13,11 +13,11 @@
 		"creditTokenAddress": "0xce805022e35fd808139d7E541F10D6e83420d84B",
 		"profitManagerAddress": "0x7bacAE0Bb37737E57fb3fE3fACaFd8214095D92b",
 		"psmAddress": "0x81869fcBF98ab8982B5c30529A2E7C3C24f7554e",
-		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
-		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28"
+		"daoGovernorGuildAddress": "0x5a2568b31532d9B6DB228570F75B4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28"
 	},
 	"999999999": {
-		"PEGTOKEN": "USDC",
+		"PEGTOKEN": "USDC-test",
 		"deployBlock": 197600000,
 		"historicalMinBlock": 197600000,
 		"guildTokenAddress": "0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978",
@@ -30,8 +30,8 @@
 		"creditTokenAddress": "0xcFC43e1251bD7fd2f37766c083948497B7871AEb",
 		"profitManagerAddress": "0xe910B8F7b8f27d95a97E9D204c36D3FA3fcE80Bd",
 		"psmAddress": "0x47fa48413508b979Ca72Fe638011Ecf0556429bE",
-		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
-		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28"
+		"daoGovernorGuildAddress": "0x5a2568b31532d9B6DB228570F75B4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28"
 	},
 	"1": {
 		"PEGTOKEN": "USDC",
@@ -43,8 +43,8 @@
 		"uniswapV2RouterAddress": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
 		"gatewayAddress": "0x69e2D90935E438c26fFE72544dEE4C1306D80A56",
 		"lendingTermFactoryAddress": "0xFc462354dc9Cac684516b49f002ae769514bbe63",
-		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
-		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"daoGovernorGuildAddress": "0x5a2568b31532d9B6DB228570F75B4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28",
 		"pegTokenAddress": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 		"creditTokenAddress": "0xD5FD8456aa96aAA07c23605e9a8d2ce5f737F145",
 		"profitManagerAddress": "0x9722bec2524B4b4E37Df3ACd24F1431f66c62706",
@@ -60,8 +60,8 @@
 		"uniswapV2RouterAddress": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
 		"gatewayAddress": "0x69e2D90935E438c26fFE72544dEE4C1306D80A56",
 		"lendingTermFactoryAddress": "0xFc462354dc9Cac684516b49f002ae769514bbe63",
-		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
-		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"daoGovernorGuildAddress": "0x5a2568b31532d9B6DB228570F75B4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28",
 		"pegTokenAddress": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
 		"creditTokenAddress": "0xaFBe44E79E9affB25CEd16D971933219d1d6EC8d",
 		"profitManagerAddress": "0x5D87B2f530e9C1E605EeE48e41c10534B7E29C78",
@@ -77,8 +77,8 @@
 		"uniswapV2RouterAddress": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
 		"gatewayAddress": "0x69e2D90935E438c26fFE72544dEE4C1306D80A56",
 		"lendingTermFactoryAddress": "0xFc462354dc9Cac684516b49f002ae769514bbe63",
-		"daoGovernorGuildAddress": "0x5a2568b31532d9b6db228570f75b4c83f2201951",
-		"daoVetoGuildAddress": "0x79475a4871bd4e8b8c6caae4228d98ef93622f28",
+		"daoGovernorGuildAddress": "0x5a2568b31532d9B6DB228570F75B4c83f2201951",
+		"daoVetoGuildAddress": "0x79475a4871BD4e8b8C6cAAe4228d98eF93622F28",
 		"pegTokenAddress": "0x912CE59144191C1204E64559FE8253a0e49E6548",
 		"creditTokenAddress": "0x8D8b654E2B6A0289D8f758cBCCc42aB387c67B61",
 		"profitManagerAddress": "0x7181E377b259D7c8D4caFdFe9FBe103dc5bfcE45",
