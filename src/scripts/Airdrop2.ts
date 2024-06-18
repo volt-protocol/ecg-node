@@ -3,7 +3,7 @@ import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
 import { existsSync, writeFileSync } from 'fs';
 import path from 'path';
 import { GetFullConfigFile, ConfigFile, LoadTokens } from '../config/Config';
-import { ERC20__factory, GuildToken, GuildToken__factory, LendingTerm__factory } from '../contracts/types';
+import { ERC20, ERC20__factory, GuildToken, GuildToken__factory, LendingTerm__factory } from '../contracts/types';
 import { SurplusGuildMinter } from '../contracts/types/SurplusGuildMinter';
 import { SurplusGuildMinter__factory } from '../contracts/types/factories/SurplusGuildMinter__factory';
 import { LoansFileStructure } from '../model/Loan';
@@ -17,6 +17,7 @@ import { GetArchiveWeb3Provider, FetchAllEvents } from '../utils/Web3Helper';
 import * as dotenv from 'dotenv';
 import { GetTokenPriceMultiAtTimestamp } from '../processors/HistoricalDataFetcher';
 import { totalmem } from 'os';
+import { LendingTermsFileStructure } from '../model/LendingTerm';
 
 dotenv.config();
 
@@ -53,6 +54,8 @@ interface TermDailyData {
   interestRate: number;
   issuanceUsd: number;
   interest24hUsd: number;
+  termName: string;
+  totalStakes: number;
   userStakes: { [userAddress: string]: number };
 }
 
@@ -152,14 +155,17 @@ async function computeAirdropData() {
       const loansFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'loans.json');
 
       const loansFile: LoansFileStructure = ReadJSON(loansFilename);
+      const termsFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'terms.json');
+
+      const termsFile: LendingTermsFileStructure = ReadJSON(termsFilename);
 
       const creditHolders = marketAddresses[Number(marketId)];
 
       const creditToken = ERC20__factory.connect(config.creditTokenAddress, multicallArchivalProvider);
-      console.log('Getting balance of results');
-      const balanceOfResults = await retry(
-        () => Promise.all(creditHolders.map((_) => creditToken.balanceOf(_, { blockTag: blockToUse }))),
-        []
+      const balanceOfResults: { [holder: string]: bigint } = await getBalanceOfCreditHolders(
+        creditHolders,
+        creditToken,
+        blockToUse
       );
 
       const guildContract = GuildToken__factory.connect(config.guildTokenAddress, multicallArchivalProvider);
@@ -225,6 +231,7 @@ async function computeAirdropData() {
       let termCursor = 0;
       const termIssuanceAndInterestRate: { [termAddress: string]: { issuanceCredit: number; interestRate: number } } =
         {};
+
       for (const term of liveTerms) {
         termIssuanceAndInterestRate[term] = termIssuanceResults[termCursor++];
       }
@@ -243,26 +250,25 @@ async function computeAirdropData() {
         throw new Error(`Cannot find peg token price at timestamp ${blockTimestamp}`);
       }
 
-      let cursorBalanceOf = 0;
       for (const creditHolder of creditHolders) {
         if (allLiveTerms.includes(creditHolder)) {
           continue; // ignore terms in the credit holder list
         }
-        const addressBalancePegToken = balanceOfResults[cursorBalanceOf++];
+        const addressBalancePegToken = balanceOfResults[creditHolder];
         let userCreditBalance = 0;
 
         if (addressBalancePegToken != 0n) {
           userCreditBalance = norm(addressBalancePegToken);
         }
 
-        let totalUserStakeGuild = 0;
-        if (userStakeResults[creditHolder]) {
-          totalUserStakeGuild += userStakeResults[creditHolder].total;
-        }
+        // let totalUserStakeGuild = 0;
+        // if (userStakeResults[creditHolder]) {
+        //   totalUserStakeGuild += userStakeResults[creditHolder].total;
+        // }
 
-        if (guildStakeResults[creditHolder]) {
-          totalUserStakeGuild += guildStakeResults[creditHolder].total;
-        }
+        // if (guildStakeResults[creditHolder]) {
+        //   totalUserStakeGuild += guildStakeResults[creditHolder].total;
+        // }
 
         let totalUserBorrowValueCredit = 0;
         const userLoans = allLoansValue.filter((_) => _.borrower == creditHolder);
@@ -321,27 +327,38 @@ async function computeAirdropData() {
           continue;
         }
 
+        // find terms in list
+        const foundTerm = termsFile.terms.find((_) => _.termAddress == term);
+        if (!foundTerm) {
+          throw new Error(`Cannot find term with address ${term}`);
+        }
+
         fullData.termsData[dateStr][Number(marketId)][term] = {
           interestRate: termData.interestRate,
           issuanceCredit: termData.issuanceCredit,
           issuanceUsd: termData.issuanceCredit * pegTokenValue,
           termAddress: term,
           interest24hUsd: (termData.issuanceCredit * pegTokenValue * termData.interestRate) / 365.25,
-          userStakes: {}
+          userStakes: {},
+          termName: foundTerm.label,
+          totalStakes: 0
         };
 
         // find userStake for that term
         for (const creditHolder of creditHolders) {
           if (userStakeResults[creditHolder] && userStakeResults[creditHolder].terms[term]) {
-            fullData.termsData[dateStr][Number(marketId)][term].userStakes[creditHolder] =
-              userStakeResults[creditHolder].terms[term];
+            const userStakes = userStakeResults[creditHolder].terms[term];
+            fullData.termsData[dateStr][Number(marketId)][term].totalStakes += userStakes;
+            fullData.termsData[dateStr][Number(marketId)][term].userStakes[creditHolder] = userStakes;
           }
         }
 
         for (const guildHolder of guildHolders) {
           if (guildStakeResults[guildHolder] && guildStakeResults[guildHolder].terms[term]) {
-            fullData.termsData[dateStr][Number(marketId)][term].userStakes[guildHolder] =
-              guildStakeResults[guildHolder].terms[term];
+            const userStakes = guildStakeResults[guildHolder].terms[term];
+            fullData.termsData[dateStr][Number(marketId)][term].totalStakes += userStakes;
+
+            fullData.termsData[dateStr][Number(marketId)][term].userStakes[guildHolder] = userStakes;
           }
         }
       }
@@ -360,6 +377,21 @@ async function computeAirdropData() {
 interface BlockResponse {
   height: number;
   timestamp: number;
+}
+
+async function getBalanceOfCreditHolders(creditHolders: string[], creditToken: ERC20, blockToUse: number) {
+  console.log('Getting balance of results');
+  const balanceOfResultsArray = await retry(
+    () => Promise.all(creditHolders.map((_) => creditToken.balanceOf(_, { blockTag: blockToUse }))),
+    []
+  );
+
+  const balanceOfResults: { [holder: string]: bigint } = {};
+  let cursorBalanceOf = 0;
+  for (const creditHolder of creditHolders) {
+    balanceOfResults[creditHolder] = balanceOfResultsArray[cursorBalanceOf++];
+  }
+  return balanceOfResults;
 }
 
 async function getAllTermsWithDebtCeiling(
