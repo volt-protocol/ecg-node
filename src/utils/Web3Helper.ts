@@ -35,6 +35,7 @@ export function GetArchiveWeb3Provider(pollingIntervalMs = 500_000): JsonRpcProv
 
 export function GetMulticallProvider(): JsonRpcProvider {
   const multicallLength = process.env.MULTICALL_LENGTH ? Number(process.env.MULTICALL_LENGTH) : 480_000;
+  Log(`Using multicall length: ${multicallLength}`);
   const multicallProvider = MulticallWrapper.wrap(GetWeb3Provider(), multicallLength);
   return multicallProvider;
 }
