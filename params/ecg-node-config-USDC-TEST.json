@@ -1,0 +1,57 @@
+{
+    "processors": {
+        "LOAN_CALLER": {
+            "enabled": true
+        },
+        "TERM_OFFBOARDER": {
+            "enabled": true,
+            "performCleanup": true,
+            "defaultMinOvercollateralization": 1.2,
+			"tokens": {
+				"PT-USDe-29AUG2024": {
+					"defaultMinOvercollateralization": 1.1,
+					"auctionDurationSpecifics": []
+				},
+				"WETH": {
+					"defaultMinOvercollateralization": 1.2,
+					"auctionDurationSpecifics": [
+						{
+							"maxMidpointDuration": 1800,
+							"minOvercollateralization": 1.1
+						}
+					]
+				}
+			}
+        },
+        "TERM_ONBOARDING_WATCHER": {
+            "enabled": true
+        },
+        "USER_SLASHER": {
+            "enabled": true,
+            "minSizeToSlash": 20000
+        },
+        "AUCTION_BIDDER": {
+            "enabled": true,
+            "enableForgive": true,
+            "minProfitPegToken": 0.2,
+            "swapMode": "OPEN_OCEAN"
+        },
+        "HISTORICAL_DATA_FETCHER": {
+            "enabled": true
+        },
+        "TESTNET_MARKET_MAKER": {
+            "enabled": false,
+            "threshold": 0.005,
+            "uniswapPairs": [
+                {
+                    "path": ["USDC", "sDAI"],
+                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0"
+                },
+                {
+                    "path": ["WBTC", "USDC"],
+                    "poolAddress": "0xB0c49AB59ebE2DF86FF7807634737Ac7a1575cD8"
+                }
+            ]
+        }
+    }
+}
