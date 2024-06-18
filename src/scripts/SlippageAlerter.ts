@@ -1,5 +1,5 @@
-import { ReadJSON, WaitUntilScheduled, WriteJSON, roundTo } from '../utils/Utils';
-import { GetFullConfigFile, LoadTokens, getAllTokens, getTokenByAddress, getTokenBySymbol } from '../config/Config';
+import { ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
+import { GetFullConfigFile, getTokenByAddress, getTokenBySymbol } from '../config/Config';
 import { GLOBAL_DATA_DIR } from '../utils/Constants';
 import { existsSync, readdirSync } from 'fs';
 import path from 'path';
@@ -8,7 +8,7 @@ import { LoanStatus, LoansFileStructure } from '../model/Loan';
 import * as notif from '../utils/Notifications';
 import { formatCurrencyValue, norm } from '../utils/TokenUtils';
 import PriceService from '../services/price/PriceService';
-import { HttpGet, HttpPost } from '../utils/HttpHelper';
+import { HttpGet } from '../utils/HttpHelper';
 import BigNumber from 'bignumber.js';
 import { PendleSwapResponse } from '../model/PendleApi';
 import { ProtocolDataFileStructure } from '../model/ProtocolData';
@@ -43,8 +43,6 @@ async function SlippageAlerter() {
 }
 
 async function CheckSlippagePerMarket(lastRunData: LastRunData) {
-  await LoadTokens();
-
   // get all config
   const config = await GetFullConfigFile();
 
@@ -59,7 +57,7 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
       continue;
     }
 
-    const pegToken = getTokenByAddress(marketConfig.pegTokenAddress);
+    const pegToken = await getTokenByAddress(marketConfig.pegTokenAddress);
 
     const marketPath = path.join(GLOBAL_DATA_DIR, marketDir);
     const termsFileName = path.join(marketPath, 'terms.json');
@@ -76,7 +74,7 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
         throw new Error(`Cannot find lending term with address ${loan.lendingTermAddress} on market ${marketId}`);
       }
 
-      const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
+      const collateralToken = await getTokenByAddress(termForLoan.collateralAddress);
       if (!totalCollateral[collateralToken.address]) {
         totalCollateral[collateralToken.address] = {
           totalAmount: 0,
@@ -253,13 +251,9 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
 }
 
 async function CheckSlippage(lastRunData: LastRunData) {
-  await LoadTokens();
-
   // get all config
-  const config = await GetFullConfigFile();
-  const allTokens = getAllTokens();
-  const WETH = getTokenBySymbol('WETH');
-  const USDC = getTokenBySymbol('USDC');
+  const WETH = await getTokenBySymbol('WETH');
+  const USDC = await getTokenBySymbol('USDC');
 
   const marketDirs = readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
   const totalCollateral: { [token: string]: CollateralData } = {};
@@ -282,7 +276,7 @@ async function CheckSlippage(lastRunData: LastRunData) {
         throw new Error(`Cannot find lending term with address ${loan.lendingTermAddress} on market ${marketId}`);
       }
 
-      const collateralToken = getTokenByAddress(termForLoan.collateralAddress);
+      const collateralToken = await getTokenByAddress(termForLoan.collateralAddress);
       if (!totalCollateral[collateralToken.address]) {
         totalCollateral[collateralToken.address] = {
           totalAmount: 0,

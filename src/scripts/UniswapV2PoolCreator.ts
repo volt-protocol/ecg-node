@@ -16,8 +16,8 @@ const uniswapv2RouterAddress = '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008';
 
 async function UniswapV2PoolCreator() {
   Log('UniswapV2PoolCreator: starting');
-  const WBTC = getTokenBySymbol('WBTC');
-  const USDC = getTokenBySymbol('USDC');
+  const WBTC = await getTokenBySymbol('WBTC');
+  const USDC = await getTokenBySymbol('USDC');
 
   const signer = new ethers.Wallet(privateKey!, web3Provider);
   const ERC20_WBTC = ERC20__factory.connect(WBTC.address, signer);

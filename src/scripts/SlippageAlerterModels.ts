@@ -1,4 +1,4 @@
-import { TokenConfig } from '../config/Config';
+import { TokenConfig } from '../model/Config';
 
 export interface LastRunData {
   lastRecapMsgSentMs: number; // timestamp ms

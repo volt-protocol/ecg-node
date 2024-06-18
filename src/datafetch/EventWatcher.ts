@@ -69,7 +69,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
           return;
         }
       }
-  
+
       if (['removegauge', 'incrementgaugeweight', 'decrementgaugeweight'].includes(parsed.name.toLowerCase())) {
         const gaugeAddress = parsed.args.gauge;
         guildToken.gaugeType(gaugeAddress).then((gaugeType: bigint) => {
@@ -82,7 +82,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
               sourceContract: 'GuildToken',
               originArgName: parsed.fragment.inputs.map((_) => _.name)
             });
-  
+
             // if remove gauge, send notification
             if ('removegauge' == parsed.name.toLowerCase()) {
               // find the term in terms
@@ -139,7 +139,7 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
         });
       }
     });
-  }
+  });
 }
 
 export function StartOnboardingListener(provider: JsonRpcProvider) {
