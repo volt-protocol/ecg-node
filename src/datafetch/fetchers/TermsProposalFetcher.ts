@@ -3,6 +3,7 @@ import {
   GetDeployBlock,
   GetLendingTermFactoryAddress,
   GetLendingTermOnboardingAddress,
+  GetNodeConfig,
   getTokenByAddressNoError
 } from '../../config/Config';
 import {
@@ -12,7 +13,7 @@ import {
   LendingTermOnboarding__factory
 } from '../../contracts/types';
 import { BLOCK_PER_HOUR, DATA_DIR, EXPLORER_URI, MARKET_ID } from '../../utils/Constants';
-import { GetNodeConfig, ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
@@ -22,7 +23,6 @@ import { norm } from '../../utils/TokenUtils';
 import path from 'path';
 import fs from 'fs';
 import { SendNotificationsList } from '../../utils/Notifications';
-const nodeConfig = GetNodeConfig();
 
 export default class TermsProposalFetcher {
   static async fetchProposals(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
@@ -53,7 +53,7 @@ export default class TermsProposalFetcher {
       if (l1BlockNumber > p.voteEnd && p.status == ProposalStatus.PROPOSED) {
         // check if quorum reached
         const lendingTermOnboarding = LendingTermOnboarding__factory.connect(
-          GetLendingTermOnboardingAddress(),
+          await GetLendingTermOnboardingAddress(),
           web3Provider
         );
         const proposalVotes = await lendingTermOnboarding.proposalVotes(p.proposalId);
@@ -102,9 +102,9 @@ async function fetchNewCreatedLendingTerms(
   syncData: SyncData,
   currentBlock: number
 ): Promise<Proposal[]> {
-  const lendingTermFactory = LendingTermFactory__factory.connect(GetLendingTermFactoryAddress(), web3Provider);
+  const lendingTermFactory = LendingTermFactory__factory.connect(await GetLendingTermFactoryAddress(), web3Provider);
 
-  let startBlock = GetDeployBlock();
+  let startBlock = await GetDeployBlock();
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }
@@ -142,7 +142,7 @@ async function fetchNewCreatedLendingTerms(
     const interestRate = termParameters.interestRate.toString(10);
     const maxDebtPerCol = termParameters.maxDebtPerCollateralToken.toString(10);
     const collateralTokenAddress = termParameters.collateralToken;
-    let collateralToken = getTokenByAddressNoError(collateralTokenAddress);
+    let collateralToken = await getTokenByAddressNoError(collateralTokenAddress);
     let knownToken = true;
     if (!collateralToken) {
       collateralToken = await GetERC20Infos(web3Provider, collateralTokenAddress);
@@ -189,9 +189,12 @@ async function fetchProposalEvents(
   currentBlock: number,
   allProposals: Proposal[]
 ) {
-  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(GetLendingTermOnboardingAddress(), web3Provider);
+  const lendingTermOnboarding = LendingTermOnboarding__factory.connect(
+    await GetLendingTermOnboardingAddress(),
+    web3Provider
+  );
 
-  let startBlock = GetDeployBlock();
+  let startBlock = await GetDeployBlock();
   if (syncData.proposalSync) {
     startBlock = syncData.proposalSync.lastBlockFetched + 1;
   }
@@ -247,7 +250,7 @@ async function fetchProposalEvents(
 
       // send notification only if it's been proposed less than 12 hours ago
       if (
-        nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled &&
+        (await GetNodeConfig()).processors.TERM_ONBOARDING_WATCHER.enabled &&
         proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR
       ) {
         await SendNotificationsList(

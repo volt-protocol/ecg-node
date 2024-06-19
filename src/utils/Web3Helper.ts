@@ -12,10 +12,10 @@ import { sleep } from './Utils';
 import { average } from 'simple-statistics';
 import { Log } from './Logger';
 import { HttpPost } from './HttpHelper';
-import { TokenConfig } from '../config/Config';
 import { ERC20__factory } from '../contracts/types';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { NETWORK } from './Constants';
+import { TokenConfig } from '../model/Config';
 const initBlockStep = NETWORK == 'ARBITRUM' ? 500_000 : 100_000;
 
 /**
@@ -35,6 +35,7 @@ export function GetArchiveWeb3Provider(pollingIntervalMs = 500_000): JsonRpcProv
 
 export function GetMulticallProvider(): JsonRpcProvider {
   const multicallLength = process.env.MULTICALL_LENGTH ? Number(process.env.MULTICALL_LENGTH) : 480_000;
+  Log(`Using multicall length: ${multicallLength}`);
   const multicallProvider = MulticallWrapper.wrap(GetWeb3Provider(), multicallLength);
   return multicallProvider;
 }

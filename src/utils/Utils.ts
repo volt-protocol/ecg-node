@@ -97,11 +97,6 @@ export async function retry<T extends (...arg0: any[]) => any>(
   }
 }
 
-export function GetNodeConfig() {
-  const nodeConfig: NodeConfig = ReadJSON(ECG_NODE_CONFIG_FULL_FILENAME);
-  return nodeConfig;
-}
-
 export function GetProtocolData(): ProtocolData {
   const protocolDataFilename = path.join(DATA_DIR, 'protocol-data.json');
 

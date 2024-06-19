@@ -100,7 +100,7 @@ async function fetchNewLoanOpen(
   Log('FetchECGData[Loans]: fetchNewLoanOpen starting');
   const termContractInterface = LendingTerm__factory.createInterface();
   const topics = termContractInterface.encodeFilterTopics('LoanOpen', []);
-  let sinceBlock = GetDeployBlock();
+  let sinceBlock = await GetDeployBlock();
   if (syncData.termSync.length > 0) {
     sinceBlock = Math.min(...syncData.termSync.map((_) => _.lastBlockFetched));
   }
@@ -191,7 +191,7 @@ async function fetchClosedEventsAndUpdateLoans(
   Log('FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans starting');
   const termContractInterface = LendingTerm__factory.createInterface();
   const topics = termContractInterface.encodeFilterTopics('LoanClose', []);
-  let sinceBlock = GetDeployBlock();
+  let sinceBlock = await GetDeployBlock();
   if (syncData.termSync.length > 0) {
     sinceBlock = Math.min(...syncData.termSync.map((_) => _.lastBlockFetched));
   }
@@ -226,7 +226,7 @@ async function getLoanCloseEventsForTerm(
   currentBlock: number
 ) {
   const termSyncData = syncData.termSync.find((_) => _.termAddress == term.termAddress);
-  let sinceBlock = GetDeployBlock();
+  let sinceBlock = await GetDeployBlock();
   if (termSyncData) {
     sinceBlock = termSyncData.lastBlockFetched + 1;
   }

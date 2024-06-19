@@ -1,13 +1,12 @@
 import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR, NETWORK } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
+  GetNodeConfig,
   GetPegTokenAddress,
-  LoadConfiguration,
-  TokenConfig,
   getTokenByAddress,
   getTokenByAddressNoError
 } from '../config/Config';
@@ -21,6 +20,7 @@ import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
+import { TokenConfig } from '../model/Config';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -29,10 +29,8 @@ TermOffboarder();
 async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     const startDate = Date.now();
-    const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
+    const offboarderConfig = (await GetNodeConfig()).processors.TERM_OFFBOARDER;
 
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
     Log('starting');
@@ -84,7 +82,7 @@ async function checkTermForOffboard(
   offboarderConfig: TermOffboarderConfig,
   auctionHouses: AuctionHouseData[]
 ): Promise<{ termMustBeOffboarded: boolean; reason: string }> {
-  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = {
       address: term.collateralAddress,
@@ -108,7 +106,7 @@ async function checkTermForOffboard(
       reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
     };
   }
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
   const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
   if (!pegTokenRealPrice) {
     Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
@@ -202,7 +200,7 @@ async function offboardProcess(
   const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
 
   const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
-    GetLendingTermOffboardingAddress(),
+    await GetLendingTermOffboardingAddress(),
     signer
   );
 

@@ -1,5 +1,4 @@
 import { median } from 'simple-statistics';
-import { DexEnum, TokenConfig, getAllTokens, getTokenByAddressNoError } from '../../config/Config';
 import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
@@ -15,6 +14,8 @@ import { CoincapAssetsResponse } from '../../model/Coincap';
 import { TokenListResponse } from '../../model/OpenOceanApi';
 import { DexGuruTokensResponse } from '../../model/DexGuru';
 import { SendNotifications } from '../../utils/Notifications';
+import { GetAllTokensFromConfiguration, getTokenByAddressNoError } from '../../config/Config';
+import { DexEnum, TokenConfig } from '../../model/Config';
 
 interface PriceResult {
   source: string;
@@ -36,7 +37,7 @@ export default class PriceService {
       const unkTokenPrice = await SimpleCacheService.GetAndCache(
         `unk-token-price-${tokenAddress}`,
         async () => {
-          let unkToken = getTokenByAddressNoError(tokenAddress);
+          let unkToken = await getTokenByAddressNoError(tokenAddress);
           if (!unkToken) {
             unkToken = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
           }
@@ -67,7 +68,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
     allPrices = await HttpGet<{ [tokenAddress: string]: number }>(nodeApiPriceUrl);
   } else {
     Log('LoadConfigTokenPrices: loading configuration token prices');
-    const tokens = getAllTokens();
+    const tokens = await GetAllTokensFromConfiguration();
     Log(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
     const genericTokenToFetch: TokenConfig[] = [];
 

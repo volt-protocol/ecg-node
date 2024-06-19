@@ -1,6 +1,6 @@
-import { GetNodeConfig, ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
-import { GetUniswapV2RouterAddress, LoadConfiguration, TokenConfig, getTokenBySymbol } from '../config/Config';
+import { GetNodeConfig, GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
@@ -12,6 +12,7 @@ import { MarketMakerState } from '../model/MarketMakerState';
 import { Log } from '../utils/Logger';
 import { TestnetMarketMakerConfig } from '../model/NodeConfig';
 import PriceService from '../services/price/PriceService';
+import { TokenConfig } from '../model/Config';
 
 const RUN_EVERY_SEC = 120;
 
@@ -28,11 +29,9 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.jso
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     process.title = 'ECG_NODE_TESTNET_MARKET_MAKER';
     Log('starting');
-    const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
+    const config = (await GetNodeConfig()).processors.TESTNET_MARKET_MAKER;
 
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {
@@ -62,8 +61,8 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
   }
   const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
   for (let i = 0; i < config.uniswapPairs.length; i++) {
-    const token0 = getTokenBySymbol(config.uniswapPairs[i].path[0]);
-    const token1 = getTokenBySymbol(config.uniswapPairs[i].path[1]);
+    const token0 = await getTokenBySymbol(config.uniswapPairs[i].path[0]);
+    const token1 = await getTokenBySymbol(config.uniswapPairs[i].path[1]);
     const threshold = config.threshold;
     const pairAddress = config.uniswapPairs[i].poolAddress;
     const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
@@ -214,7 +213,7 @@ async function swapExactTokensForTokens(
   deadline: number,
   signer: ethers.Wallet
 ) {
-  const routerAddress = GetUniswapV2RouterAddress();
+  const routerAddress = await GetUniswapV2RouterAddress();
   // approve fromToken amountIn to the router
   const erc20Contract = ERC20__factory.connect(fromToken.address, signer);
   await (await erc20Contract.approve(routerAddress, amountIn)).wait();

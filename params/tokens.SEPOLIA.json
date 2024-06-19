@@ -24,6 +24,14 @@
 		"protocolToken": false
 	},
 	{
+		"address": "0x82fb927676b53b6eE07904780c7be9b4B50dB80b",
+		"mainnetAddress": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+		"symbol": "DAI",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false
+	},
+	{
 		"address": "0x50fdf954f95934c7389d304dE2AC961EA14e917E",
 		"symbol": "VORIAN",
 		"decimals": 18,

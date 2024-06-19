@@ -42,7 +42,7 @@ export default class AuctionsFetcher {
     for (const auctionHouseAddress of auctionsHouseAddresses) {
       // check if we already have a sync data about this term
       const auctionSyncData = syncData.auctionSync?.find((_) => _.auctionHouseAddress == auctionHouseAddress);
-      let sinceBlock = GetDeployBlock();
+      let sinceBlock = await GetDeployBlock();
       if (auctionSyncData) {
         sinceBlock = auctionSyncData.lastBlockFetched + 1;
       }

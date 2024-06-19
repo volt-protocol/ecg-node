@@ -5,7 +5,7 @@ import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
 import { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { TokenConfig, getAllTokens } from '../../config/Config';
+import { GetAllTokensFromConfiguration } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
@@ -20,6 +20,7 @@ import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
 import PriceService from '../../services/price/PriceService';
+import { TokenConfig } from '../../model/Config';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
@@ -252,7 +253,7 @@ class MarketDataController {
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
 
     const allTokens: TokenConfig[] = [];
-    allTokens.push(...getAllTokens());
+    allTokens.push(...(await GetAllTokensFromConfiguration()));
 
     // add all tokens from lending terms that might be unknown
 

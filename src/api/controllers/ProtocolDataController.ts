@@ -3,7 +3,7 @@ import path from 'path';
 import { GLOBAL_DATA_DIR, NETWORK } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { norm } from '../../utils/TokenUtils';
-import { GetFullConfigFile, getAllTokens } from '../../config/Config';
+import { GetAllTokensFromConfiguration, GetFullConfigFile } from '../../config/Config';
 import { AirdropDataResponse } from '../model/AirdropDataResponse';
 import { HistoricalData, HistoricalDataMulti } from '../../model/HistoricalData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
@@ -12,7 +12,7 @@ import PriceService from '../../services/price/PriceService';
 class ProtocolDataController {
   static async GetAllPrices(): Promise<{ [tokenAddress: string]: number }> {
     const allPrices: { [tokenAddress: string]: number } = {};
-    for (const token of getAllTokens()) {
+    for (const token of await GetAllTokensFromConfiguration()) {
       allPrices[token.address] = await PriceService.GetTokenPrice(token.address);
     }
 

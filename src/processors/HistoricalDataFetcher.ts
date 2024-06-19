@@ -11,11 +11,9 @@ import {
   GetPSMAddress,
   GetPegTokenAddress,
   GetProfitManagerAddress,
-  LoadConfiguration,
   getTokenByAddress,
   getTokenByAddressNoError,
-  GetPendleOracleAddress,
-  PendleConfig
+  GetPendleOracleAddress
 } from '../config/Config';
 import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
 import {
@@ -44,6 +42,7 @@ import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { CreditTransferFile } from '../model/CreditTransfer';
 import { HttpGet } from '../utils/HttpHelper';
 import { DefiLlamaPriceResponse } from '../model/DefiLlama';
+import { PendleConfig } from '../model/Config';
 dotenv.config();
 let lastCallDefillama = 0;
 
@@ -56,8 +55,6 @@ const STEP_BLOCK = BLOCK_PER_HOUR;
 async function HistoricalDataFetcher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     process.title = 'ECG_NODE_HISTORICAL_DATA_FETCHER';
     const startDate = Date.now();
     Log('starting');
@@ -106,7 +103,7 @@ async function FetchHistoricalData() {
 }
 
 async function fetchBlocks(currentBlock: number, historicalDataDir: string, web3Provider: ethers.JsonRpcProvider) {
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'blocks.json');
   let fullHistoricalData: HistoricalData = {
     name: 'blocks',
@@ -142,7 +139,7 @@ async function fetchCreditTotalSupply(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-supply.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-supply',
@@ -160,7 +157,7 @@ async function fetchCreditTotalSupply(
     return;
   }
 
-  const creditTokenContract = CreditToken__factory.connect(GetCreditTokenAddress(), web3Provider);
+  const creditTokenContract = CreditToken__factory.connect(await GetCreditTokenAddress(), web3Provider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const totalSupplyAtBlock = await creditTokenContract.targetTotalSupply({ blockTag: blockToFetch });
@@ -183,7 +180,7 @@ async function fetchCreditTotalIssuance(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-total-issuance.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-total-issuance',
@@ -201,7 +198,7 @@ async function fetchCreditTotalIssuance(
     return;
   }
 
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+  const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), web3Provider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const totalIssuanceAtBlock = await profitManagerContract.totalIssuance({ blockTag: blockToFetch });
@@ -224,7 +221,7 @@ async function fetchCreditMultiplier(
   web3Provider: ethers.JsonRpcProvider,
   blockTimes: { [blocknumber: number]: number }
 ) {
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'credit-multiplier.json');
   let fullHistoricalData: HistoricalData = {
     name: 'credit-multiplier',
@@ -242,7 +239,7 @@ async function fetchCreditMultiplier(
     return;
   }
 
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), web3Provider);
+  const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), web3Provider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const creditMultiplier = await retry(() => profitManagerContract.creditMultiplier({ blockTag: blockToFetch }), []);
@@ -267,7 +264,7 @@ async function fetchAverageInterestRate(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'average-interest-rate.json');
   let fullHistoricalData: HistoricalData = {
     name: 'average-interest-rate',
@@ -285,8 +282,8 @@ async function fetchAverageInterestRate(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
@@ -337,7 +334,7 @@ async function fetchTVL(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'tvl.json');
   let fullHistoricalData: HistoricalData = {
     name: 'tvl',
@@ -355,9 +352,9 @@ async function fetchTVL(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-  const pegTokenContract = ERC20__factory.connect(GetPegTokenAddress(), web3Provider);
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
+  const pegTokenContract = ERC20__factory.connect(await GetPegTokenAddress(), web3Provider);
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     const liveTerms = await GetGaugeForMarketId(guildContract, MARKET_ID, true, blockToFetch);
@@ -397,7 +394,7 @@ async function fetchTVL(
     cursor = 0;
     let tvlInUsd = 0;
     for (const collateralAddress of collateralResults) {
-      let tokenConf = getTokenByAddressNoError(collateralAddress);
+      let tokenConf = await getTokenByAddressNoError(collateralAddress);
       if (!tokenConf) {
         tokenConf = await GetERC20Infos(web3Provider, collateralAddress);
         Warn(
@@ -434,7 +431,7 @@ async function fetchDebtCeilingAndIssuance(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'debtceiling-issuance.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'debtceiling-issuance',
@@ -452,7 +449,7 @@ async function fetchDebtCeilingAndIssuance(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
@@ -501,7 +498,7 @@ async function fetchGaugeWeight(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'gauge-weight.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'gauge-weight',
@@ -519,7 +516,7 @@ async function fetchGaugeWeight(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
@@ -562,7 +559,7 @@ async function fetchSurplusBuffer(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'surplus-buffer.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'surplus-buffer',
@@ -580,8 +577,8 @@ async function fetchSurplusBuffer(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
@@ -633,7 +630,7 @@ async function fetchLoansData(
 
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'loan-borrow.json');
 
   let fullHistoricalData: HistoricalDataMulti = {
@@ -652,8 +649,8 @@ async function fetchLoansData(
     return;
   }
 
-  const guildContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-  const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
+  const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
@@ -770,7 +767,7 @@ async function fetchAPRData(
 ) {
   const multicallProvider = MulticallWrapper.wrap(web3Provider);
 
-  let startBlock = GetHistoricalMinBlock();
+  let startBlock = await GetHistoricalMinBlock();
   const historyFilename = path.join(historicalDataDir, 'apr-data.json');
   let fullHistoricalData: HistoricalDataMulti = {
     name: 'apr-data',
@@ -788,7 +785,7 @@ async function fetchAPRData(
     return;
   }
 
-  const creditContract = CreditToken__factory.connect(GetCreditTokenAddress(), multicallProvider);
+  const creditContract = CreditToken__factory.connect(await GetCreditTokenAddress(), multicallProvider);
 
   for (let blockToFetch = startBlock; blockToFetch <= currentBlock; blockToFetch += STEP_BLOCK) {
     fullHistoricalData.values[blockToFetch] = {};
@@ -826,8 +823,8 @@ async function getSharePrice(
   // get value of internal data "__rebasingSharePrice" which is stored at index 20 and 21 of the CreditToken contract
   // value is a struct (uint32 lastTimestamp, uint224 lastValue, uint32 targetTimestamp, uint224 targetValue)
   // it appears the solidity dev forgot to put a public getter on this particular data so that's the only way to do it
-  const val20 = await web3Provider.getStorage(GetCreditTokenAddress(), 20, blockNumber);
-  const val21 = await web3Provider.getStorage(GetCreditTokenAddress(), 21, blockNumber);
+  const val20 = await web3Provider.getStorage(await GetCreditTokenAddress(), 20, blockNumber);
+  const val21 = await web3Provider.getStorage(await GetCreditTokenAddress(), 21, blockNumber);
 
   const lastTimestamp = Number(BigInt('0x' + val20.substring(val20.length - 8)));
   const lastValue = norm(BigInt(val20.substring(0, val20.length - 8)), 30);
@@ -852,7 +849,7 @@ async function fetchAllCreditTransfers(
 ) {
   const historyFilename = path.join(historicalDataDir, 'credit-transfers.json');
   let transferFile: CreditTransferFile = {
-    lastBlockFetched: GetHistoricalMinBlock() - 1,
+    lastBlockFetched: (await GetHistoricalMinBlock()) - 1,
     creditHolderCount: 0,
     transfers: []
   };
@@ -861,7 +858,7 @@ async function fetchAllCreditTransfers(
     transferFile = ReadJSON(historyFilename);
   }
 
-  const creditToken = ERC20__factory.connect(GetCreditTokenAddress(), MulticallWrapper.wrap(web3Provider));
+  const creditToken = ERC20__factory.connect(await GetCreditTokenAddress(), MulticallWrapper.wrap(web3Provider));
   const allLogs = await FetchAllEvents(
     creditToken,
     'credit',
@@ -914,7 +911,8 @@ async function GetTokenPriceMultiAtTimestamp(
       continue;
     }
 
-    let token = getTokenByAddressNoError(tokenAddress);
+    let token = await getTokenByAddressNoError(tokenAddress);
+
     if (!token) {
       token = await GetERC20Infos(web3Provider, tokenAddress);
       Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
@@ -949,7 +947,7 @@ async function GetTokenPriceMultiAtTimestamp(
       if (prices[tokenAddress]) {
         continue;
       }
-      let token = getTokenByAddressNoError(tokenAddress);
+      let token = await getTokenByAddressNoError(tokenAddress);
       if (!token) {
         token = await GetERC20Infos(web3Provider, tokenAddress);
         Warn(`Token ${tokenAddress} not found in config. ERC20 infos: ${token.symbol} / ${token.decimals} decimals`);
