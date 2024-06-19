@@ -42,6 +42,20 @@
 		"protocolToken": true
 	},
 	{
+		"address": "0x8D8b654E2B6A0289D8f758cBCCc42aB387c67B61",
+		"symbol": "gARB-4",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x4139724fCB5E27d9F13Be9928E4436a32d12E00b",
+		"symbol": "gOD-5",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
 		"address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 		"symbol": "USDC",
 		"decimals": 6,
@@ -213,6 +227,15 @@
 		"coingeckoId": "arbitrum",
 		"coincapId": "",
 		"openoceanId": 2350
+	},
+	{
+		"address": "0x221A0f68770658C15B525d0F89F5da2baAB5f321",
+		"symbol": "OD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "open-dollar",
+		"coincapId": ""
 	},
 	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
