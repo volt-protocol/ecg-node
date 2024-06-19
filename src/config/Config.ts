@@ -1,15 +1,16 @@
-import { MARKET_ID, TOKENS_FILE, CONFIG_FILE, NETWORK, PENDLE_ORACLES } from '../utils/Constants';
+import { MARKET_ID, TOKENS_FILE, CONFIG_FILE, NETWORK, PENDLE_ORACLES, NODE_CONFIG_FILE } from '../utils/Constants';
 import { readFileSync } from 'fs';
 import { HttpGet } from '../utils/HttpHelper';
 import SimpleCacheService from '../services/cache/CacheService';
 import { ConfigFile, ProtocolConstants, TokenConfig } from '../model/Config';
 import { Log } from '../utils/Logger';
+import { NodeConfig } from '../model/NodeConfig';
 
 const CONFIG_CACHE_MS = 15 * 60 * 1000; // 15 minutes cache
 
 export async function GetFullConfigFile(): Promise<ConfigFile> {
   const configFile = await SimpleCacheService.GetAndCache(
-    'config-file',
+    'protocol-config-file',
     async () => {
       Log(`GetFullConfigFile: loading protocol data from ${CONFIG_FILE}`);
       if (CONFIG_FILE.startsWith('http')) {
@@ -19,6 +20,26 @@ export async function GetFullConfigFile(): Promise<ConfigFile> {
       } else {
         // read from filesystem
         return JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'));
+      }
+    },
+    CONFIG_CACHE_MS
+  );
+
+  return configFile;
+}
+
+export async function GetNodeConfig(): Promise<NodeConfig> {
+  const configFile = await SimpleCacheService.GetAndCache(
+    'node-config-file',
+    async () => {
+      Log(`GetNodeConfigFile: loading protocol data from ${NODE_CONFIG_FILE}`);
+      if (NODE_CONFIG_FILE.startsWith('http')) {
+        // load via http
+        const resp = await HttpGet<NodeConfig>(NODE_CONFIG_FILE);
+        return resp;
+      } else {
+        // read from filesystem
+        return JSON.parse(readFileSync(NODE_CONFIG_FILE, 'utf-8'));
       }
     },
     CONFIG_CACHE_MS

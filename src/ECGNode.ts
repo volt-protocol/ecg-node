@@ -6,9 +6,10 @@ import { StartEventProcessor } from './datafetch/EventProcessor';
 import { StartEventListener } from './datafetch/EventWatcher';
 import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
-import { GetNodeConfig, sleep } from './utils/Utils';
+import { sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
+import { GetNodeConfig } from './config/Config';
 dotenv.config();
 
 async function main() {
@@ -19,7 +20,7 @@ async function main() {
   }
 
   // load configuration from working dir
-  const nodeConfig = GetNodeConfig();
+  const nodeConfig = await GetNodeConfig();
 
   await FetchECGData();
 

@@ -1,6 +1,6 @@
-import { GetNodeConfig, ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
 import { UniswapV2Router__factory, UniswapV2Pair__factory, ERC20__factory } from '../contracts/types';
-import { GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
+import { GetNodeConfig, GetUniswapV2RouterAddress, getTokenBySymbol } from '../config/Config';
 import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
@@ -31,7 +31,7 @@ async function TestnetMarketMaker() {
   while (true) {
     process.title = 'ECG_NODE_TESTNET_MARKET_MAKER';
     Log('starting');
-    const config = GetNodeConfig().processors.TESTNET_MARKET_MAKER;
+    const config = (await GetNodeConfig()).processors.TESTNET_MARKET_MAKER;
 
     const rpcURL = process.env.RPC_URL;
     if (!rpcURL) {

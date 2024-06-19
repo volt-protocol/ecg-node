@@ -1,10 +1,11 @@
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
 import { DATA_DIR, SWAP_MODE } from '../utils/Constants';
-import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
+import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
 import {
   GetGatewayAddress,
+  GetNodeConfig,
   GetPSMAddress,
   GetPegTokenAddress,
   GetUniswapV2RouterAddress,
@@ -34,7 +35,7 @@ async function AuctionBidder() {
   while (true) {
     process.title = 'ECG_NODE_AUCTION_BIDDER';
     Log(`starting with swap mode: ${SWAP_MODE}`);
-    const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
+    const auctionBidderConfig = (await GetNodeConfig()).processors.AUCTION_BIDDER;
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');

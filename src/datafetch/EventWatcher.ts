@@ -5,16 +5,19 @@ import GuildTokenAbi from '../contracts/abi/GuildToken.json';
 import LendingTermAbi from '../contracts/abi/LendingTerm.json';
 import LendingTermFactoryAbi from '../contracts/abi/LendingTermFactory.json';
 import LendingTermOnbardingAbi from '../contracts/abi/LendingTermOnboarding.json';
-import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
+import {
+  GetGuildTokenAddress,
+  GetLendingTermFactoryAddress,
+  GetLendingTermOnboardingAddress,
+  GetNodeConfig
+} from '../config/Config';
 import { GuildToken__factory, LendingTermFactory__factory } from '../contracts/types';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
-import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { DATA_DIR, EXPLORER_URI, MARKET_ID } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
-import { GetNodeConfig, ReadJSON } from '../utils/Utils';
+import { ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 import { SendNotificationsList } from '../utils/Notifications';
 import { norm } from '../utils/TokenUtils';
@@ -93,35 +96,37 @@ export function StartGuildTokenListener(provider: JsonRpcProvider) {
               const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
               const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
               if (foundTerm) {
-                if (GetNodeConfig().processors.TERM_ONBOARDING_WATCHER.enabled) {
-                  SendNotificationsList(
-                    'TermOffboardingWatcher',
-                    `Term ${foundTerm.label} offboarded`,
-                    [
-                      {
-                        fieldName: 'Term address',
-                        fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
-                      },
-                      {
-                        fieldName: 'Collateral',
-                        fieldValue: foundTerm.collateralSymbol
-                      },
-                      {
-                        fieldName: 'Hard Cap',
-                        fieldValue: foundTerm.hardCap
-                      },
-                      {
-                        fieldName: 'Interest rate',
-                        fieldValue: norm(foundTerm.interestRate).toString()
-                      },
-                      {
-                        fieldName: 'maxDebtPerCollateralToken',
-                        fieldValue: foundTerm.maxDebtPerCollateralToken
-                      }
-                    ],
-                    true
-                  );
-                }
+                GetNodeConfig().then((nodeConfig) => {
+                  if (nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled) {
+                    SendNotificationsList(
+                      'TermOffboardingWatcher',
+                      `Term ${foundTerm.label} offboarded`,
+                      [
+                        {
+                          fieldName: 'Term address',
+                          fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
+                        },
+                        {
+                          fieldName: 'Collateral',
+                          fieldValue: foundTerm.collateralSymbol
+                        },
+                        {
+                          fieldName: 'Hard Cap',
+                          fieldValue: foundTerm.hardCap
+                        },
+                        {
+                          fieldName: 'Interest rate',
+                          fieldValue: norm(foundTerm.interestRate).toString()
+                        },
+                        {
+                          fieldName: 'maxDebtPerCollateralToken',
+                          fieldValue: foundTerm.maxDebtPerCollateralToken
+                        }
+                      ],
+                      true
+                    );
+                  }
+                });
               }
             }
           } else {

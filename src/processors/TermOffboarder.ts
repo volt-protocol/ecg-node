@@ -1,10 +1,11 @@
 import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR, NETWORK } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
+  GetNodeConfig,
   GetPegTokenAddress,
   getTokenByAddress,
   getTokenByAddressNoError
@@ -29,7 +30,7 @@ async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const startDate = Date.now();
-    const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
+    const offboarderConfig = (await GetNodeConfig()).processors.TERM_OFFBOARDER;
 
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
     Log('starting');

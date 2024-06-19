@@ -1,8 +1,8 @@
 import path from 'path';
 import fs from 'fs';
-import { GetNodeConfig, ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
+import { ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
 import { GuildToken__factory, Multicall3 } from '../contracts/types';
-import { GetGuildTokenAddress } from '../config/Config';
+import { GetGuildTokenAddress, GetNodeConfig } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
 import { DATA_DIR } from '../utils/Constants';
@@ -24,7 +24,7 @@ async function UserSlasher() {
   while (true) {
     process.title = 'ECG_NODE_USER_SLASHER';
     Log('starting');
-    const config = GetNodeConfig().processors.USER_SLASHER;
+    const config = (await GetNodeConfig()).processors.USER_SLASHER;
 
     if (!process.env.RPC_URL) {
       throw new Error('Cannot find RPC_URL in env');

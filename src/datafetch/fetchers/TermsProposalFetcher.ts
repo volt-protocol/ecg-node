@@ -3,6 +3,7 @@ import {
   GetDeployBlock,
   GetLendingTermFactoryAddress,
   GetLendingTermOnboardingAddress,
+  GetNodeConfig,
   getTokenByAddressNoError
 } from '../../config/Config';
 import {
@@ -12,7 +13,7 @@ import {
   LendingTermOnboarding__factory
 } from '../../contracts/types';
 import { BLOCK_PER_HOUR, DATA_DIR, EXPLORER_URI, MARKET_ID } from '../../utils/Constants';
-import { GetNodeConfig, ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
@@ -22,7 +23,6 @@ import { norm } from '../../utils/TokenUtils';
 import path from 'path';
 import fs from 'fs';
 import { SendNotificationsList } from '../../utils/Notifications';
-const nodeConfig = GetNodeConfig();
 
 export default class TermsProposalFetcher {
   static async fetchProposals(web3Provider: JsonRpcProvider, syncData: SyncData, currentBlock: number) {
@@ -250,7 +250,7 @@ async function fetchProposalEvents(
 
       // send notification only if it's been proposed less than 12 hours ago
       if (
-        nodeConfig.processors.TERM_ONBOARDING_WATCHER.enabled &&
+        (await GetNodeConfig()).processors.TERM_ONBOARDING_WATCHER.enabled &&
         proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR
       ) {
         await SendNotificationsList(
