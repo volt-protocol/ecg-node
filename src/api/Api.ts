@@ -7,6 +7,7 @@ import loggerMiddleware from './middlewares/LoggerMiddleware';
 import historycalDataRoutes from './routes/HistoricalDataRoutes';
 import marketDataRoutes from './routes/MarketDataRoutes';
 import protocolDataRoutes from './routes/ProtocolDataRoutes';
+import partnershipRoutes from './routes/PartnershipRoutes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
@@ -49,6 +50,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpecification));
 app.use('/api/history/', historycalDataRoutes);
 app.use('/api/markets/', marketDataRoutes);
 app.use('/api/protocol/', protocolDataRoutes);
+app.use('/api/partnership/', partnershipRoutes);
 
 app.listen(port, () => {
   Log(`⚡️[server]: Server is running. See doc: http://localhost:${port}/api-docs`);
