@@ -28,8 +28,7 @@
         "AUCTION_BIDDER": {
             "enabled": false,
             "enableForgive": true,
-            "minProfitPegToken": 200,
-            "swapMode": "UNISWAPV2"
+            "minProfitPegToken": 200
         },
         "TESTNET_MARKET_MAKER": {
             "enabled": false,
