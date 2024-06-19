@@ -68,8 +68,8 @@ async function MakeMarket(config: TestnetMarketMakerConfig) {
     const uniswapPair = UniswapV2Pair__factory.connect(pairAddress, web3Provider);
     Log(`checking pair ${token0.symbol}-${token1.symbol}`);
 
-    const priceToken0 = await PriceService.GetTokenPrice(token0.mainnetAddress || token0.address);
-    const priceToken1 = await PriceService.GetTokenPrice(token1.mainnetAddress || token1.address);
+    const priceToken0 = await PriceService.GetTokenPrice(token0.address);
+    const priceToken1 = await PriceService.GetTokenPrice(token1.address);
     if (!priceToken0 || !priceToken1) {
       Log('Cannot market make because real price unknwon', priceToken0, priceToken1);
       return;

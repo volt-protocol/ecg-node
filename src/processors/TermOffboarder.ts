@@ -96,23 +96,21 @@ async function checkTermForOffboard(
     );
   }
 
-  const collateralRealPrice = await PriceService.GetTokenPrice(
-    collateralToken.mainnetAddress || collateralToken.address
-  );
+  const collateralRealPrice = await PriceService.GetTokenPrice(collateralToken.address);
   if (!collateralRealPrice) {
-    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
+    Warn(`Cannot find price for ${collateralToken.address}. ASSUMING HEALTHY`);
     return {
       termMustBeOffboarded: false,
-      reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
+      reason: `Cannot find price for ${collateralToken.address}. ASSUMING HEALTHY`
     };
   }
   const pegToken = await getTokenByAddress(await GetPegTokenAddress());
-  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
+  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.address);
   if (!pegTokenRealPrice) {
-    Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
+    Warn(`Cannot find price for ${pegToken.address}`);
     return {
       termMustBeOffboarded: false,
-      reason: `Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`
+      reason: `Cannot find price for ${pegToken.address}`
     };
   }
 
