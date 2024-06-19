@@ -1,4 +1,11 @@
-import { MARKET_ID, TOKENS_FILE, CONFIG_FILE, NETWORK, PENDLE_ORACLES, NODE_CONFIG_FILE } from '../utils/Constants';
+import {
+  MARKET_ID,
+  TOKENS_FILE,
+  CONFIG_FILE,
+  NETWORK,
+  PENDLE_ORACLES,
+  ECG_NODE_CONFIG_FULL_FILENAME
+} from '../utils/Constants';
 import { readFileSync } from 'fs';
 import { HttpGet } from '../utils/HttpHelper';
 import SimpleCacheService from '../services/cache/CacheService';
@@ -32,14 +39,14 @@ export async function GetNodeConfig(): Promise<NodeConfig> {
   const configFile = await SimpleCacheService.GetAndCache(
     'node-config-file',
     async () => {
-      Log(`GetNodeConfigFile: loading protocol data from ${NODE_CONFIG_FILE}`);
-      if (NODE_CONFIG_FILE.startsWith('http')) {
+      Log(`GetNodeConfigFile: loading protocol data from ${ECG_NODE_CONFIG_FULL_FILENAME}`);
+      if (ECG_NODE_CONFIG_FULL_FILENAME.startsWith('http')) {
         // load via http
-        const resp = await HttpGet<NodeConfig>(NODE_CONFIG_FILE);
+        const resp = await HttpGet<NodeConfig>(ECG_NODE_CONFIG_FULL_FILENAME);
         return resp;
       } else {
         // read from filesystem
-        return JSON.parse(readFileSync(NODE_CONFIG_FILE, 'utf-8'));
+        return JSON.parse(readFileSync(ECG_NODE_CONFIG_FULL_FILENAME, 'utf-8'));
       }
     },
     CONFIG_CACHE_MS

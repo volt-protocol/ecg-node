@@ -4,9 +4,6 @@ import { BidderSwapMode } from '../model/NodeConfig';
 import { enumFromStringValue } from './EnumUtils';
 dotenv.config();
 
-export const ECG_NODE_CONFIG_FULL_FILENAME =
-  process.env.ECG_NODE_FULL_FILENAME || path.join(process.cwd(), 'ecg-node-config.json');
-
 export const NETWORK = process.env.NETWORK || 'SEPOLIA';
 
 export const MARKET_ID = process.env.MARKET_ID ? Number(process.env.MARKET_ID) : 1;
@@ -18,8 +15,8 @@ export const CONFIG_FILE =
 export const TOKENS_FILE =
   process.env.TOKENS_FILE ||
   `https://raw.githubusercontent.com/volt-protocol/ecg-node/main/params/tokens.${NETWORK}.json`;
-export const NODE_CONFIG_FILE =
-  process.env.NODE_CONFIG_FILE ||
+export const ECG_NODE_CONFIG_FULL_FILENAME =
+  process.env.ECG_NODE_CONFIG_FULL_FILENAME ||
   `https://raw.githubusercontent.com/volt-protocol/ecg-node/main/params/node-config.${NETWORK}.${MARKET_ID}.json`;
 
 export const SWAP_MODE = enumFromStringValue<BidderSwapMode>(BidderSwapMode, process.env.SWAP_MODE || 'OPEN_OCEAN');
