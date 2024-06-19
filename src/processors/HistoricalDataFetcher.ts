@@ -907,6 +907,13 @@ async function GetTokenPriceMultiAtTimestamp(
       }
     }
 
+    if (tokenAddress == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
+      // fix price of $1 for Open Dollar
+      // TODO CHANGE THAT
+      prices[tokenAddress] = 1;
+      continue;
+    }
+
     let token = getTokenByAddressNoError(tokenAddress);
     if (!token) {
       token = await GetERC20Infos(web3Provider, tokenAddress);
