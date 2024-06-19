@@ -1,5 +1,5 @@
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
-import { DATA_DIR } from '../utils/Constants';
+import { DATA_DIR, SWAP_MODE } from '../utils/Constants';
 import { GetNodeConfig, GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
@@ -33,7 +33,7 @@ async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     process.title = 'ECG_NODE_AUCTION_BIDDER';
-    Log('starting');
+    Log(`starting with swap mode: ${SWAP_MODE}`);
     const auctionBidderConfig = GetNodeConfig().processors.AUCTION_BIDDER;
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
@@ -73,7 +73,7 @@ async function AuctionBidder() {
       }
 
       const { swapData, estimatedProfit, routerAddress } = await checkBidProfitability(
-        auctionBidderConfig.swapMode,
+        SWAP_MODE,
         term,
         bidDetail,
         web3Provider,

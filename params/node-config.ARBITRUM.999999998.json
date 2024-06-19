@@ -56,8 +56,7 @@
         "AUCTION_BIDDER": {
             "enabled": true,
             "enableForgive": true,
-            "minProfitPegToken": 0.000057,
-            "swapMode": "OPEN_OCEAN"
+            "minProfitPegToken": 0.000057
         },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true

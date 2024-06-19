@@ -35,7 +35,6 @@ export interface TermOffboarderConfigToken {
 export interface AuctionBidderConfig extends ProcessorConfig {
   minProfitPegToken: number;
   enableForgive: boolean;
-  swapMode: BidderSwapMode;
 }
 
 export enum BidderSwapMode {

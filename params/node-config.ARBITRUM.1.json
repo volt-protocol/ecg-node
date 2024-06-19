@@ -34,8 +34,7 @@
         "AUCTION_BIDDER": {
             "enabled": true,
             "enableForgive": true,
-            "minProfitPegToken": 0.2,
-            "swapMode": "1INCH"
+            "minProfitPegToken": 0.2
         },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true
