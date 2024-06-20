@@ -10,11 +10,16 @@ import { ReadJSON } from '../../utils/Utils';
 import { Loan, LoansFileStructure } from '../../model/Loan';
 import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
+import { getTokenByAddress } from '../../config/Config';
 
 class PartnershipController {
-  static async GetEtherfiData(blockNumber: number, addresses: string[]): Promise<EtherfiResponse> {
+  static async GetCollateralData(
+    blockNumber: number,
+    addresses: string[],
+    collateralTokenAddress: string
+  ): Promise<EtherfiResponse> {
     const GUILD_ADDRESS = '0xb8ae64F191F829fC00A4E923D460a8F2E0ba3978';
-    const weETHAddress = '0x1c27Ad8a19Ba026ADaBD615F6Bc77158130cfBE4';
+    const collateralToken = await getTokenByAddress(collateralTokenAddress);
 
     const response: EtherfiResponse = {
       Result: []
@@ -29,9 +34,11 @@ class PartnershipController {
     const guildContract = GuildToken__factory.connect(GUILD_ADDRESS, archivalProvider);
     const allLiveGaugesAtBlock = await guildContract.liveGauges({ blockTag: blockNumber });
 
-    // find all terms that have weETH as collateral
+    // find all terms that have 'collateralToken' as collateral
     const weETHTermsAtBlock: LendingTerm[] = allTerms.filter(
-      (_) => allLiveGaugesAtBlock.includes(_.termAddress) && _.collateralAddress == weETHAddress
+      (_) =>
+        allLiveGaugesAtBlock.includes(_.termAddress) &&
+        _.collateralAddress.toLowerCase() == collateralToken.address.toLowerCase()
     );
 
     // find all loans opened on those terms

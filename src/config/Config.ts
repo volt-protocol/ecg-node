@@ -107,7 +107,7 @@ export async function getTokenBySymbol(symbol: string): Promise<TokenConfig> {
  * @param symbol
  */
 export async function getTokenByAddress(address: string) {
-  const token = (await GetAllTokensFromConfiguration()).find((_) => _.address == address);
+  const token = (await GetAllTokensFromConfiguration()).find((_) => _.address.toLowerCase() == address.toLowerCase());
   if (!token) {
     throw new Error(`Could not find token with address: ${address}`);
   }

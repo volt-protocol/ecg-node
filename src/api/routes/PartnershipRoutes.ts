@@ -46,7 +46,36 @@ router.get('/etherfi', async (req: Request, res: Response) => {
       addresses = addressesParams.split(',');
     }
 
-    const data = await PartnershipController.GetEtherfiData(blockNumber, addresses);
+    const weETHAddress = '0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe';
+
+    const data = await PartnershipController.GetCollateralData(blockNumber, addresses, weETHAddress);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
+// route not shown on api docs
+router.get('/collateralHolders', async (req: Request, res: Response) => {
+  try {
+    const blockNumber = Number(req.query.blockNumber);
+    if (!blockNumber || Number.isNaN(blockNumber)) {
+      res.status(400).json({ error: 'Blocknumber is mandatory' });
+      return;
+    }
+    const addressesParams = req.query.addresses?.toString();
+    let addresses: string[] = [];
+    if (addressesParams) {
+      addresses = addressesParams.split(',');
+    }
+
+    const tokenAddress = req.query.tokenAddress as string;
+    if (!tokenAddress) {
+      res.status(400).json({ error: 'tokenAddress is mandatory' });
+      return;
+    }
+
+    const data = await PartnershipController.GetCollateralData(blockNumber, addresses, tokenAddress);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
