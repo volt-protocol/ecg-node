@@ -3,13 +3,13 @@ import path from 'path';
 import { DATA_DIR, MARKET_ID } from './utils/Constants';
 import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
-import { StartEventListener } from './datafetch/EventWatcher';
 import { spawn } from 'node:child_process';
 import { NodeConfig } from './model/NodeConfig';
 import { sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
 import { GetNodeConfig } from './config/Config';
+import { StartUniversalEventListener } from './datafetch/EventWatcher';
 dotenv.config();
 
 async function main() {
@@ -26,7 +26,7 @@ async function main() {
 
   // set a timeout to check if the last fetch was performed recently and fetch if needed
   setInterval(async () => await FetchIfTooOld(), 60000);
-  StartEventListener();
+  StartUniversalEventListener();
   StartEventProcessor();
 
   // only start processors if running in production
