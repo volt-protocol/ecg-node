@@ -238,6 +238,15 @@
 		"coincapId": ""
 	},
 	{
+		"address": "0x000D636bD52BFc1B3a699165Ef5aa340BEA8939c",
+		"symbol": "ODG",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "open-dollar-governance",
+		"coincapId": ""
+	},
+	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
 		"symbol": "PT-rsETH-27JUN2024",
 		"decimals": 18,
