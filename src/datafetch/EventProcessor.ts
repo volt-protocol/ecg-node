@@ -1,13 +1,22 @@
-import { EventData, EventQueue } from '../utils/EventQueue';
-import { buildTxUrl, sleep } from '../utils/Utils';
+import { EventDataV2, EventQueueV2, SourceContractEnum } from '../utils/EventQueue';
+import { ReadJSON, buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
-import { SendNotifications, SendNotificationsSpam } from '../utils/Notifications';
+import { SendNotificationsList } from '../utils/Notifications';
 import { Log, Warn } from '../utils/Logger';
-import { StartEventListener } from './EventWatcher';
-import { MARKET_ID } from '../utils/Constants';
-import { GuildToken__factory, LendingTerm__factory } from '../contracts/types';
+import { DATA_DIR, EXPLORER_URI, MARKET_ID } from '../utils/Constants';
+import {
+  GuildToken__factory,
+  LendingTermFactory__factory,
+  LendingTermOnboarding__factory,
+  LendingTerm__factory
+} from '../contracts/types';
 import { GetWeb3Provider } from '../utils/Web3Helper';
-import { GetGuildTokenAddress } from '../config/Config';
+import { GetGuildTokenAddress, GetNodeConfig } from '../config/Config';
+import { RestartUniversalEventListener } from './EventWatcher';
+import path from 'path';
+import fs from 'fs';
+import { LendingTermsFileStructure } from '../model/LendingTerm';
+import { norm } from '../utils/TokenUtils';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
@@ -15,8 +24,8 @@ export async function StartEventProcessor() {
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    if (EventQueue.length > 0) {
-      const event = EventQueue.shift();
+    if (EventQueueV2.length > 0) {
+      const event = EventQueueV2.shift();
       if (event) {
         await ProcessAsync(event);
       }
@@ -27,16 +36,16 @@ export async function StartEventProcessor() {
   }
 }
 
-async function ProcessAsync(event: EventData) {
-  Log(`NEW EVENT DETECTED AT BLOCK ${event.block}: ${event.eventName}`);
-  if (mustUpdateProtocol(event)) {
+async function ProcessAsync(event: EventDataV2) {
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}`);
+  const { mustUpdateProtocolData, mustRestartListeners } = await mustUpdateProtocol(event);
+  if (mustUpdateProtocolData) {
     if (lastBlockFetched < event.block) {
       await FetchECGData();
       lastBlockFetched = event.block;
 
-      const restartListenerEvents = ['incrementgaugeweight', 'addgauge', 'decrementgaugeweight'];
-      if (restartListenerEvents.includes(event.eventName.toLowerCase())) {
-        StartEventListener(true);
+      if (mustRestartListeners) {
+        RestartUniversalEventListener();
       }
     }
 
@@ -51,72 +60,176 @@ async function ProcessAsync(event: EventData) {
  * @param event
  * @returns
  */
-function mustUpdateProtocol(event: EventData): boolean {
-  switch (event.sourceContract.toLowerCase()) {
+async function mustUpdateProtocol(event: EventDataV2): Promise<{
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+}> {
+  switch (event.sourceContract) {
     default:
       throw new Error(`Unknown contract: ${event.sourceContract}`);
-    case 'guildtoken':
-      return guildTokenMustUpdate(event);
-    case 'lendingterm':
+    case SourceContractEnum.GUILD:
+      return await guildTokenMustUpdate(event);
+    case SourceContractEnum.TERM:
       return lendingTermMustUpdate(event);
-    case 'termfactory':
+    case SourceContractEnum.TERM_FACTORY:
       return termFactoryMustUpdate(event);
-    case 'onboarding':
+    case SourceContractEnum.TERM_ONBOARDING:
       return onboardingMustUpdate(event);
   }
 }
 
-function guildTokenMustUpdate(event: EventData): boolean {
-  switch (event.eventName.toLowerCase()) {
+async function guildTokenMustUpdate(event: EventDataV2): Promise<{
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+}> {
+  const iface = GuildToken__factory.createInterface();
+  const parsed = iface.parseLog({ topics: event.log.topics as string[], data: event.log.data });
+  if (!parsed) {
+    Warn('Cannot parse event', event);
+    return { mustUpdateProtocolData: false, mustRestartListeners: false };
+  }
+
+  switch (parsed.name.toLowerCase()) {
     default:
-      Log(`GuildToken ${event.eventName} is not important`);
-      return false;
+      Log(`GuildToken ${parsed} is not important`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
     case 'addgauge':
+      if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
+        Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+        return { mustUpdateProtocolData: false, mustRestartListeners: false };
+      } else {
+        return { mustUpdateProtocolData: true, mustRestartListeners: true };
+      }
     case 'removegauge':
     case 'incrementgaugeweight':
-    case 'decrementgaugeweight':
-      return true;
+    case 'decrementgaugeweight': {
+      // check if the event was about the good gaugeType (marketId)
+      const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), GetWeb3Provider());
+      const gaugeAddress = parsed.args.gauge;
+      const gaugeType = await guildContract.gaugeType(gaugeAddress);
+      if (Number(gaugeType) == MARKET_ID) {
+        if (parsed.name.toLowerCase() == 'removegauge' && (await GetNodeConfig()).processors.TERM_OFFBOARDER.enabled) {
+          await SendOffboardingNotification(gaugeAddress);
+        }
+
+        // on valid market id, return true
+        return { mustUpdateProtocolData: true, mustRestartListeners: true };
+      } else {
+        Log(`Event ${parsed.name} not on marketId ${MARKET_ID}, ignoring`);
+        // not on the good market; return false
+        return { mustUpdateProtocolData: false, mustRestartListeners: false };
+      }
+    }
   }
 }
 
-function lendingTermMustUpdate(event: EventData): boolean {
-  switch (event.eventName.toLowerCase()) {
+async function SendOffboardingNotification(gaugeAddress: string) {
+  // find the term in terms
+  const termsFileName = path.join(DATA_DIR, 'terms.json');
+  if (!fs.existsSync(termsFileName)) {
+    throw new Error(`Could not find file ${termsFileName}`);
+  }
+  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+  const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
+  if (foundTerm) {
+    SendNotificationsList(
+      'TermOffboardingWatcher',
+      `Term ${foundTerm.label} offboarded`,
+      [
+        {
+          fieldName: 'Term address',
+          fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
+        },
+        {
+          fieldName: 'Collateral',
+          fieldValue: foundTerm.collateralSymbol
+        },
+        {
+          fieldName: 'Hard Cap',
+          fieldValue: foundTerm.hardCap
+        },
+        {
+          fieldName: 'Interest rate',
+          fieldValue: norm(foundTerm.interestRate).toString()
+        },
+        {
+          fieldName: 'maxDebtPerCollateralToken',
+          fieldValue: foundTerm.maxDebtPerCollateralToken
+        }
+      ],
+      true
+    );
+  }
+}
+
+function lendingTermMustUpdate(event: EventDataV2): {
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+} {
+  const iface = LendingTerm__factory.createInterface();
+  const parsed = iface.parseLog({ topics: event.log.topics as string[], data: event.log.data });
+  if (!parsed) {
+    Warn('Cannot parse event', event);
+    return { mustUpdateProtocolData: false, mustRestartListeners: false };
+  }
+
+  switch (parsed.name.toLowerCase()) {
     default:
-      Log(`LendingTerm ${event.eventName} is not important`);
-      return false;
+      Log(`LendingTerm ${parsed.name} is not important`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
     case 'loanopen':
     case 'loanaddcollateral':
     case 'loanpartialrepay':
     case 'loanclose':
     case 'loancall':
     case 'setauctionhouse':
-      Log(`LendingTerm ${event.eventName} must force an update`);
-      return true;
+      Log(`LendingTerm ${parsed.name} must force an update`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
   }
 }
 
-function termFactoryMustUpdate(event: EventData): boolean {
-  switch (event.eventName.toLowerCase()) {
+function termFactoryMustUpdate(event: EventDataV2): {
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+} {
+  const iface = LendingTermFactory__factory.createInterface();
+  const parsed = iface.parseLog({ topics: event.log.topics as string[], data: event.log.data });
+  if (!parsed) {
+    Warn('Cannot parse event', event);
+    return { mustUpdateProtocolData: false, mustRestartListeners: false };
+  }
+  switch (parsed.name.toLowerCase()) {
     default:
-      Log(`TermFactory ${event.eventName} is not important`);
-      return false;
+      Log(`TermFactory ${parsed.name} is not important`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
     case 'termcreated':
-      Log(`TermFactory ${event.eventName} must force an update`);
-      return true;
+      Log(`TermFactory ${parsed.name} must force an update`);
+      return { mustUpdateProtocolData: true, mustRestartListeners: false };
   }
 }
 
-function onboardingMustUpdate(event: EventData): boolean {
-  switch (event.eventName.toLowerCase()) {
+function onboardingMustUpdate(event: EventDataV2): {
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+} {
+  const iface = LendingTermOnboarding__factory.createInterface();
+  const parsed = iface.parseLog({ topics: event.log.topics as string[], data: event.log.data });
+  if (!parsed) {
+    Warn('Cannot parse event', event);
+    return { mustUpdateProtocolData: false, mustRestartListeners: false };
+  }
+
+  switch (parsed.name.toLowerCase()) {
     default:
-      Log(`Onboarding ${event.eventName} is not important`);
-      return false;
+      Log(`Onboarding ${parsed.name} is not important`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
     // case 'proposalexecuted': // dont check proposal executed as it will add a gauge anyway which is already fetched
     case 'proposalcreated':
     case 'proposalqueued':
     case 'proposalcanceled':
-      Log(`Onboarding ${event.eventName} must force an update`);
-      return true;
+      Log(`Onboarding ${parsed.name} must force an update`);
+      return { mustUpdateProtocolData: true, mustRestartListeners: false };
   }
 }
+
 // StartEventProcessor();
