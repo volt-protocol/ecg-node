@@ -39,7 +39,7 @@ export async function GetNodeConfig(): Promise<NodeConfig> {
   const configFile = await SimpleCacheService.GetAndCache(
     'node-config-file',
     async () => {
-      Log(`GetNodeConfigFile: loading protocol data from ${ECG_NODE_CONFIG_FULL_FILENAME}`);
+      Log(`GetNodeConfigFile: loading node config from ${ECG_NODE_CONFIG_FULL_FILENAME}`);
       if (ECG_NODE_CONFIG_FULL_FILENAME.startsWith('http')) {
         // load via http
         const resp = await HttpGet<NodeConfig>(ECG_NODE_CONFIG_FULL_FILENAME);

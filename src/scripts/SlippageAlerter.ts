@@ -224,22 +224,24 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
             `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(result.debtAmountUsd)})`,
             true
           );
-          msgBuilder.addField(
-            'Max recoverable debt',
-            `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
-              result.soldAmountPegToken * result.pegTokenPrice
-            )})`,
-            true
-          );
+          // msgBuilder.addField(
+          //   'Max recoverable debt',
+          //   `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
+          //     result.soldAmountPegToken * result.pegTokenPrice
+          //   )})`,
+          //   true
+          // );
           msgBuilder.addField('Slippage ', `${result.slippage}%`, true);
-          msgBuilder.addField(
-            'Overcollateralization ',
-            `${roundTo(result.overCollateralizationWithSlippage, 2)}`,
-            true
-          );
+          // msgBuilder.addField(
+          //   'Overcollateralization ',
+          //   `${roundTo(result.overCollateralizationWithSlippage, 2)}`,
+          //   true
+          // );
         }
 
         reportSent = true;
+        // console.log('hey');
+        // console.log(JSON.stringify(msgBuilder, null, 2));
         await SendMessageBuilder(msgBuilder, process.env.SLIPPAGE_REPORT_WEBHOOK_URL);
       }
     }
