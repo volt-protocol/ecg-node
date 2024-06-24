@@ -41,7 +41,7 @@ export async function StartUniversalEventListener() {
     const termsWithDebtCeiling = termsFile.terms.filter((_) => _.debtCeiling != '0').map((_) => _.termAddress);
     Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
 
-    const addresses = [];
+    const addresses: string[] = [];
     addresses.push(guildTokenAddress);
     addresses.push(lendingTermOnboardingAddress);
     addresses.push(lendingTermFactoryAddress);
