@@ -202,7 +202,7 @@ async function getSwapUniv2(
     collateralReceivedWei, // amountIn
     0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
     path, // path, collateral=>pegToken
-    GetGatewayAddress(), // to gateway
+    await GetGatewayAddress(), // to gateway
     Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
   ]);
 
@@ -234,7 +234,7 @@ async function getSwapPendle(
   const pendleHostedSdkUrl =
     'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
     `chainId=${chainId}` +
-    `&receiverAddr=${GetGatewayAddress()}` +
+    `&receiverAddr=${await GetGatewayAddress()}` +
     `&marketAddr=${pendleConf.market}` +
     `&amountPtIn=${collateralReceivedWei.toString()}` +
     `&tokenOutAddr=${pegToken.address}` +
@@ -288,7 +288,7 @@ async function getSwap1Inch(
     `src=${collateralToken.address}` +
     `&dst=${pegToken.address}` +
     `&amount=${collateralReceivedWei.toString()}` +
-    `&from=${GetGatewayAddress()}` +
+    `&from=${await GetGatewayAddress()}` +
     `&slippage=${maxSlippage}` +
     '&disableEstimate=true' + // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
     `&excludedProtocols=${get1inchExcludedProtocols(chainCode)}`;
@@ -346,7 +346,7 @@ async function getSwapOpenOcean(
     `&amount=${collateralAmountNorm}` +
     `&slippage=${maxSlippage}` +
     `&gasPrice=${gasPrice}` +
-    `&account=${GetGatewayAddress()}` +
+    `&account=${await GetGatewayAddress()}` +
     `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
 
   Log(`getSwapOpenOcean: ${openOceanURL}`);
