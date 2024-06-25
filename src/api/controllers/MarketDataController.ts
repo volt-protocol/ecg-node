@@ -3,7 +3,7 @@ import path from 'path';
 import { GLOBAL_DATA_DIR } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
-import { LendingTermsFileStructure } from '../../model/LendingTerm';
+import { LendingTermStatus, LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
 import { GetAllTokensFromConfiguration } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
@@ -89,7 +89,7 @@ class MarketDataController {
         maxDelayBetweenPartialRepay: term.maxDelayBetweenPartialRepay,
         minPartialRepayPercent: norm(term.minPartialRepayPercent),
         openingFee: norm(term.openingFee),
-        status: term.status,
+        status: term.status == LendingTermStatus.LIVE ? 'live' : 'deprecated',
         debtCeiling: norm(term.debtCeiling),
         gaugeWeight: norm(term.gaugeWeight),
         issuance: norm(term.issuance),

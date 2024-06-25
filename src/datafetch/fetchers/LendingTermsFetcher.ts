@@ -1,8 +1,14 @@
 import { JsonRpcProvider } from 'ethers';
-import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddressNoError } from '../../config/Config';
+import {
+  GetGuildTokenAddress,
+  GetLendingTermOffboardingAddress,
+  GetProfitManagerAddress,
+  getTokenByAddressNoError
+} from '../../config/Config';
 import {
   GuildToken,
   GuildToken__factory,
+  LendingTermOffboarding__factory,
   LendingTerm as LendingTermType,
   LendingTerm__factory,
   ProfitManager,
@@ -92,6 +98,24 @@ export default class LendingTermsFetcher {
     for (const lendingTerm of lendingTerms) {
       if (deprecatedGauges.includes(lendingTerm.termAddress)) {
         lendingTerm.status = LendingTermStatus.DEPRECATED;
+      }
+    }
+
+    // check if terms have been cleaned up
+    const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
+      await GetLendingTermOffboardingAddress(),
+      web3Provider
+    );
+
+    const offboardStatusResults = await Promise.all(
+      deprecatedGauges.map((_) => lendingTermOffboardingContract.canOffboard(_))
+    );
+
+    for (let i = 0; i < deprecatedGauges.length; i++) {
+      const deprecatedGauge = deprecatedGauges[i];
+      const foundTerm = lendingTerms.find((_) => _.termAddress == deprecatedGauge);
+      if (foundTerm && offboardStatusResults[i] == 0n) {
+        foundTerm.status = LendingTermStatus.CLEANED;
       }
     }
 

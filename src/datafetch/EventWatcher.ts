@@ -1,6 +1,11 @@
 import { JsonRpcProvider, ethers } from 'ethers';
 import dotenv from 'dotenv';
-import { GetGuildTokenAddress, GetLendingTermFactoryAddress, GetLendingTermOnboardingAddress } from '../config/Config';
+import {
+  GetGuildTokenAddress,
+  GetLendingTermFactoryAddress,
+  GetLendingTermOffboardingAddress,
+  GetLendingTermOnboardingAddress
+} from '../config/Config';
 import { GetListenerWeb3Provider } from '../utils/Web3Helper';
 import path from 'path';
 import fs from 'fs';
@@ -32,6 +37,7 @@ export async function StartUniversalEventListener() {
     provider = GetListenerWeb3Provider(5000);
     const guildTokenAddress = await GetGuildTokenAddress();
     const lendingTermOnboardingAddress = await GetLendingTermOnboardingAddress();
+    const lendingTermOffboardingAddress = await GetLendingTermOffboardingAddress();
     const lendingTermFactoryAddress = await GetLendingTermFactoryAddress();
 
     const termsFileName = path.join(DATA_DIR, 'terms.json');
@@ -58,6 +64,7 @@ export async function StartUniversalEventListener() {
     const addresses: string[] = [];
     addresses.push(guildTokenAddress);
     addresses.push(lendingTermOnboardingAddress);
+    addresses.push(lendingTermOffboardingAddress);
     addresses.push(lendingTermFactoryAddress);
     addresses.push(...termsWithDebtCeiling);
     provider.on(
@@ -74,6 +81,9 @@ export async function StartUniversalEventListener() {
         } else if (event.address == lendingTermOnboardingAddress) {
           Log('new event from LENDING TERM ONBOARDING');
           sourceContract = SourceContractEnum.TERM_ONBOARDING;
+        } else if (event.address == lendingTermOffboardingAddress) {
+          Log('new event from LENDING TERM OFFBOARDING');
+          sourceContract = SourceContractEnum.TERM_OFFBOARDING;
         } else if (event.address == lendingTermFactoryAddress) {
           Log('new event from LENDING TERM FACTORY');
           sourceContract = SourceContractEnum.TERM_FACTORY;

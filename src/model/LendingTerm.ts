@@ -25,7 +25,8 @@ export default interface LendingTerm {
 
 export enum LendingTermStatus {
   LIVE = 'live',
-  DEPRECATED = 'deprecated'
+  DEPRECATED = 'deprecated',
+  CLEANED = 'cleaned'
 }
 
 export interface LendingTermsFileStructure {

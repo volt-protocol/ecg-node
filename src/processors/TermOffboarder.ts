@@ -71,10 +71,42 @@ async function TermOffboarder() {
         Log(`[${term.label}]: Term is healthy`);
       }
     }
-    Log('Ending');
+
+    await tryCleanup(termFileData, offboarderConfig);
 
     await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
   }
+}
+
+async function tryCleanup(termFileData: LendingTermsFileStructure, offboarderConfig: TermOffboarderConfig) {
+  if (!process.env.ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find ETH_PRIVATE_KEY in env');
+  }
+
+  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, GetWeb3Provider());
+
+  const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
+    await GetLendingTermOffboardingAddress(),
+    signer
+  );
+
+  for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.DEPRECATED)) {
+    Log(`Trying to cleanup term ${term.termAddress}`);
+
+    const canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
+
+    if (canOffboard == 2n && offboarderConfig.performCleanup) {
+      const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
+      await cleanupResp.wait();
+
+      await SendNotifications(
+        'Term Offboarder',
+        `Cleaned up term ${term.label} ${term.termAddress}`,
+        `Tx: ${buildTxUrl(cleanupResp.hash)}`
+      );
+    }
+  }
+  Log('Ending');
 }
 
 async function checkTermForOffboard(

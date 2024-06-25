@@ -7,6 +7,7 @@ import { DATA_DIR, EXPLORER_URI, MARKET_ID } from '../utils/Constants';
 import {
   GuildToken__factory,
   LendingTermFactory__factory,
+  LendingTermOffboarding__factory,
   LendingTermOnboarding__factory,
   LendingTerm__factory
 } from '../contracts/types';
@@ -17,6 +18,7 @@ import path from 'path';
 import fs from 'fs';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
+import { GetTermMarketId } from '../utils/ECGHelper';
 
 let lastBlockFetched = 0;
 export async function StartEventProcessor() {
@@ -37,7 +39,6 @@ export async function StartEventProcessor() {
 }
 
 async function ProcessAsync(event: EventDataV2) {
-  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}`);
   const { mustUpdateProtocolData, mustRestartListeners } = await mustUpdateProtocol(event);
   if (mustUpdateProtocolData) {
     if (lastBlockFetched < event.block) {
@@ -66,15 +67,18 @@ async function mustUpdateProtocol(event: EventDataV2): Promise<{
 }> {
   switch (event.sourceContract) {
     default:
+      Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}`);
       throw new Error(`Unknown contract: ${event.sourceContract}`);
     case SourceContractEnum.GUILD:
       return await guildTokenMustUpdate(event);
     case SourceContractEnum.TERM:
-      return lendingTermMustUpdate(event);
+      return await lendingTermMustUpdate(event);
     case SourceContractEnum.TERM_FACTORY:
-      return termFactoryMustUpdate(event);
+      return await termFactoryMustUpdate(event);
     case SourceContractEnum.TERM_ONBOARDING:
-      return onboardingMustUpdate(event);
+      return await onboardingMustUpdate(event);
+    case SourceContractEnum.TERM_OFFBOARDING:
+      return await offboardingMustUpdate(event);
   }
 }
 
@@ -89,6 +93,7 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
     return { mustUpdateProtocolData: false, mustRestartListeners: false };
   }
 
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
   switch (parsed.name.toLowerCase()) {
     default:
       Log(`GuildToken ${parsed} is not important`);
@@ -104,12 +109,9 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
     case 'incrementgaugeweight':
     case 'decrementgaugeweight': {
       // check if the event was about the good gaugeType (marketId)
-      const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), GetWeb3Provider());
-      const gaugeAddress = parsed.args.gauge;
-      const gaugeType = await guildContract.gaugeType(gaugeAddress);
-      if (Number(gaugeType) == MARKET_ID) {
+      if ((await GetTermMarketId(parsed.args.gauge)) == MARKET_ID) {
         if (parsed.name.toLowerCase() == 'removegauge' && (await GetNodeConfig()).processors.TERM_OFFBOARDER.enabled) {
-          await SendOffboardingNotification(gaugeAddress);
+          await SendOffboardingNotification(parsed.args.gauge);
         }
 
         // on valid market id, return true
@@ -173,6 +175,7 @@ function lendingTermMustUpdate(event: EventDataV2): {
     return { mustUpdateProtocolData: false, mustRestartListeners: false };
   }
 
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
   switch (parsed.name.toLowerCase()) {
     default:
       Log(`LendingTerm ${parsed.name} is not important`);
@@ -198,6 +201,7 @@ function termFactoryMustUpdate(event: EventDataV2): {
     Warn('Cannot parse event', event);
     return { mustUpdateProtocolData: false, mustRestartListeners: false };
   }
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
   switch (parsed.name.toLowerCase()) {
     default:
       Log(`TermFactory ${parsed.name} is not important`);
@@ -219,6 +223,7 @@ function onboardingMustUpdate(event: EventDataV2): {
     return { mustUpdateProtocolData: false, mustRestartListeners: false };
   }
 
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
   switch (parsed.name.toLowerCase()) {
     default:
       Log(`Onboarding ${parsed.name} is not important`);
@@ -229,6 +234,33 @@ function onboardingMustUpdate(event: EventDataV2): {
     case 'proposalcanceled':
       Log(`Onboarding ${parsed.name} must force an update`);
       return { mustUpdateProtocolData: true, mustRestartListeners: false };
+  }
+}
+
+async function offboardingMustUpdate(event: EventDataV2): Promise<{
+  mustUpdateProtocolData: boolean;
+  mustRestartListeners: boolean;
+}> {
+  const iface = LendingTermOffboarding__factory.createInterface();
+  const parsed = iface.parseLog({ topics: event.log.topics as string[], data: event.log.data });
+  if (!parsed) {
+    Warn('Cannot parse event', event);
+    return { mustUpdateProtocolData: false, mustRestartListeners: false };
+  }
+
+  Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
+  switch (parsed.name.toLowerCase()) {
+    default:
+      Log(`Offboarding ${parsed.name} is not important`);
+      return { mustUpdateProtocolData: false, mustRestartListeners: false };
+    case 'cleanup':
+      if ((await GetTermMarketId(parsed.args.term)) == MARKET_ID) {
+        Log(`Offboarding ${parsed.name} must force an update`);
+        return { mustUpdateProtocolData: true, mustRestartListeners: false };
+      } else {
+        Log(`Offboarding ${parsed.name} is on a term not on marketId ${MARKET_ID}, ignoring`);
+        return { mustUpdateProtocolData: false, mustRestartListeners: false };
+      }
   }
 }
 
