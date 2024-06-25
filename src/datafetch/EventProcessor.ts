@@ -110,7 +110,10 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
     case 'decrementgaugeweight': {
       // check if the event was about the good gaugeType (marketId)
       if ((await GetTermMarketId(parsed.args.gauge)) == MARKET_ID) {
-        if (parsed.name.toLowerCase() == 'removegauge' && (await GetNodeConfig()).processors.TERM_OFFBOARDER.enabled) {
+        if (
+          parsed.name.toLowerCase() == 'removegauge' &&
+          (await GetNodeConfig()).processors.TERM_ONBOARDING_WATCHER.enabled
+        ) {
           await SendOffboardingNotification(parsed.args.gauge);
         }
 
