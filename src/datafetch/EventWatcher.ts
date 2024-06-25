@@ -9,6 +9,7 @@ import { DATA_DIR } from '../utils/Constants';
 import { ReadJSON, sleep } from '../utils/Utils';
 import { Log } from '../utils/Logger';
 import { EventQueueV2, SourceContractEnum } from '../utils/EventQueue';
+import { LoanStatus, LoansFileStructure } from '../model/Loan';
 dotenv.config();
 
 const WAIT_TIME_MS = 30 * 60 * 1000;
@@ -34,11 +35,24 @@ export async function StartUniversalEventListener() {
     const lendingTermFactoryAddress = await GetLendingTermFactoryAddress();
 
     const termsFileName = path.join(DATA_DIR, 'terms.json');
+    const loansFileName = path.join(DATA_DIR, 'loans.json');
     if (!fs.existsSync(termsFileName)) {
       throw new Error(`Could not find file ${termsFileName}`);
     }
+    if (!fs.existsSync(loansFileName)) {
+      throw new Error(`Could not find file ${loansFileName}`);
+    }
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+    const loansFile: LoansFileStructure = ReadJSON(loansFileName);
     const termsWithDebtCeiling = termsFile.terms.filter((_) => _.debtCeiling != '0').map((_) => _.termAddress);
+    const termsWithNonClosedLoans = Array.from(
+      new Set<string>(loansFile.loans.filter((_) => _.status != LoanStatus.CLOSED).map((_) => _.lendingTermAddress))
+    );
+    for (const termWithNonClosedLoans of termsWithNonClosedLoans) {
+      if (!termsWithDebtCeiling.includes(termWithNonClosedLoans)) {
+        termsWithDebtCeiling.push(termWithNonClosedLoans);
+      }
+    }
     Log(`Starting terms listener for ${termsWithDebtCeiling.length}/${termsFile.terms.length} terms`);
 
     const addresses: string[] = [];
