@@ -34,7 +34,7 @@ export async function StartUniversalEventListener() {
       Log('Removing listeners');
       provider.removeAllListeners();
     }
-    provider = GetListenerWeb3Provider(5000);
+    provider = GetListenerWeb3Provider(10000);
     const guildTokenAddress = await GetGuildTokenAddress();
     const lendingTermOnboardingAddress = await GetLendingTermOnboardingAddress();
     const lendingTermOffboardingAddress = await GetLendingTermOffboardingAddress();
