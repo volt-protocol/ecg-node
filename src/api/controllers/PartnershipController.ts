@@ -1,5 +1,10 @@
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GuildToken__factory, LendingTerm__factory } from '../../contracts/types';
+import {
+  ERC20__factory,
+  GuildToken__factory,
+  LendingTermLens__factory,
+  LendingTerm__factory
+} from '../../contracts/types';
 import { GetArchiveWeb3Provider } from '../../utils/Web3Helper';
 import { EtherfiResponse } from '../model/PartnershipResponse';
 import LendingTerm, { LendingTermsFileStructure } from '../../model/LendingTerm';
@@ -41,6 +46,8 @@ class PartnershipController {
         _.collateralAddress.toLowerCase() == collateralToken.address.toLowerCase()
     );
 
+    console.log(weETHTermsAtBlock);
+
     // find all loans opened on those terms
     // those loans can be opened after the block but at least we're sure to have them all
     // we will multicall the getloan data for each
@@ -61,13 +68,16 @@ class PartnershipController {
     for (let i = 0; i < weETHLoans.length; i++) {
       const loan = weETHLoans[i];
       const loanResult = results[i];
-      const normalizedAmount = norm(loanResult.collateralAmount);
-      total += normalizedAmount;
-      if (!borrowers[loan.borrowerAddress]) {
-        borrowers[loan.borrowerAddress] = 0;
-      }
+      // only sum collateral for non closed loans
+      if (loanResult.closeTime == 0n) {
+        const normalizedAmount = norm(loanResult.collateralAmount);
+        total += normalizedAmount;
+        if (!borrowers[loan.borrowerAddress]) {
+          borrowers[loan.borrowerAddress] = 0;
+        }
 
-      borrowers[loan.borrowerAddress] += normalizedAmount;
+        borrowers[loan.borrowerAddress] += normalizedAmount;
+      }
     }
 
     Log(`GetEtherfiData: total ${total} weETH at block ${blockNumber}`);
@@ -78,6 +88,34 @@ class PartnershipController {
           response.Result.push({
             address: borrower,
             effective_balance: amount
+          });
+        }
+      }
+    }
+
+    // if addresses.length == 0, check that no token was airdropped some tokens to the terms
+    // if so, it will create a difference as sum(holders) will not be equals to the sum of balanceOf()
+    // of all terms at block
+    if (addresses.length == 0) {
+      const lens = LendingTermLens__factory.connect('0x97fEba5C154AA37680Fdf7e3FeA5386460Ef9f52', multicallProvider);
+      const allTermsForToken = await lens.getTermsForToken(collateralTokenAddress);
+      console.log(allTermsForToken);
+      const erc20Contract = ERC20__factory.connect(collateralTokenAddress, multicallProvider);
+      const balanceOfResults = await Promise.all(
+        allTermsForToken.map((_) => erc20Contract.balanceOf(_, { blockTag: blockNumber }))
+      );
+      let sum = 0n;
+      for (const balance of balanceOfResults) {
+        sum += balance;
+      }
+
+      if (sum > 0n) {
+        const sumBalanceOfNorm = norm(sum, collateralToken.decimals);
+        if (total < sumBalanceOfNorm) {
+          // add difference to bad beef :)
+          response.Result.push({
+            address: '0xbad06297eB7878502E045319a7c4a8904b49BEEF',
+            effective_balance: sumBalanceOfNorm - total
           });
         }
       }
