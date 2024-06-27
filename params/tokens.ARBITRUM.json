@@ -254,7 +254,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x6Ae79089b2CF4be441480801bb741A531d94312b",
+			"syAddress": "0xf176fB51F4eB826136a54FDc71C50fCd2202E272",
 			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
+			"expiry": "2024-06-27T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 42161,
 				"symbol": "ETH",
@@ -270,7 +272,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
+			"syAddress": "0xb3C24D9dcCC2Ec5f778742389ffe448E295B84e0",
 			"syTokenOut": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+			"expiry": "2024-08-29T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "USDe",
@@ -286,7 +290,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x952083cde7aaa11AB8449057F7de23A970AA8472",
+			"syAddress": "0xa6C895EB332E91c5b3D00B7baeEAae478cc502DA",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"expiry": "2024-06-27T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "eETH",
@@ -302,7 +308,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0xf9F9779d8fF604732EBA9AD345E6A27EF5c2a9d6",
+			"syAddress": "0xa6C895EB332E91c5b3D00B7baeEAae478cc502DA",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"expiry": "2024-09-26T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "eETH",
@@ -318,7 +326,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0xED99fC8bdB8E9e7B8240f62f69609a125A0Fbf14",
+			"syAddress": "0xf176fB51F4eB826136a54FDc71C50fCd2202E272",
 			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
+			"expiry": "2024-09-26T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 42161,
 				"symbol": "ETH",
