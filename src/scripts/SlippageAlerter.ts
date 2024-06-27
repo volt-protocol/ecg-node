@@ -115,15 +115,26 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
         const amountFull = new BigNumber(collateralData.totalAmount)
           .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
           .toFixed(0);
+
+        const expiryDate = new Date(collateralData.tokenInfo.pendleConfiguration.expiry);
         const urlGet =
-          'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-          'chainId=42161' +
-          '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-          `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
-          `&amountPtIn=${amountFull}` +
-          `&tokenOutAddr=${marketConfig.pegTokenAddress}` +
-          `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-          '&slippage=0.10';
+          expiryDate.getTime() < Date.now()
+            ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
+              '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+              `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.syAddress}` +
+              `&amountPyIn=${amountFull}` +
+              `&tokenOutAddr=${pegToken.address}` +
+              `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+              '&slippage=0.1'
+            : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+              'chainId=42161' +
+              '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+              `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
+              `&amountPtIn=${amountFull}` +
+              `&tokenOutAddr=${pegToken.address}` +
+              `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+              '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
+              '&slippage=0.1';
 
         const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
         result.slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
@@ -299,19 +310,34 @@ async function CheckSlippage(lastRunData: LastRunData) {
       const amountFull = new BigNumber(collateralData.totalAmount)
         .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
         .toFixed(0);
+
+      const expiryDate = new Date(collateralData.tokenInfo.pendleConfiguration.expiry);
       const urlGet =
-        'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-        'chainId=42161' +
-        '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-        `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
-        `&amountPtIn=${amountFull}` +
-        `&tokenOutAddr=${
-          collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
-            ? USDC.address
-            : WETH.address
-        }` +
-        `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-        '&slippage=0.10';
+        expiryDate.getTime() < Date.now()
+          ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
+            '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+            `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.syAddress}` +
+            `&amountPyIn=${amountFull}` +
+            `&tokenOutAddr=${
+              collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
+                ? USDC.address
+                : WETH.address
+            }` +
+            `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+            '&slippage=0.1'
+          : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+            'chainId=42161' +
+            '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+            `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
+            `&amountPtIn=${amountFull}` +
+            `&tokenOutAddr=${
+              collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
+                ? USDC.address
+                : WETH.address
+            }` +
+            `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+            '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
+            '&slippage=0.1';
 
       const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
       slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);

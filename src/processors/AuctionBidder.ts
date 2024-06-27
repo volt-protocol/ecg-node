@@ -231,16 +231,25 @@ async function getSwapPendle(
     throw new Error(`Cannot find pendle configuration for token ${collateralToken.address} ${collateralToken.symbol}`);
   }
 
+  const expiryDate = new Date(pendleConf.expiry);
   const pendleHostedSdkUrl =
-    'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-    `chainId=${chainId}` +
-    `&receiverAddr=${await GetGatewayAddress()}` +
-    `&marketAddr=${pendleConf.market}` +
-    `&amountPtIn=${collateralReceivedWei.toString()}` +
-    `&tokenOutAddr=${pegToken.address}` +
-    `&syTokenOutAddr=${pendleConf.syTokenOut}` +
-    `&excludedSources=${getPendleExcludedProtocols(chainId)}` +
-    '&slippage=0.05';
+    expiryDate.getTime() < Date.now()
+      ? `https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=${chainId}` +
+        `&receiverAddr=${await GetGatewayAddress()}` +
+        `&ytAddr=${pendleConf.syAddress}` +
+        `&amountPyIn=${collateralReceivedWei.toString()}` +
+        `&tokenOutAddr=${pegToken.address}` +
+        `&syTokenOutAddr=${pendleConf.syTokenOut}` +
+        '&slippage=0.005'
+      : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+        `chainId=${chainId}` +
+        `&receiverAddr=${await GetGatewayAddress()}` +
+        `&marketAddr=${pendleConf.market}` +
+        `&amountPtIn=${collateralReceivedWei.toString()}` +
+        `&tokenOutAddr=${pegToken.address}` +
+        `&syTokenOutAddr=${pendleConf.syTokenOut}` +
+        `&excludedSources=${getPendleExcludedProtocols(chainId)}` +
+        '&slippage=0.05';
 
   Log(`pendle url: ${pendleHostedSdkUrl}`);
   const msToWait = 6000 - (Date.now() - lastCallPendle); // 1 call every 6 seconds
