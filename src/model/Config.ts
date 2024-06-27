@@ -48,7 +48,7 @@ export enum DexEnum {
 export interface PendleConfig {
   market: string;
   syTokenOut: string;
-  syAddress: string;
+  ytAddress: string;
   expiry: string;
   basePricingAsset: PendleBasePricingConfig;
 }
