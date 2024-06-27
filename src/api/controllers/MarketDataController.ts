@@ -275,7 +275,8 @@ class MarketDataController {
         decimals: token.decimals,
         name: token.symbol,
         symbol: token.symbol,
-        price: await PriceService.GetTokenPrice(token.address)
+        price: await PriceService.GetTokenPrice(token.address),
+        pendleConfig: token.pendleConfiguration
       });
     }
 

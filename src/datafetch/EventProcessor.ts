@@ -11,8 +11,7 @@ import {
   LendingTermOnboarding__factory,
   LendingTerm__factory
 } from '../contracts/types';
-import { GetWeb3Provider } from '../utils/Web3Helper';
-import { GetGuildTokenAddress, GetNodeConfig } from '../config/Config';
+import { GetNodeConfig } from '../config/Config';
 import { RestartUniversalEventListener } from './EventWatcher';
 import path from 'path';
 import fs from 'fs';
@@ -96,7 +95,7 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
   Log(`NEW EVENT DETECTED AT BLOCK ${event.block} from contract ${event.sourceContract}: ${parsed.name}`);
   switch (parsed.name.toLowerCase()) {
     default:
-      Log(`GuildToken ${parsed} is not important`);
+      Log(`GuildToken ${parsed.name} is not important`);
       return { mustUpdateProtocolData: false, mustRestartListeners: false };
     case 'addgauge':
       if (parsed.args.gaugeType && Number(parsed.args.gaugeType as bigint) != MARKET_ID) {
@@ -128,45 +127,6 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
   }
 }
 
-async function SendOffboardingNotification(gaugeAddress: string) {
-  // find the term in terms
-  const termsFileName = path.join(DATA_DIR, 'terms.json');
-  if (!fs.existsSync(termsFileName)) {
-    throw new Error(`Could not find file ${termsFileName}`);
-  }
-  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
-  const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
-  if (foundTerm) {
-    SendNotificationsList(
-      'TermOffboardingWatcher',
-      `Term ${foundTerm.label} offboarded`,
-      [
-        {
-          fieldName: 'Term address',
-          fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
-        },
-        {
-          fieldName: 'Collateral',
-          fieldValue: foundTerm.collateralSymbol
-        },
-        {
-          fieldName: 'Hard Cap',
-          fieldValue: foundTerm.hardCap
-        },
-        {
-          fieldName: 'Interest rate',
-          fieldValue: norm(foundTerm.interestRate).toString()
-        },
-        {
-          fieldName: 'maxDebtPerCollateralToken',
-          fieldValue: foundTerm.maxDebtPerCollateralToken
-        }
-      ],
-      true
-    );
-  }
-}
-
 function lendingTermMustUpdate(event: EventDataV2): {
   mustUpdateProtocolData: boolean;
   mustRestartListeners: boolean;
@@ -190,7 +150,7 @@ function lendingTermMustUpdate(event: EventDataV2): {
     case 'loancall':
     case 'setauctionhouse':
       Log(`LendingTerm ${parsed.name} must force an update`);
-      return { mustUpdateProtocolData: false, mustRestartListeners: false };
+      return { mustUpdateProtocolData: true, mustRestartListeners: false };
   }
 }
 
@@ -264,6 +224,45 @@ async function offboardingMustUpdate(event: EventDataV2): Promise<{
         Log(`Offboarding ${parsed.name} is on a term not on marketId ${MARKET_ID}, ignoring`);
         return { mustUpdateProtocolData: false, mustRestartListeners: false };
       }
+  }
+}
+
+async function SendOffboardingNotification(gaugeAddress: string) {
+  // find the term in terms
+  const termsFileName = path.join(DATA_DIR, 'terms.json');
+  if (!fs.existsSync(termsFileName)) {
+    throw new Error(`Could not find file ${termsFileName}`);
+  }
+  const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
+  const foundTerm = termsFile.terms.find((_) => _.termAddress == gaugeAddress);
+  if (foundTerm) {
+    SendNotificationsList(
+      'TermOffboardingWatcher',
+      `Term ${foundTerm.label} offboarded`,
+      [
+        {
+          fieldName: 'Term address',
+          fieldValue: `${EXPLORER_URI}/address/${foundTerm.termAddress}`
+        },
+        {
+          fieldName: 'Collateral',
+          fieldValue: foundTerm.collateralSymbol
+        },
+        {
+          fieldName: 'Hard Cap',
+          fieldValue: foundTerm.hardCap
+        },
+        {
+          fieldName: 'Interest rate',
+          fieldValue: norm(foundTerm.interestRate).toString()
+        },
+        {
+          fieldName: 'maxDebtPerCollateralToken',
+          fieldValue: foundTerm.maxDebtPerCollateralToken
+        }
+      ],
+      true
+    );
   }
 }
 

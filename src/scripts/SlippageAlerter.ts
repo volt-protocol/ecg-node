@@ -121,7 +121,7 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
           expiryDate.getTime() < Date.now()
             ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
               '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-              `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.syAddress}` +
+              `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.ytAddress}` +
               `&amountPyIn=${amountFull}` +
               `&tokenOutAddr=${pegToken.address}` +
               `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
@@ -316,7 +316,7 @@ async function CheckSlippage(lastRunData: LastRunData) {
         expiryDate.getTime() < Date.now()
           ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
             '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-            `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.syAddress}` +
+            `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.ytAddress}` +
             `&amountPyIn=${amountFull}` +
             `&tokenOutAddr=${
               collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')

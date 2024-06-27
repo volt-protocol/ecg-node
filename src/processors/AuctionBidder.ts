@@ -236,7 +236,7 @@ async function getSwapPendle(
     expiryDate.getTime() < Date.now()
       ? `https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=${chainId}` +
         `&receiverAddr=${await GetGatewayAddress()}` +
-        `&ytAddr=${pendleConf.syAddress}` +
+        `&ytAddr=${pendleConf.ytAddress}` +
         `&amountPyIn=${collateralReceivedWei.toString()}` +
         `&tokenOutAddr=${pegToken.address}` +
         `&syTokenOutAddr=${pendleConf.syTokenOut}` +
