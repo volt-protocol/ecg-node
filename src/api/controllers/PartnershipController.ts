@@ -19,7 +19,7 @@ import { getTokenByAddress } from '../../config/Config';
 
 class PartnershipController {
   static async GetCollateralData(
-    blockNumber: number,
+    blockNumber: number | undefined,
     addresses: string[],
     collateralTokenAddress: string
   ): Promise<EtherfiResponse> {
@@ -40,33 +40,29 @@ class PartnershipController {
     const allLiveGaugesAtBlock = await guildContract.liveGauges({ blockTag: blockNumber });
 
     // find all terms that have 'collateralToken' as collateral
-    const weETHTermsAtBlock: LendingTerm[] = allTerms.filter(
+    const termsAtBlock: LendingTerm[] = allTerms.filter(
       (_) =>
         allLiveGaugesAtBlock.includes(_.termAddress) &&
         _.collateralAddress.toLowerCase() == collateralToken.address.toLowerCase()
     );
 
-    console.log(weETHTermsAtBlock);
-
     // find all loans opened on those terms
     // those loans can be opened after the block but at least we're sure to have them all
     // we will multicall the getloan data for each
-    const weETHLoans: Loan[] = allLoans.filter((_) =>
-      weETHTermsAtBlock.map((_) => _.termAddress).includes(_.lendingTermAddress)
-    );
+    const loans: Loan[] = allLoans.filter((_) => termsAtBlock.map((_) => _.termAddress).includes(_.lendingTermAddress));
 
     const promises = [];
-    for (const weETHLoan of weETHLoans) {
-      const lendingTermContract = LendingTerm__factory.connect(weETHLoan.lendingTermAddress, multicallProvider);
-      promises.push(lendingTermContract.getLoan(weETHLoan.id, { blockTag: blockNumber }));
+    for (const loan of loans) {
+      const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
+      promises.push(lendingTermContract.getLoan(loan.id, { blockTag: blockNumber }));
     }
 
     const results = await Promise.all(promises);
 
     let total = 0;
     const borrowers: { [holder: string]: number } = {};
-    for (let i = 0; i < weETHLoans.length; i++) {
-      const loan = weETHLoans[i];
+    for (let i = 0; i < loans.length; i++) {
+      const loan = loans[i];
       const loanResult = results[i];
       // only sum collateral for non closed loans
       if (loanResult.closeTime == 0n) {

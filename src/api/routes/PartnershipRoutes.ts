@@ -58,11 +58,7 @@ router.get('/etherfi', async (req: Request, res: Response) => {
 // route not shown on api docs
 router.get('/collateralHolders', async (req: Request, res: Response) => {
   try {
-    const blockNumber = Number(req.query.blockNumber);
-    if (!blockNumber || Number.isNaN(blockNumber)) {
-      res.status(400).json({ error: 'Blocknumber is mandatory' });
-      return;
-    }
+    const blockNumber = req.query.blockNumber ? Number(req.query.blockNumber) : undefined;
     const addressesParams = req.query.addresses?.toString();
     let addresses: string[] = [];
     if (addressesParams) {
