@@ -166,6 +166,19 @@ async function checkTermForOffboard(
   );
 
   if (currentOvercollateralization < minOvercollateralization) {
+    if (
+      offboarderConfig.tokens[collateralToken.symbol] &&
+      offboarderConfig.tokens[collateralToken.symbol].doNotOffboardCollateral
+    ) {
+      Log(
+        `[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'doNotOffboardCollateral' is true for ${collateralToken.symbol}`
+      );
+
+      return {
+        termMustBeOffboarded: false,
+        reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`
+      };
+    }
     return {
       termMustBeOffboarded: true,
       reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`

@@ -29,6 +29,7 @@ export interface UserSlasherConfig extends ProcessorConfig {
 
 export interface TermOffboarderConfigToken {
   defaultMinOvercollateralization: number;
+  doNotOffboardCollateral?: boolean;
   auctionDurationSpecifics: { maxMidpointDuration: number; minOvercollateralization: number }[];
 }
 
