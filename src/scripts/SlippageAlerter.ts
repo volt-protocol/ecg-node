@@ -136,9 +136,14 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
               '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
               '&slippage=0.1';
 
-        const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-        result.slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
-        result.soldAmountPegToken = norm(dataGet.data.amountTokenOut, pegToken.decimals);
+        try {
+          const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
+          result.slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+          result.soldAmountPegToken = norm(dataGet.data.amountTokenOut, pegToken.decimals);
+        } catch (e) {
+          result.slippage = 100;
+          result.errorMsg = `Cannot swap ${collateralData.tokenInfo.symbol} for ${pegToken.symbol} on pendle AMM`;
+        }
       } else {
         const amountFull = new BigNumber(collateralData.totalAmount)
           .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
@@ -172,38 +177,38 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
     results.sort((a, b) => b.slippage - a.slippage);
     for (const result of results) {
       if (result.soldAmountPegToken < result.totalDebtPegToken) {
-        await notif.SendNotificationsList('Slippage Alerter', 'TOO MUCH SLIPPAGE DETECTED', [
-          {
-            fieldName: 'Market',
-            fieldValue: `${marketId} (${pegToken.symbol})`
-          },
-          {
-            fieldName: 'Collateral',
-            fieldValue: result.tokenInfo.symbol
-          },
-          {
-            fieldName: 'Total debt',
-            fieldValue: `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(
-              result.debtAmountUsd
-            )})`
-          },
-          {
-            fieldName: 'Total collateral',
-            fieldValue: `${formatCurrencyValue(result.totalAmount)} ($${formatCurrencyValue(
-              result.collateralAmountUsd
-            )})`
-          },
-          {
-            fieldName: 'Max recoverable debt',
-            fieldValue: `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
-              result.soldAmountPegToken * result.pegTokenPrice
-            )})`
-          },
-          {
-            fieldName: 'Slippage',
-            fieldValue: `${result.slippage}%`
-          }
-        ]);
+        // await notif.SendNotificationsList('Slippage Alerter', 'TOO MUCH SLIPPAGE DETECTED', [
+        //   {
+        //     fieldName: 'Market',
+        //     fieldValue: `${marketId} (${pegToken.symbol})`
+        //   },
+        //   {
+        //     fieldName: 'Collateral',
+        //     fieldValue: result.tokenInfo.symbol
+        //   },
+        //   {
+        //     fieldName: 'Total debt',
+        //     fieldValue: `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(
+        //       result.debtAmountUsd
+        //     )})`
+        //   },
+        //   {
+        //     fieldName: 'Total collateral',
+        //     fieldValue: `${formatCurrencyValue(result.totalAmount)} ($${formatCurrencyValue(
+        //       result.collateralAmountUsd
+        //     )})`
+        //   },
+        //   {
+        //     fieldName: 'Max recoverable debt',
+        //     fieldValue: `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
+        //       result.soldAmountPegToken * result.pegTokenPrice
+        //     )})`
+        //   },
+        //   {
+        //     fieldName: 'Slippage',
+        //     fieldValue: `${result.slippage}%`
+        //   }
+        // ]);
       }
 
       console.log(
@@ -225,29 +230,34 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
 
         for (const result of results) {
           msgBuilder.addField('-----------------------------------', `${result.tokenInfo.symbol}`, false);
-          msgBuilder.addField(
-            'Total collateral ',
-            `${formatCurrencyValue(result.totalAmount)} ($${formatCurrencyValue(result.collateralAmountUsd)})`,
-            true
-          );
-          msgBuilder.addField(
-            'Total debt',
-            `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(result.debtAmountUsd)})`,
-            true
-          );
-          // msgBuilder.addField(
-          //   'Max recoverable debt',
-          //   `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
-          //     result.soldAmountPegToken * result.pegTokenPrice
-          //   )})`,
-          //   true
-          // );
-          msgBuilder.addField('Slippage ', `${result.slippage}%`, true);
-          // msgBuilder.addField(
-          //   'Overcollateralization ',
-          //   `${roundTo(result.overCollateralizationWithSlippage, 2)}`,
-          //   true
-          // );
+
+          if (result.errorMsg) {
+            msgBuilder.addField('Error ', result.errorMsg, true);
+          } else {
+            msgBuilder.addField(
+              'Total collateral ',
+              `${formatCurrencyValue(result.totalAmount)} ($${formatCurrencyValue(result.collateralAmountUsd)})`,
+              true
+            );
+            msgBuilder.addField(
+              'Total debt',
+              `${formatCurrencyValue(result.totalDebtPegToken)} ($${formatCurrencyValue(result.debtAmountUsd)})`,
+              true
+            );
+            // msgBuilder.addField(
+            //   'Max recoverable debt',
+            //   `${formatCurrencyValue(result.soldAmountPegToken)} ($${formatCurrencyValue(
+            //     result.soldAmountPegToken * result.pegTokenPrice
+            //   )})`,
+            //   true
+            // );
+            msgBuilder.addField('Slippage ', `${result.slippage}%`, true);
+            // msgBuilder.addField(
+            //   'Overcollateralization ',
+            //   `${roundTo(result.overCollateralizationWithSlippage, 2)}`,
+            //   true
+            // );
+          }
         }
 
         reportSent = true;
@@ -339,8 +349,12 @@ async function CheckSlippage(lastRunData: LastRunData) {
             '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
             '&slippage=0.1';
 
-      const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-      slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+      try {
+        const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
+        slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+      } catch (e) {
+        slippagePct = 100;
+      }
     } else {
       const amountFull = new BigNumber(collateralData.totalAmount)
         .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))

@@ -29,4 +29,5 @@ export interface PerMarketResult extends PerMarketCollateralData {
   slippage: number;
   overCollateralizationWithSlippage: number;
   pegTokenInfo: TokenConfig;
+  errorMsg?: string;
 }
