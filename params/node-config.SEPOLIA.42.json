@@ -9,12 +9,13 @@
             "onlyLogging": true,
             "tokens": {
                 "WBTC": {
-					"defaultMinOvercollateralization": 1.2,
-					"auctionDurationSpecifics": []
-				},
+                    "doNotOffboardCollateral": true,
+                    "defaultMinOvercollateralization": 50,
+                    "auctionDurationSpecifics": []
+                },
                 "sDAI": {
                     "defaultMinOvercollateralization": 1.035,
-					"auctionDurationSpecifics": []
+                    "auctionDurationSpecifics": []
                 }
             }
         },
@@ -35,11 +36,17 @@
             "threshold": 0.005,
             "uniswapPairs": [
                 {
-                    "path": ["USDC", "sDAI"],
+                    "path": [
+                        "USDC",
+                        "sDAI"
+                    ],
                     "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0"
                 },
                 {
-                    "path": ["WBTC", "USDC"],
+                    "path": [
+                        "WBTC",
+                        "USDC"
+                    ],
                     "poolAddress": "0xB0c49AB59ebE2DF86FF7807634737Ac7a1575cD8"
                 }
             ]
