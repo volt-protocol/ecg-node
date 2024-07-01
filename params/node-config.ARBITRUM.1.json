@@ -8,21 +8,26 @@
             "performCleanup": true,
             "onlyLogging": false,
             "defaultMinOvercollateralization": 1.2,
-			"tokens": {
-				"PT-USDe-29AUG2024": {
-					"defaultMinOvercollateralization": 1.1,
-					"auctionDurationSpecifics": []
-				},
-				"WETH": {
-					"defaultMinOvercollateralization": 1.2,
-					"auctionDurationSpecifics": [
-						{
-							"maxMidpointDuration": 1800,
-							"minOvercollateralization": 1.1
-						}
-					]
-				}
-			}
+            "tokens": {
+                "OD": {
+                    "doNotOffboardCollateral": true,
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "PT-USDe-29AUG2024": {
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "WETH": {
+                    "defaultMinOvercollateralization": 1.2,
+                    "auctionDurationSpecifics": [
+                        {
+                            "maxMidpointDuration": 1800,
+                            "minOvercollateralization": 1.1
+                        }
+                    ]
+                }
+            }
         },
         "TERM_ONBOARDING_WATCHER": {
             "enabled": true

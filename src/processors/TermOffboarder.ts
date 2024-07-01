@@ -67,8 +67,6 @@ async function TermOffboarder() {
         } else {
           Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
         }
-      } else {
-        Log(`[${term.label}]: Term is healthy`);
       }
     }
 
@@ -184,6 +182,7 @@ async function checkTermForOffboard(
       reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`
     };
   } else {
+    Log(`[${term.label}]: Term is healthy`);
     return {
       termMustBeOffboarded: false,
       reason: 'Term healthy'
