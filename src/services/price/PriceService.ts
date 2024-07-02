@@ -2,7 +2,7 @@ import { median } from 'simple-statistics';
 import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
-import { UniswapV3Pool__factory } from '../../contracts/types';
+import { CamelotAlgebraPool__factory, UniswapV3Pool__factory } from '../../contracts/types';
 import SimpleCacheService from '../cache/CacheService';
 import { HttpGet } from '../../utils/HttpHelper';
 import { PendleMarketResponse } from '../../model/PendleApi';
@@ -98,9 +98,9 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       }
 
       if (token.address == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
-        // fix price of $1 for Open Dollar
-        // TODO CHANGE THAT
-        allPrices[token.address] = 1;
+        allPrices[token.address] = await getODPriceCamelot();
+        Log(`LoadConfigTokenPrices: price for ${token.symbol} from camelot: ${allPrices[token.address]}`);
+
         continue;
       }
 
@@ -599,4 +599,22 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
   }
 
   return { source: '1INCH', prices: prices };
+}
+async function getODPriceCamelot(): Promise<number> {
+  // OD-WETH pair
+  const camelotPairAddress = '0x824959a55907d5350e73e151Ff48DabC5A37a657';
+  const camelotPairContract = CamelotAlgebraPool__factory.connect(camelotPairAddress, GetWeb3Provider());
+  const globalState = await camelotPairContract.globalState();
+  const tick = globalState.tick;
+
+  const token0DecimalFactor = 10 ** 18;
+  const token1DecimalFactor = 10 ** 18;
+  const price = 1.0001 ** Number(tick);
+  const priceOdInEth = (price * token0DecimalFactor) / token1DecimalFactor;
+  // Log(`getODPriceCamelot: 1 OD = ${priceOdInEth} WETH`);
+
+  const wethPrice = await getSafeWethPrice();
+  const ODPriceUsd = priceOdInEth * wethPrice;
+  // Log(`getODPriceCamelot: $${ODPriceUsd}`);
+  return ODPriceUsd;
 }
