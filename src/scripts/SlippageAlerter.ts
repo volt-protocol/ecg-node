@@ -138,7 +138,14 @@ async function CheckSlippagePerMarket(lastRunData: LastRunData) {
 
         try {
           const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-          result.slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+          if (dataGet.data.priceImpact == -1) {
+            // compute slippage via amountIn vs amountOut
+            const amountOutUsd = norm(dataGet.data.amountTokenOut, pegToken.decimals) * result.pegTokenPrice;
+            const amountInUsd = collateralData.totalAmount * collateralData.tokenPrice;
+            result.slippage = roundTo((1 - amountOutUsd / amountInUsd) * 100, 2);
+          } else {
+            result.slippage = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+          }
           result.soldAmountPegToken = norm(dataGet.data.amountTokenOut, pegToken.decimals);
         } catch (e) {
           result.slippage = 100;
