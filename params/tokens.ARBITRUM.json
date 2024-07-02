@@ -335,5 +335,41 @@
 				"address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
 			}
 		}
+	}, 
+	{
+		"address": "0x1255638EFeca62e12E344E0b6B22ea853eC6e2c7",
+		"symbol": "PT-wstETH-26JUN2025",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x08a152834de126d2ef83D612ff36e4523FD0017F",
+			"ytAddress": "0xC8D9369809e48d03FF7B69D7979b174e2D34874C",
+			"syTokenOut": "0x5979D7b546E38E414F7E9822514be443A4800529",
+			"expiry": "2025-06-26T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 1,
+				"symbol": "stETH",
+				"address": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
+			}
+		}
+	},
+	{
+		"address": "0x685155D3BD593508Fe32Be39729810A591ED9c87",
+		"symbol": "PT-rETH-26JUN2025",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x14FbC760eFaF36781cB0eb3Cb255aD976117B9Bd",
+			"ytAddress": "0xe822AE44EB2466B4E263b1cbC94b4833dDEf9700",
+			"syTokenOut": "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8",
+			"expiry": "2025-06-26T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 42161,
+				"symbol": "ETH",
+				"address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+			}
+		}
 	}
 ]
