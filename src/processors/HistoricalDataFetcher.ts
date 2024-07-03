@@ -13,10 +13,12 @@ import {
   GetProfitManagerAddress,
   getTokenByAddress,
   getTokenByAddressNoError,
-  GetPendleOracleAddress
+  GetPendleOracleAddress,
+  getTokenBySymbol
 } from '../config/Config';
 import { HistoricalData, HistoricalDataMulti } from '../model/HistoricalData';
 import {
+  CamelotAlgebraPool__factory,
   CreditToken__factory,
   ERC20__factory,
   GuildToken__factory,
@@ -905,9 +907,7 @@ async function GetTokenPriceMultiAtTimestamp(
     }
 
     if (tokenAddress == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
-      // fix price of $1 for Open Dollar
-      // TODO CHANGE THAT
-      prices[tokenAddress] = 1;
+      prices[tokenAddress] = await getODPriceCamelot(atBlock, timestamp, web3Provider);
       continue;
     }
 
@@ -1046,6 +1046,38 @@ async function GetPendleOraclePrice(
   const oracleContract = PendleOracle__factory.connect(GetPendleOracleAddress(), web3Provider);
   const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 600, { blockTag: atBlock });
   return norm(priceToAsset);
+}
+
+async function getODPriceCamelot(
+  atBlock: number,
+  timestamp: number,
+  web3Provider: ethers.JsonRpcProvider
+): Promise<number> {
+  // OD-WETH pair
+  const camelotPairAddress = '0x824959a55907d5350e73e151Ff48DabC5A37a657';
+  const camelotPairContract = CamelotAlgebraPool__factory.connect(camelotPairAddress, web3Provider);
+  const globalState = await camelotPairContract.globalState({ blockTag: atBlock });
+  const tick = globalState.tick;
+
+  const token0DecimalFactor = 10 ** 18;
+  const token1DecimalFactor = 10 ** 18;
+  const price = 1.0001 ** Number(tick);
+  const priceOdInEth = (price * token0DecimalFactor) / token1DecimalFactor;
+  // Log(`getODPriceCamelot: 1 OD = ${priceOdInEth} WETH`);
+
+  const WETHToken = await getTokenBySymbol('WETH');
+  const wethPriceAtBlock = await GetDefiLlamaPriceAtTimestamp(
+    'WETH',
+    getDefillamaTokenId(NETWORK, WETHToken.address),
+    timestamp
+  );
+  if (!wethPriceAtBlock) {
+    throw new Error(`Cannot get weth price at block ${atBlock}`);
+  }
+
+  const ODPriceUsd = priceOdInEth * wethPriceAtBlock;
+  // Log(`getODPriceCamelot: $${ODPriceUsd}`);
+  return ODPriceUsd;
 }
 
 HistoricalDataFetcher();
