@@ -33,6 +33,7 @@ export interface TokenConfig {
   coingeckoId?: string;
   coincapId?: string;
   openoceanId?: number;
+  flashloanToken?: string;
 }
 
 export interface DexConfig {
