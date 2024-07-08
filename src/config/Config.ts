@@ -193,6 +193,10 @@ export async function GetGatewayAddress() {
   return (await GetProtocolConstants()).gatewayAddress;
 }
 
+export async function GetGatewayAddress2Steps() {
+  return '0x0D0DA938b0cde4ce9f5c1398BBb0bFa8434D32a0';
+}
+
 export async function GetPSMAddress() {
   if (!(await GetProtocolConstants()).psmAddress) {
     throw new Error(`'psmAddress' not set in (await GetProtocolConstants()) ${CONFIG_FILE}`);

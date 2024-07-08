@@ -2,9 +2,15 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { DATA_DIR, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
+import {
+  AuctionHouse__factory,
+  GatewayV12Steps__factory,
+  GatewayV1__factory,
+  UniswapV2Router__factory
+} from '../contracts/types';
 import {
   GetGatewayAddress,
+  GetGatewayAddress2Steps,
   GetNodeConfig,
   GetPSMAddress,
   GetPegTokenAddress,
@@ -77,30 +83,41 @@ async function AuctionBidder() {
 
       const pegToken = await getTokenBySymbol(term.collateralSymbol);
       if (pegToken.flashloanToken) {
+        const flashloanToken = await getTokenBySymbol(pegToken.flashloanToken);
         // 2 step swap
-        // const {
-        //   estimatedProfit,
-        //   swapData,
-        //   routerAddress,
-        //   swapDataToFlashloanedToken,
-        //   routerAddressToFlashloanedToken
-        // } = await checkBidProfitability2Step(SWAP_MODE, term, bidDetail, web3Provider, creditMultiplier);
-        // if (estimatedProfit >= auctionBidderConfig.minProfitPegToken) {
-        //   Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
-        //   await processBid2Step(
-        //     auction,
-        //     term,
-        //     web3Provider,
-        //     auctionBidderConfig.minProfitPegToken,
-        //     routerAddress,
-        //     swapData,
-        //     routerAddressToFlashloanedToken,
-        //     swapDataToFlashloanedToken,
-        //     estimatedProfit
-        //   );
-        //   continue;
-        // }
-        // Log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
+        const {
+          estimatedProfitUsd,
+          flashloanAmount,
+          swapData,
+          routerAddress,
+          swapDataToFlashloanToken,
+          routerAddressToFlashloanToken
+        } = await checkBidProfitability2Step(
+          SWAP_MODE,
+          term.collateralAddress,
+          bidDetail,
+          web3Provider,
+          creditMultiplier,
+          flashloanToken
+        );
+        if (estimatedProfitUsd >= auctionBidderConfig.minProfitUsd) {
+          Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfitUsd}`);
+          await processBid2Step(
+            auction,
+            term,
+            web3Provider,
+            auctionBidderConfig.minProfitUsd,
+            flashloanToken,
+            flashloanAmount,
+            routerAddress,
+            swapData,
+            routerAddressToFlashloanToken,
+            swapDataToFlashloanToken,
+            estimatedProfitUsd
+          );
+          continue;
+        }
+        Log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfitUsd}`);
       } else {
         const { swapData, estimatedProfitUsd, routerAddress } = await checkBidProfitability(
           SWAP_MODE,
@@ -162,7 +179,14 @@ async function checkBidProfitability2Step(
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint,
   flashloanToken: TokenConfig
-): Promise<{ swapData: string; estimatedProfitUsd: number; routerAddress: string }> {
+): Promise<{
+  estimatedProfitUsd: number;
+  flashloanAmount: bigint;
+  swapData: string;
+  routerAddress: string;
+  swapDataToFlashloanToken: string;
+  routerAddressToFlashloanToken: string;
+}> {
   let collateralToken = await getTokenByAddressNoError(termCollateralAddress);
   if (!collateralToken) {
     collateralToken = await GetERC20Infos(web3Provider, termCollateralAddress);
@@ -219,7 +243,14 @@ async function checkBidProfitability2Step(
           flashloanToken.symbol
         }`
     );
-    return { swapData: '', estimatedProfitUsd: 0, routerAddress: '' };
+    return {
+      estimatedProfitUsd: 0,
+      flashloanAmount: 0n,
+      swapData: '',
+      routerAddress: '',
+      swapDataToFlashloanToken: '',
+      routerAddressToFlashloanToken: ''
+    };
   }
 
   // check that the difference between amount obtained using the collateral and flashloan amout
@@ -256,17 +287,24 @@ async function checkBidProfitability2Step(
 
   Log(msg);
 
-  // always return 0 profit if negative
   if (profitUsd < 0) {
-    return { swapData: '', estimatedProfitUsd: 0, routerAddress: '' };
+    return {
+      estimatedProfitUsd: 0,
+      flashloanAmount: 0n,
+      swapData: '',
+      routerAddress: '',
+      swapDataToFlashloanToken: '',
+      routerAddressToFlashloanToken: ''
+    };
   }
-
-  // check if profitability > configured one
 
   return {
     estimatedProfitUsd: profitUsd,
-    swapData: getSwapResult.swapData,
-    routerAddress: getSwapResult.routerAddress
+    flashloanAmount: flashloanAmount,
+    swapData: swapData,
+    routerAddress: routerAddress,
+    swapDataToFlashloanToken: getSwapResult.swapData,
+    routerAddressToFlashloanToken: getSwapResult.routerAddress
   };
 }
 
@@ -554,7 +592,7 @@ async function processBid(
   auction: Auction,
   term: LendingTerm,
   web3Provider: ethers.JsonRpcProvider,
-  minProfit: number,
+  minProfitUsd: number,
   routerAddress: string, // either univ2, 1inch, openocean etc...
   swapData: string,
   estimatedProfitUsd: number
@@ -564,22 +602,99 @@ async function processBid(
   }
   const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
   const gatewayContract = GatewayV1__factory.connect(await GetGatewayAddress(), signer);
-  const minProfitWei = new BigNumber(minProfit)
-    .times(new BigNumber(10).pow((await getTokenByAddress(await GetPegTokenAddress())).decimals))
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
+  const minProfitWei = new BigNumber(minProfitUsd / (await PriceService.GetTokenPrice(pegToken.address)))
+    .times(new BigNumber(10).pow(pegToken.decimals))
     .toString(10);
   const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
     auction.loanId,
     auction.lendingTermAddress,
     GetPSMAddress(),
     term.collateralAddress, // collateralTokenAddress
-    GetPegTokenAddress(), // pegTokenAddress
+    pegToken.address, // pegTokenAddress
     minProfitWei,
     routerAddress,
     swapData,
     { gasLimit: 2_000_000 }
   );
   await txReceipt.wait();
+
+  if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
+    await SendNotifications(
+      'Auction Bidder',
+      `Auction ${auction.loanId} fulfilled`,
+      `Estimated $${estimatedProfitUsd} profit`
+    );
+  }
+}
+
+async function processBid2Step(
+  auction: Auction,
+  term: LendingTerm,
+  web3Provider: ethers.JsonRpcProvider,
+  minProfitUsd: number,
+  flashloanToken: TokenConfig,
+  flashloanAmount: bigint,
+  routerAddress: string,
+  swapData: string,
+  routerAddressToFlashloanToken: string,
+  swapDataToFlashloanToken: string,
+  estimatedProfitUsd: number
+) {
+  if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
+  }
   const pegToken = await getTokenByAddress(await GetPegTokenAddress());
+  const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
+  const gatewayContract = GatewayV12Steps__factory.connect(await GetGatewayAddress2Steps(), signer);
+  const minProfitFlashloanedTokenWei = new BigNumber(
+    minProfitUsd / (await PriceService.GetTokenPrice(flashloanToken.address))
+  )
+    .times(new BigNumber(10).pow(flashloanToken.decimals))
+    .toString(10);
+
+  /*    struct BidWithBalancerFlashLoanInput {
+        bytes32 loanId;
+        address term;
+        address psm;
+        address collateralToken;
+        address pegToken;
+        address flashloanedToken;
+        uint256 flashloanAmount;
+        uint256 minProfit; // in flashloaned token
+        address routerAddress; // this can be null if flashloanedToken is the pegToken
+        bytes routerCallData; // this can be null if flashloanedToken is the pegToken
+        address routerAddressToFlashloanedToken;
+        bytes routerCallDataToFlashloanedToken;
+    }*/
+  const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
+    {
+      loanId: auction.loanId,
+      term: auction.lendingTermAddress,
+      psm: await GetPSMAddress(),
+      collateralToken: term.collateralAddress,
+      pegToken: pegToken.address,
+      flashloanedToken: flashloanToken.address,
+      flashloanAmount: flashloanAmount,
+      minProfit: minProfitFlashloanedTokenWei,
+      routerAddress: routerAddress,
+      routerCallData: swapData,
+      routerAddressToFlashloanedToken: routerAddressToFlashloanToken,
+      routerCallDataToFlashloanedToken: swapDataToFlashloanToken
+    },
+    { gasLimit: 5_000_000 }
+  );
+  //   auction.loanId,
+  //   auction.lendingTermAddress,
+  //   GetPSMAddress(),
+  //   term.collateralAddress, // collateralTokenAddress
+  //   GetPegTokenAddress(), // pegTokenAddress
+  //   minProfitWei,
+  //   routerAddress,
+  //   swapData,
+  //   { gasLimit: 2_000_000 }
+  // );
+  await txReceipt.wait();
 
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
     await SendNotifications(
@@ -683,21 +798,21 @@ async function getKyberSwapDataForPegTokenAmount(
   };
 }
 
-// AuctionBidder();
+AuctionBidder();
 
-async function test() {
-  // peg token is OD, collateral is USDC and flashloaned token is WETH
-  const collateralToken = await getTokenBySymbol('USDC');
-  const pegToken = await getTokenBySymbol('OD');
-  const flashloanToken = await getTokenBySymbol('WETH');
-  const res = await checkBidProfitability2Step(
-    BidderSwapMode.OPEN_OCEAN,
-    collateralToken.address,
-    { collateralReceived: 17_000n * 10n ** 6n, creditAsked: 20_000n * 10n ** 18n },
-    GetWeb3Provider(),
-    10n ** 18n,
-    flashloanToken
-  );
-}
+// async function test() {
+//   // peg token is OD, collateral is USDC and flashloaned token is WETH
+//   const collateralToken = await getTokenBySymbol('USDC');
+//   const pegToken = await getTokenBySymbol('OD');
+//   const flashloanToken = await getTokenBySymbol('WETH');
+//   const res = await checkBidProfitability2Step(
+//     BidderSwapMode.OPEN_OCEAN,
+//     collateralToken.address,
+//     { collateralReceived: 17_000n * 10n ** 6n, creditAsked: 20_000n * 10n ** 18n },
+//     GetWeb3Provider(),
+//     10n ** 18n,
+//     flashloanToken
+//   );
+// }
 
-test();
+// test();
