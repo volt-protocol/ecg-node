@@ -556,7 +556,7 @@ async function getSwapOpenOcean(
     `&amount=${collateralAmountNorm}` +
     `&slippage=${maxSlippage}` +
     `&gasPrice=${gasPrice}` +
-    `&account=${await GetGatewayAddress()}` +
+    `&account=${await GetGatewayAddress2Steps()}` +
     `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
 
   // Log(`getSwapOpenOcean: ${openOceanURL}`);
@@ -771,8 +771,8 @@ async function getKyberSwapDataForPegTokenAmount(
   const dataPost = await HttpPost<any>(urlPost, {
     routeSummary: validData.data.routeSummary,
     slippageTolerance: 0.005 * 10_000, // 0.005 -> 50 (0.5%)
-    sender: await GetGatewayAddress(),
-    recipient: await GetGatewayAddress()
+    sender: await GetGatewayAddress2Steps(),
+    recipient: await GetGatewayAddress2Steps()
   });
 
   const swapLabel = `Swapping ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} => ${norm(
