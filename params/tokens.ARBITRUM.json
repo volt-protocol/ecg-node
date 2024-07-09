@@ -56,6 +56,27 @@
 		"protocolToken": true
 	},
 	{
+		"address": "0x2170eea4D493e53e835d59f8aC559D007bC9A527",
+		"symbol": "gDOLA-6",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x808831eC837534E28A24097122875A6eE39C6A38",
+		"symbol": "gWSTETH-7",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x63Bebf6E5152ddeF1445e24B456f8128a9Fda7fc",
+		"symbol": "gstUSD-8",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
 		"address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 		"symbol": "USDC",
 		"decimals": 6,

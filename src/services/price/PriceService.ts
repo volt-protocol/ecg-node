@@ -123,6 +123,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       promises.push(GetCoinGeckoPriceMulti(genericTokenToFetch));
       promises.push(GetCoinCapPriceMulti(genericTokenToFetch));
       promises.push(GetOpenOceanPriceMulti(genericTokenToFetch));
+      promises.push(GetOdosPriceMulti(genericTokenToFetch));
       if (process.env.DEX_GURU_API_KEY) {
         promises.push(GetDexGuruPriceMulti(genericTokenToFetch));
       }
@@ -527,13 +528,12 @@ async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
         (_) => _.address.toLowerCase() == (token.mainnetAddress || token.address).toLowerCase()
       );
 
-      if (foundAsset) {
+      if (foundAsset && foundAsset.price_usd != 0) {
         prices[token.address] = foundAsset.price_usd;
+        Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
       } else {
-        prices[token.address] = 0;
+        Log(`GetDexGuruPriceMulti: ignoring price ${prices[token.address]} for token ${token.symbol}`);
       }
-
-      Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
     }
   } catch (e) {
     Warn('Exception calling DexGuru price api', e);
@@ -579,13 +579,12 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
     for (const token of tokens) {
       const foundPrice = oneInchPriceResponse[(token.mainnetAddress || token.address).toLowerCase()];
 
-      if (foundPrice != undefined) {
+      if (foundPrice != undefined && Number(foundPrice) != 0) {
         prices[token.address] = Number(foundPrice);
+        Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
       } else {
-        prices[token.address] = 0;
+        Log(`GetOneInchPriceMulti: ignoring price ${foundPrice} for token ${token.symbol}`);
       }
-
-      Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
     }
   } catch (e) {
     Warn('Exception calling 1inch price api', e);
@@ -599,6 +598,43 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
   }
 
   return { source: '1INCH', prices: prices };
+}
+
+async function GetOdosPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  try {
+    const tokenAddresses = tokens.map((_) => _.mainnetAddress || _.address);
+    const chainid = NETWORK == 'ARBITRUM' ? 42161 : 1;
+    const url = `https://api.odos.xyz/pricing/token/${chainid}`;
+
+    const odoPriceResponse = await HttpGet<{ currencyId: string; tokenPrices: { [tokenAddress: string]: number } }>(
+      url,
+      3
+    );
+
+    for (const token of tokens) {
+      const foundPrice = odoPriceResponse.tokenPrices[token.mainnetAddress || token.address];
+
+      if (foundPrice != undefined && foundPrice != 0) {
+        prices[token.address] = foundPrice;
+        Log(`GetOdosPriceMulti: price for ${token.symbol} from odos: $${prices[token.address]}`);
+      } else {
+        Log(`GetOdosPriceMulti: ignoring price ${foundPrice} for token ${token.symbol}`);
+      }
+    }
+  } catch (e) {
+    Warn('Exception calling odos price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetOdosPriceMulti: price for ${token.symbol} from odos: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return { source: 'ODOS', prices: prices };
 }
 
 async function getODPriceCamelot(): Promise<number> {
