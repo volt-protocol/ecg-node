@@ -194,7 +194,7 @@ export async function GetGatewayAddress() {
 }
 
 export async function GetGatewayAddress2Steps() {
-  return '0x0D0DA938b0cde4ce9f5c1398BBb0bFa8434D32a0';
+  return '0xceb5F6D4568a61B427303B0921bbCCF74AA07F72';
 }
 
 export async function GetPSMAddress() {

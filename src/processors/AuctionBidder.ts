@@ -34,7 +34,7 @@ import { PendleSwapResponse } from '../model/PendleApi';
 import { TokenConfig } from '../model/Config';
 import PriceService from '../services/price/PriceService';
 
-const RUN_EVERY_SEC = 15;
+const RUN_EVERY_SEC = 60;
 let lastCall1Inch = 0;
 let lastCallPendle = 0;
 
@@ -81,7 +81,7 @@ async function AuctionBidder() {
         continue;
       }
 
-      const pegToken = await getTokenBySymbol(term.collateralSymbol);
+      const pegToken = await getTokenByAddress(await GetPegTokenAddress());
       if (pegToken.flashloanToken) {
         const flashloanToken = await getTokenBySymbol(pegToken.flashloanToken);
         // 2 step swap
@@ -235,10 +235,10 @@ async function checkBidProfitability2Step(
   // check the second swap give enough to reimburse the flashloan
   if (getSwapResult.toTokenReceivedWei < flashloanAmount) {
     Log(
-      'Not enough peg token received swapping ' +
+      'Not enough flashloan token received swapping' +
         ` ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${collateralToken.symbol}` +
         ` for ${flashloanToken.symbol}. ` +
-        `Received ${norm(getSwapResult.toTokenReceivedWei, flashloanToken.decimals)} ` +
+        `Receiving ${norm(getSwapResult.toTokenReceivedWei, flashloanToken.decimals)} ` +
         `${flashloanToken.symbol} while needing to flashloan ${norm(flashloanAmount, flashloanToken.decimals)} ${
           flashloanToken.symbol
         }`
@@ -667,33 +667,23 @@ async function processBid2Step(
         address routerAddressToFlashloanedToken;
         bytes routerCallDataToFlashloanedToken;
     }*/
-  const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
-    {
-      loanId: auction.loanId,
-      term: auction.lendingTermAddress,
-      psm: await GetPSMAddress(),
-      collateralToken: term.collateralAddress,
-      pegToken: pegToken.address,
-      flashloanedToken: flashloanToken.address,
-      flashloanAmount: flashloanAmount,
-      minProfit: minProfitFlashloanedTokenWei,
-      routerAddress: routerAddress,
-      routerCallData: swapData,
-      routerAddressToFlashloanedToken: routerAddressToFlashloanToken,
-      routerCallDataToFlashloanedToken: swapDataToFlashloanToken
-    },
-    { gasLimit: 5_000_000 }
-  );
-  //   auction.loanId,
-  //   auction.lendingTermAddress,
-  //   GetPSMAddress(),
-  //   term.collateralAddress, // collateralTokenAddress
-  //   GetPegTokenAddress(), // pegTokenAddress
-  //   minProfitWei,
-  //   routerAddress,
-  //   swapData,
-  //   { gasLimit: 2_000_000 }
-  // );
+
+  const struct = {
+    loanId: auction.loanId,
+    term: auction.lendingTermAddress,
+    psm: await GetPSMAddress(),
+    collateralToken: term.collateralAddress,
+    pegToken: pegToken.address,
+    flashloanedToken: flashloanToken.address,
+    flashloanAmount: flashloanAmount,
+    minProfit: minProfitFlashloanedTokenWei,
+    routerAddress: routerAddress,
+    routerCallData: swapData,
+    routerAddressToFlashloanedToken: routerAddressToFlashloanToken,
+    routerCallDataToFlashloanedToken: swapDataToFlashloanToken
+  };
+
+  const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(struct, { gasLimit: 5_000_000 });
   await txReceipt.wait();
 
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
@@ -801,18 +791,28 @@ async function getKyberSwapDataForPegTokenAmount(
 AuctionBidder();
 
 // async function test() {
-//   // peg token is OD, collateral is USDC and flashloaned token is WETH
-//   const collateralToken = await getTokenBySymbol('USDC');
-//   const pegToken = await getTokenBySymbol('OD');
-//   const flashloanToken = await getTokenBySymbol('WETH');
-//   const res = await checkBidProfitability2Step(
-//     BidderSwapMode.OPEN_OCEAN,
-//     collateralToken.address,
-//     { collateralReceived: 17_000n * 10n ** 6n, creditAsked: 20_000n * 10n ** 18n },
-//     GetWeb3Provider(),
-//     10n ** 18n,
-//     flashloanToken
+//   const data = '';
+
+//   const abiCoder = new ethers.AbiCoder();
+//   const decoded = abiCoder.decode(
+//     ['(bytes32,address,address,address,address,address,uint256,uint256,address,bytes,address,bytes)'],
+//     data
 //   );
+
+//   console.log(decoded);
+
+//   // // peg token is OD, collateral is USDC and flashloaned token is WETH
+//   // const collateralToken = await getTokenBySymbol('USDC');
+//   // const pegToken = await getTokenBySymbol('WETH');
+//   // const flashloanToken = await getTokenBySymbol('DAI');
+//   // const res = await checkBidProfitability2Step(
+//   //   BidderSwapMode.OPEN_OCEAN,
+//   //   collateralToken.address,
+//   //   { collateralReceived: 4_000n * 10n ** 6n, creditAsked: 10n ** 18n },
+//   //   GetWeb3Provider(),
+//   //   10n ** 18n,
+//   //   flashloanToken
+//   // );
 // }
 
 // test();
