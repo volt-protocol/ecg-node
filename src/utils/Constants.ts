@@ -32,3 +32,5 @@ export const PENDLE_ORACLES: { [network: string]: string } = {
 
 export const GET_PRICES_FROM_API = process.env.GET_PRICES_FROM_API == 'true' ? true : false;
 export const ECG_NODE_API_URI = process.env.ECG_NODE_API_URI;
+
+export const BN_1e18 = 10n ** 18n;

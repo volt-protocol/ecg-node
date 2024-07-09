@@ -112,7 +112,6 @@
 		"decimals": 18,
 		"permitAllowed": true,
 		"protocolToken": false,
-		"flashloanToken": "DAI",
 		"dexConfiguration": {
 			"dex": "UNISWAP_V3",
 			"viaWETH": false,
