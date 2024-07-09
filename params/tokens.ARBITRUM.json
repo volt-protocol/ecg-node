@@ -261,7 +261,7 @@
 		"decimals": 18,
 		"permitAllowed": true,
 		"protocolToken": false,
-		"coingeckoId": "angle-staked-agusd",
+		"coingeckoId": "",
 		"coincapId": ""
 	},
 	{
