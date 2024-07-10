@@ -29,7 +29,7 @@
         "AUCTION_BIDDER": {
             "enabled": false,
             "enableForgive": true,
-            "minProfitPegToken": 200
+            "minProfitUsd": 5
         },
         "TESTNET_MARKET_MAKER": {
             "enabled": false,
