@@ -29,7 +29,7 @@
         "AUCTION_BIDDER": {
             "enabled": true,
             "enableForgive": true,
-            "minProfitPegToken": 0.5
+            "minProfitUsd": 5
         },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true

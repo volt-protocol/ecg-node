@@ -34,7 +34,7 @@
         "AUCTION_BIDDER": {
             "enabled": true,
             "enableForgive": true,
-            "minProfitUsd": 0.1
+            "minProfitUsd": 5
         },
         "HISTORICAL_DATA_FETCHER": {
             "enabled": true
