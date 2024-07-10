@@ -54,7 +54,7 @@
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": false,
+            "enabled": true,
             "enableForgive": true,
             "minProfitPegToken": 0.000057
         },
