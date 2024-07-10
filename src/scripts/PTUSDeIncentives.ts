@@ -114,7 +114,7 @@ async function computeIncentives() {
       }
 
       if (!usersData[event.args.borrower]) {
-        usersData[event.args.borrower] = { amountPtUsde: 0, currentWeight: 0 };
+        throw new Error(`User ${event.args.borrower} not found in user data but we got a loan close event`);
       }
       usersData[event.args.borrower].amountPtUsde -= norm(loan.collateralAmount);
     }
