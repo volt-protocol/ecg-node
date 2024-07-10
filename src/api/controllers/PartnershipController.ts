@@ -5,7 +5,7 @@ import {
   LendingTermLens__factory,
   LendingTerm__factory
 } from '../../contracts/types';
-import { GetArchiveWeb3Provider } from '../../utils/Web3Helper';
+import { GetArchiveWeb3Provider, FetchAllEventsMulti } from '../../utils/Web3Helper';
 import { EtherfiResponse } from '../model/PartnershipResponse';
 import LendingTerm, { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { readdirSync } from 'fs';
@@ -16,6 +16,12 @@ import { Loan, LoansFileStructure } from '../../model/Loan';
 import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
 import { getTokenByAddress } from '../../config/Config';
+import { HttpGet } from '../../utils/HttpHelper';
+
+interface UserData {
+  amountPtUsde: number;
+  currentWeight: number;
+}
 
 class PartnershipController {
   static async GetCollateralData(
@@ -119,6 +125,133 @@ class PartnershipController {
 
     return response;
   }
+
+  static async GetBorrowerWeightsData(
+    collateralToken: string,
+    startDate: string,
+    endDate: string
+  ): Promise<any> {
+    const { allTerms, allLoans } = getAllTermsFromFile();
+
+    const collateralTerms = allTerms.filter((_) => _.collateralAddress.toLowerCase() == collateralToken.toLowerCase());
+    const loansWithCollateral = allLoans.filter((loan) =>
+      collateralTerms.map((t) => t.termAddress).includes(loan.lendingTermAddress)
+    );
+
+    const archivalProvider = GetArchiveWeb3Provider();
+    const multicallProvider = MulticallWrapper.wrap(archivalProvider, 480_000);
+
+    const startBlock = await getBlockAtTimestamp('arbitrum', new Date(startDate).getTime() / 1000);
+    const endBlock = await getBlockAtTimestamp('arbitrum', new Date(endDate).getTime() / 1000);
+
+    const usersData: { [userAddress: string]: UserData } = {};
+
+    // get base data at startDate
+    // to do that we fetch the getLoan historically for ALL THE LOANS
+    // if a loan does not exists yet, it will just return the default value (empty getLoanData)
+    const promises = [];
+    for (const loan of loansWithCollateral) {
+      const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
+      promises.push(lendingTermContract.getLoan(loan.id, { blockTag: startBlock }));
+    }
+
+    const results = await Promise.all(promises);
+
+    for (let i = 0; i < loansWithCollateral.length; i++) {
+      const loan = loansWithCollateral[i];
+      const loanResult = results[i];
+      // only sum collateral for non closed loans
+      if (loanResult.closeTime == 0n) {
+        const normalizedAmount = norm(loanResult.collateralAmount);
+        if (!usersData[loan.borrowerAddress]) {
+          usersData[loan.borrowerAddress] = { amountPtUsde: 0, currentWeight: 0 };
+        }
+
+        usersData[loan.borrowerAddress].amountPtUsde += normalizedAmount;
+      }
+    }
+
+    // here we have all the borrowers with their amount of pt-usde at startDate
+    //console.log(`At block ${startBlock}, current weights:`, usersData);
+
+    // fetch all loan open / loan close events from all terms
+    const termContractInterface = LendingTerm__factory.createInterface();
+
+    const filters = [
+      termContractInterface.encodeFilterTopics('LoanOpen', []).toString(),
+      termContractInterface.encodeFilterTopics('LoanClose', []).toString()
+    ];
+
+    const loanEvents = await FetchAllEventsMulti(
+      termContractInterface,
+      collateralTerms.map((_) => _.termAddress),
+      [filters],
+      startBlock,
+      endBlock,
+      archivalProvider
+    );
+    // console.log(loanEvents);
+
+    // here, we have all the loan open / loan close events for all the terms
+    // we can now update usersData for each event in the correct order (of received events, already sorted), thanks ethers
+
+    let lastComputeBlock = startBlock;
+    for (const event of loanEvents) {
+      const eventBlock = event.blockNumber;
+      const nbElapsedBlocks = eventBlock - lastComputeBlock;
+
+      // if two events are in the same block, we don't compute weight two time
+      if (nbElapsedBlocks > 0) {
+        // compute time weighted avg with each user holding (before applying new data from this event)
+        for (const user of Object.keys(usersData)) {
+          usersData[user].currentWeight += usersData[user].amountPtUsde * nbElapsedBlocks;
+        }
+
+        //console.log(`At block ${eventBlock}, current weights:`, usersData);
+
+        lastComputeBlock = eventBlock;
+      }
+
+      // in any case, update users data, even if two events in the same block
+      // and update usersData for this event
+      if (event.logName == 'LoanOpen') {
+        // new loan so we add the amount to the amount of pt usde the user has
+        if (!usersData[event.args.borrower]) {
+          usersData[event.args.borrower] = { amountPtUsde: 0, currentWeight: 0 };
+        }
+
+        usersData[event.args.borrower].amountPtUsde += norm(event.args.collateralAmount);
+      } else if (event.logName == 'LoanClose') {
+        // loan closed so we remove the amount from the amount of pt usde the user has
+        // but the collateral amount is not in the event, so we'll get it from the loans list we have
+        const loan = loansWithCollateral.find((_) => _.id == event.args.loanId);
+        if (!loan) {
+          throw new Error(`Loan ${event.args.loanId} not found`);
+        }
+
+        if (!usersData[event.args.borrower]) {
+          throw new Error(`User ${event.args.borrower} not found in user data but we got a loan close event`);
+        }
+        usersData[event.args.borrower].amountPtUsde -= norm(loan.collateralAmount);
+      }
+    }
+
+    // in the end, compute for last block
+    if (lastComputeBlock < endBlock) {
+      const nbElapsedBlocks = endBlock - lastComputeBlock;
+      // compute time weighted avg with each user holding (before applying new data from this event)
+      for (const user of Object.keys(usersData)) {
+        usersData[user].currentWeight += usersData[user].amountPtUsde * nbElapsedBlocks;
+      }
+    }
+
+    const result = Object.keys(usersData).reduce(function (result: any, userAddress) {
+      result[userAddress] = result[userAddress] || 0;
+      result[userAddress] += Math.round(usersData[userAddress].currentWeight);
+      return result;
+    }, {});
+    return result;
+  }
 }
 export default PartnershipController;
 
@@ -143,4 +276,15 @@ function getAllTermsFromFile(): { allTerms: LendingTerm[]; allLoans: Loan[] } {
   }
 
   return { allTerms: terms, allLoans: loans };
+}
+
+interface BlockResponse {
+  height: number;
+  timestamp: number;
+}
+
+// Function to get the block at a specific timestamp
+async function getBlockAtTimestamp(chain: string, timestamp: number): Promise<number> {
+  const response = await HttpGet<BlockResponse>(`https://coins.llama.fi/block/${chain}/${timestamp}`);
+  return response.height;
 }
