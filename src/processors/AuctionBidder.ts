@@ -25,7 +25,7 @@ import { TokenConfig } from '../model/Config';
 import PriceService from '../services/price/PriceService';
 import SwapService from '../services/swap/SwapService';
 
-const RUN_EVERY_SEC = 60;
+const RUN_EVERY_SEC = 15;
 
 let GATEWAY_ADDRESS = '';
 let PEG_TOKEN: TokenConfig;
@@ -36,6 +36,8 @@ async function AuctionBidder() {
     process.title = 'ECG_NODE_AUCTION_BIDDER';
     Log(`starting with swap mode: ${SWAP_MODE}`);
     const auctionBidderConfig = (await GetNodeConfig()).processors.AUCTION_BIDDER;
+    const creditMultiplier = GetProtocolData().creditMultiplier;
+    GATEWAY_ADDRESS = await GetGatewayAddress2Steps();
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
@@ -47,13 +49,10 @@ async function AuctionBidder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-
-    const creditMultiplier = GetProtocolData().creditMultiplier;
-
+    PEG_TOKEN = await getTokenByAddress(await GetPegTokenAddress());
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
     Log(`Will check ${auctionsToCheck.length} auctions`);
 
-    GATEWAY_ADDRESS = await GetGatewayAddress2Steps();
     for (const auction of auctionsToCheck) {
       const term = termFileData.terms.find((_) => _.termAddress == auction.lendingTermAddress);
       if (!term) {
@@ -72,7 +71,6 @@ async function AuctionBidder() {
         continue;
       }
 
-      PEG_TOKEN = await getTokenByAddress(await GetPegTokenAddress());
       const flashloanToken = PEG_TOKEN.flashloanToken ? await getTokenBySymbol(PEG_TOKEN.flashloanToken) : PEG_TOKEN;
       // 2 step swap
       const {
