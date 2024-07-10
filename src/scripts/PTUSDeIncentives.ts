@@ -26,9 +26,13 @@ async function computeIncentives() {
 
   const usersData: { [userAddress: string]: UserData } = {};
   // get all terms with pt-usde as collateral
+  // allTerms and allLoans contains ALL the terms and loan for ptusde at the most recent block (fetch the most recent data from ecg-node-1)
+  // so we have all the terms (live & not live) and all the loans (open and closed)
   const { allTerms, allLoans } = getAllTermsFromFile();
-  // get base data at startDate
 
+  // get base data at startDate
+  // to do that we fetch the getLoan historically for ALL THE LOANS
+  // if a loan does not exists yet, it will just return the default value (empty getLoanData)
   const promises = [];
   for (const loan of allLoans) {
     const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
@@ -55,10 +59,7 @@ async function computeIncentives() {
   console.log(`At block ${startBlock}, current weights:`, usersData);
 
   // fetch all loan open / loan close events from all terms
-
   const termContractInterface = LendingTerm__factory.createInterface();
-  const loanOpenTopic = termContractInterface.encodeFilterTopics('LoanOpen', []);
-  const loanCloseTopic = termContractInterface.encodeFilterTopics('LoanClose', []);
 
   const filters = [
     termContractInterface.encodeFilterTopics('LoanOpen', []).toString(),
@@ -75,11 +76,15 @@ async function computeIncentives() {
   );
   // console.log(loanEvents);
 
-  // compute time weighted avg
+  // here, we have all the loan open / loan close events for all the terms
+  // we can now update usersData for each event in the correct order (of received events, already sorted), thanks ethers
+
   let lastComputeBlock = startBlock;
   for (const event of loanEvents) {
     const eventBlock = event.blockNumber;
     const nbElapsedBlocks = eventBlock - lastComputeBlock;
+
+    // if two events are in the same block, we don't compute weight two time
     if (nbElapsedBlocks > 0) {
       // compute time weighted avg with each user holding (before applying new data from this event)
       for (const user of Object.keys(usersData)) {
@@ -91,6 +96,7 @@ async function computeIncentives() {
       lastComputeBlock = eventBlock;
     }
 
+    // in any case, update users data, even if two events in the same block
     // and update usersData for this event
     if (event.logName == 'LoanOpen') {
       // new loan so we add the amount to the amount of pt usde the user has
@@ -106,6 +112,7 @@ async function computeIncentives() {
       if (!loan) {
         throw new Error(`Loan ${event.args.loanId} not found`);
       }
+
       if (!usersData[event.args.borrower]) {
         usersData[event.args.borrower] = { amountPtUsde: 0, currentWeight: 0 };
       }
