@@ -1,5 +1,4 @@
 import { MulticallWrapper } from 'ethers-multicall-provider';
-import { GatewayV12__factory } from '../contracts/types';
 import { GetWeb3Provider } from '../utils/Web3Helper';
 import { GetAllTokensFromConfiguration, GetFullConfigFile } from '../config/Config';
 import { HttpGet } from '../utils/HttpHelper';
@@ -9,6 +8,7 @@ import { AuctionHousesFileStructure } from '../model/AuctionHouse';
 import { ReadJSON } from '../utils/Utils';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 import { SendNotifications, SendNotificationsList } from '../utils/Notifications';
+import { GatewayV12__factory } from '../contracts/types';
 
 const routers = [
   '0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24', // uniswap

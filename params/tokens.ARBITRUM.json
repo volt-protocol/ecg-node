@@ -256,7 +256,8 @@
 		"permitAllowed": true,
 		"protocolToken": false,
 		"coingeckoId": "open-dollar",
-		"coincapId": ""
+		"coincapId": "",
+		"flashloanToken": "WETH"
 	},
 	{
 		"address": "0x000D636bD52BFc1B3a699165Ef5aa340BEA8939c",

@@ -1,34 +1,34 @@
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
-import { DATA_DIR, SWAP_MODE } from '../utils/Constants';
+import { BN_1e18, DATA_DIR, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import { AuctionHouse__factory, GatewayV1__factory, UniswapV2Router__factory } from '../contracts/types';
+import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
 import {
   GetGatewayAddress,
   GetNodeConfig,
   GetPSMAddress,
   GetPegTokenAddress,
-  GetUniswapV2RouterAddress,
   getTokenByAddress,
-  getTokenByAddressNoError
+  getTokenByAddressNoError,
+  getTokenBySymbol
 } from '../config/Config';
 import { JsonRpcProvider, ethers } from 'ethers';
 import LendingTerm, { LendingTermsFileStructure } from '../model/LendingTerm';
 import { norm } from '../utils/TokenUtils';
 import { SendNotifications } from '../utils/Notifications';
-import { GetAvgGasPrice, GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
+import { GetERC20Infos, GetWeb3Provider } from '../utils/Web3Helper';
 import { Log, Warn } from '../utils/Logger';
 import { BidderSwapMode } from '../model/NodeConfig';
-import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../model/OpenOceanApi';
-import { OneInchSwapResponse } from '../model/OneInchApi';
-import { HttpGet } from '../utils/HttpHelper';
+import { HttpGet, HttpPost } from '../utils/HttpHelper';
 import BigNumber from 'bignumber.js';
-import { PendleSwapResponse } from '../model/PendleApi';
 import { TokenConfig } from '../model/Config';
+import PriceService from '../services/price/PriceService';
+import SwapService from '../services/swap/SwapService';
 
 const RUN_EVERY_SEC = 15;
-let lastCall1Inch = 0;
-let lastCallPendle = 0;
+
+let GATEWAY_ADDRESS = '';
+let PEG_TOKEN: TokenConfig;
 
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
@@ -36,12 +36,13 @@ async function AuctionBidder() {
     process.title = 'ECG_NODE_AUCTION_BIDDER';
     Log(`starting with swap mode: ${SWAP_MODE}`);
     const auctionBidderConfig = (await GetNodeConfig()).processors.AUCTION_BIDDER;
+    const creditMultiplier = GetProtocolData().creditMultiplier;
+    GATEWAY_ADDRESS = await GetGatewayAddress();
+    PEG_TOKEN = await getTokenByAddress(await GetPegTokenAddress());
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
 
-    // wait for unlock just before reading data file
-    // await FileMutex.WaitForUnlock();
     const auctionFileData: AuctionsFileStructure = ReadJSON(auctionsFilename);
     const termFileData: LendingTermsFileStructure = ReadJSON(termsFilename);
 
@@ -49,9 +50,6 @@ async function AuctionBidder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-
-    const creditMultiplier = GetProtocolData().creditMultiplier;
-
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
     Log(`Will check ${auctionsToCheck.length} auctions`);
 
@@ -73,29 +71,42 @@ async function AuctionBidder() {
         continue;
       }
 
-      const { swapData, estimatedProfit, routerAddress } = await checkBidProfitability(
-        SWAP_MODE,
-        term,
+      const flashloanToken = PEG_TOKEN.flashloanToken ? await getTokenBySymbol(PEG_TOKEN.flashloanToken) : PEG_TOKEN;
+      // 2 step swap
+      const {
+        estimatedProfitUsd,
+        flashloanAmount,
+        swapData,
+        routerAddress,
+        swapDataToFlashloanToken,
+        routerAddressToFlashloanToken
+      } = await checkBidProfitability(
+        term.collateralAddress,
         bidDetail,
         web3Provider,
-        creditMultiplier
+        creditMultiplier,
+        flashloanToken
       );
-
-      if (estimatedProfit >= auctionBidderConfig.minProfitPegToken) {
-        Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfit}`);
+      if (estimatedProfitUsd >= auctionBidderConfig.minProfitUsd) {
+        Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfitUsd}`);
         await processBid(
           auction,
           term,
           web3Provider,
-          auctionBidderConfig.minProfitPegToken,
+          auctionBidderConfig.minProfitUsd,
+          flashloanToken,
+          flashloanAmount,
           routerAddress,
           swapData,
-          estimatedProfit
+          routerAddressToFlashloanToken,
+          swapDataToFlashloanToken,
+          estimatedProfitUsd
         );
         continue;
       }
-
-      Log(`AuctionBidder[${auction.loanId}]: do not bid, profit too low: ${estimatedProfit}`);
+      Log(
+        `AuctionBidder[${auction.loanId}]: do not bid, profit too low: $${estimatedProfitUsd}. (min profit: $${auctionBidderConfig.minProfitUsd})`
+      );
     }
 
     await sleep(RUN_EVERY_SEC * 1000);
@@ -126,297 +137,187 @@ async function getBidDetails(
 }
 
 async function checkBidProfitability(
-  swapMode: BidderSwapMode,
-  term: LendingTerm,
+  termCollateralAddress: string,
   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
   web3Provider: ethers.JsonRpcProvider,
-  creditMultiplier: bigint
-): Promise<{ swapData: string; estimatedProfit: number; routerAddress: string }> {
-  let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
+  creditMultiplier: bigint,
+  flashloanToken: TokenConfig
+): Promise<{
+  estimatedProfitUsd: number;
+  flashloanAmount: bigint;
+  swapData: string;
+  routerAddress: string;
+  swapDataToFlashloanToken: string;
+  routerAddressToFlashloanToken: string;
+}> {
+  let collateralToken = await getTokenByAddressNoError(termCollateralAddress);
   if (!collateralToken) {
-    collateralToken = await GetERC20Infos(web3Provider, term.collateralAddress);
+    collateralToken = await GetERC20Infos(web3Provider, termCollateralAddress);
     Warn(
-      `Token ${term.collateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
+      `Token ${termCollateralAddress} not found in config. ERC20 infos: ${collateralToken.symbol} / ${collateralToken.decimals} decimals`
     );
   }
 
-  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
+  const creditAskedInPegToken = (bidDetail.creditAsked * creditMultiplier) / BN_1e18;
+  let flashloanAmountInFlashloanToken = creditAskedInPegToken;
+  const flashloanToPegTokenSwapResults = {
+    swapData: '0x',
+    routerAddress: ethers.ZeroAddress,
+    swapLabel: ''
+  };
+
+  if (flashloanToken.address != PEG_TOKEN.address) {
+    // get the swap data to flashloan "flashloanToken" so that we can swap to pegToken
+    const { swapData, routerAddress, flashloanAmount, swapLabel } = await getKyberSwapDataForPegTokenAmount(
+      PEG_TOKEN,
+      flashloanToken,
+      creditAskedInPegToken
+    );
+    flashloanToPegTokenSwapResults.swapData = swapData;
+    flashloanToPegTokenSwapResults.routerAddress = routerAddress;
+    flashloanToPegTokenSwapResults.swapLabel = swapLabel;
+    flashloanAmountInFlashloanToken = flashloanAmount;
+  }
 
   let getSwapFunction;
   // specific case for pendle, use pendle amm
   if (collateralToken.pendleConfiguration) {
-    getSwapFunction = getSwapPendle;
+    getSwapFunction = SwapService.GetSwapPendle;
   } else {
-    switch (swapMode) {
+    switch (SWAP_MODE) {
       default:
-        throw new Error(`${swapMode} not implemented`);
+        throw new Error(`${SWAP_MODE} not implemented`);
       case BidderSwapMode.ONE_INCH:
-        getSwapFunction = getSwap1Inch;
+        getSwapFunction = SwapService.GetSwap1Inch;
         break;
       case BidderSwapMode.OPEN_OCEAN:
-        getSwapFunction = getSwapOpenOcean;
+        getSwapFunction = SwapService.GetSwapOpenOcean;
         break;
       case BidderSwapMode.UNISWAPV2:
-        getSwapFunction = getSwapUniv2;
+        getSwapFunction = SwapService.GetSwapUniv2;
         break;
     }
   }
 
-  const getSwapResult = await getSwapFunction(collateralToken, pegToken, bidDetail.collateralReceived, web3Provider);
-
-  const amountPegToken = norm(getSwapResult.pegTokenReceivedWei, pegToken.decimals);
-  const creditCostInPegToken = norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n);
-
-  Log(
-    `checkBidProfitability: bidding cost: ${creditCostInPegToken} ${pegToken.symbol}, gains: ${amountPegToken} ${
-      pegToken.symbol
-    }. PnL: ${amountPegToken - creditCostInPegToken} ${pegToken.symbol}`
+  const collateralToFlashloanTokenSwapResults = await getSwapFunction(
+    collateralToken,
+    flashloanToken,
+    bidDetail.collateralReceived,
+    web3Provider,
+    GATEWAY_ADDRESS
   );
 
-  // always return 0 profit if negative
-  if (creditCostInPegToken > amountPegToken) {
-    return { swapData: '', estimatedProfit: 0, routerAddress: '' };
+  const amountFlashloanTokenReceivedUsd =
+    norm(collateralToFlashloanTokenSwapResults.toTokenReceivedWei, flashloanToken.decimals) *
+    (await PriceService.GetTokenPrice(flashloanToken.address));
+  const creditCostUsd =
+    norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n) *
+    (await PriceService.GetTokenPrice(PEG_TOKEN.address));
+
+  const profitUsd = amountFlashloanTokenReceivedUsd - creditCostUsd;
+
+  let msg = `Auction details (${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
+    collateralToken.symbol
+  } for ${norm(creditAskedInPegToken)} ${PEG_TOKEN.symbol})\n`;
+  if (flashloanToken.address == PEG_TOKEN.address) {
+    msg +=
+      `Bid in 1 step via ${flashloanToken.symbol} flashloan\n` +
+      `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
+        collateralToken.symbol
+      }\n` +
+      `\t - ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
+      `\t - Reimburse flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
+      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
+        amountFlashloanTokenReceivedUsd - creditCostUsd
+      }` +
+      (profitUsd < 0 ? '\nNOT BIDDING' : '');
+  } else {
+    msg +=
+      `Bid in 2 steps via ${flashloanToken.symbol} flashloan\n` +
+      `\t - Flashloan ${norm(flashloanAmountInFlashloanToken, flashloanToken.decimals)} ${flashloanToken.symbol}\n` +
+      `\t - ${flashloanToPegTokenSwapResults.swapLabel}\n` +
+      `\t - Bid to get ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
+        collateralToken.symbol
+      }. Cost: ${norm(bidDetail.creditAsked, 18)} g${PEG_TOKEN.symbol}\n` +
+      `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
+      `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
+      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
+        amountFlashloanTokenReceivedUsd - creditCostUsd
+      }` +
+      (profitUsd < 0 ? '\nNOT BIDDING' : '');
   }
 
-  // check if profitability > configured one
-  const profitPegToken = amountPegToken - creditCostInPegToken;
+  Log(msg);
+
+  if (profitUsd < 0) {
+    return {
+      estimatedProfitUsd: 0,
+      flashloanAmount: 0n,
+      swapData: '',
+      routerAddress: '',
+      swapDataToFlashloanToken: '',
+      routerAddressToFlashloanToken: ''
+    };
+  }
 
   return {
-    estimatedProfit: profitPegToken,
-    swapData: getSwapResult.swapData,
-    routerAddress: getSwapResult.routerAddress
+    estimatedProfitUsd: profitUsd,
+    flashloanAmount: flashloanAmountInFlashloanToken,
+    routerAddress: flashloanToPegTokenSwapResults.routerAddress,
+    swapData: flashloanToPegTokenSwapResults.swapData,
+    swapDataToFlashloanToken: collateralToFlashloanTokenSwapResults.swapData,
+    routerAddressToFlashloanToken: collateralToFlashloanTokenSwapResults.routerAddress
   };
-}
-
-async function getSwapUniv2(
-  collateralToken: TokenConfig,
-  pegToken: TokenConfig,
-  collateralReceivedWei: bigint,
-  web3Provider: ethers.JsonRpcProvider
-): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
-  const univ2RouterAddress = await GetUniswapV2RouterAddress();
-  const uniswapRouterContract = UniswapV2Router__factory.connect(univ2RouterAddress, web3Provider);
-
-  const path = [collateralToken.address, pegToken.address];
-  const swapData = uniswapRouterContract.interface.encodeFunctionData('swapExactTokensForTokens', [
-    collateralReceivedWei, // amountIn
-    0n, // minAmountOut ==> no need because we'll check the minProfit in the gateway
-    path, // path, collateral=>pegToken
-    await GetGatewayAddress(), // to gateway
-    Math.round(Date.now() / 1000) + 120 // deadline in 2 minutes
-  ]);
-
-  // find the amount of pegToken that can be obtained by selling 'collateralReceivedWei' of collateralToken
-  const amountsOut = await uniswapRouterContract.getAmountsOut(collateralReceivedWei, [
-    collateralToken.address,
-    pegToken.address
-  ]);
-
-  return {
-    pegTokenReceivedWei: amountsOut[1],
-    swapData,
-    routerAddress: univ2RouterAddress
-  };
-}
-
-async function getSwapPendle(
-  collateralToken: TokenConfig,
-  pegToken: TokenConfig,
-  collateralReceivedWei: bigint,
-  web3Provider: ethers.JsonRpcProvider
-): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
-  const chainId = (await web3Provider.getNetwork()).chainId;
-  const pendleConf = collateralToken.pendleConfiguration;
-  if (!pendleConf) {
-    throw new Error(`Cannot find pendle configuration for token ${collateralToken.address} ${collateralToken.symbol}`);
-  }
-
-  const expiryDate = new Date(pendleConf.expiry);
-  const pendleHostedSdkUrl =
-    expiryDate.getTime() < Date.now()
-      ? `https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=${chainId}` +
-        `&receiverAddr=${await GetGatewayAddress()}` +
-        `&ytAddr=${pendleConf.ytAddress}` +
-        `&amountPyIn=${collateralReceivedWei.toString()}` +
-        `&tokenOutAddr=${pegToken.address}` +
-        `&syTokenOutAddr=${pendleConf.syTokenOut}` +
-        '&slippage=0.005'
-      : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-        `chainId=${chainId}` +
-        `&receiverAddr=${await GetGatewayAddress()}` +
-        `&marketAddr=${pendleConf.market}` +
-        `&amountPtIn=${collateralReceivedWei.toString()}` +
-        `&tokenOutAddr=${pegToken.address}` +
-        `&syTokenOutAddr=${pendleConf.syTokenOut}` +
-        `&excludedSources=${getPendleExcludedProtocols(chainId)}` +
-        '&slippage=0.05';
-
-  Log(`pendle url: ${pendleHostedSdkUrl}`);
-  const msToWait = 6000 - (Date.now() - lastCallPendle); // 1 call every 6 seconds
-  if (msToWait > 0) {
-    Log(`Waiting ${msToWait} ms before calling pendle api`);
-    await sleep(msToWait);
-  }
-  const pendleSwapResponse = await HttpGet<PendleSwapResponse>(pendleHostedSdkUrl);
-
-  lastCallPendle = Date.now();
-
-  return {
-    pegTokenReceivedWei: BigInt(pendleSwapResponse.data.amountTokenOut),
-    swapData: pendleSwapResponse.transaction.data,
-    routerAddress: pendleSwapResponse.transaction.to
-  };
-}
-
-function getPendleExcludedProtocols(chainCode: bigint) {
-  switch (chainCode) {
-    case 1n:
-      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
-    case 42161n:
-      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
-    default:
-      throw new Error(`Unknown chaincode: ${chainCode}`);
-  }
-}
-
-async function getSwap1Inch(
-  collateralToken: TokenConfig,
-  pegToken: TokenConfig,
-  collateralReceivedWei: bigint,
-  web3Provider: ethers.JsonRpcProvider
-): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
-  const ONE_INCH_API_KEY = process.env.ONE_INCH_API_KEY;
-  if (!ONE_INCH_API_KEY) {
-    throw new Error('Cannot load ONE_INCH_API_KEY from env variables');
-  }
-
-  const chainCode = (await web3Provider.getNetwork()).chainId;
-  const maxSlippage = 1; // 1%
-  const oneInchApiUrl =
-    `https://api.1inch.dev/swap/v6.0/${chainCode}/swap?` +
-    `src=${collateralToken.address}` +
-    `&dst=${pegToken.address}` +
-    `&amount=${collateralReceivedWei.toString()}` +
-    `&from=${await GetGatewayAddress()}` +
-    `&slippage=${maxSlippage}` +
-    '&disableEstimate=true' + // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
-    `&excludedProtocols=${get1inchExcludedProtocols(chainCode)}`;
-
-  Log(`getSwap1Inch: ${oneInchApiUrl}`);
-  const msToWait = 1000 - (Date.now() - lastCall1Inch);
-  if (msToWait > 0) {
-    await sleep(msToWait);
-  }
-  const oneInchSwapResponse = await HttpGet<OneInchSwapResponse>(oneInchApiUrl, {
-    headers: {
-      Authorization: `Bearer ${ONE_INCH_API_KEY}`
-    }
-  });
-
-  lastCall1Inch = Date.now();
-
-  return {
-    pegTokenReceivedWei: BigInt(oneInchSwapResponse.dstAmount),
-    swapData: oneInchSwapResponse.tx.data,
-    routerAddress: oneInchSwapResponse.tx.to
-  };
-}
-
-function get1inchExcludedProtocols(chainCode: bigint) {
-  switch (chainCode) {
-    case 1n:
-      return 'BALANCER,BALANCER_V2,BALANCER_V2_WRAPPER';
-    case 42161n:
-      return 'ARBITRUM_BALANCER_V2';
-    default:
-      throw new Error(`Unknown chaincode: ${chainCode}`);
-  }
-}
-
-async function getSwapOpenOcean(
-  collateralToken: TokenConfig,
-  pegToken: TokenConfig,
-  collateralReceivedWei: bigint,
-  web3Provider: ethers.JsonRpcProvider
-): Promise<{ pegTokenReceivedWei: bigint; swapData: string; routerAddress: string }> {
-  // when calling openocena, the amount must be normalzed
-  const collateralAmountNorm = norm(collateralReceivedWei, collateralToken.decimals).toFixed(8);
-  Log(`getSwapOpenOcean: amount ${collateralAmountNorm}`);
-
-  const chainId = (await web3Provider.getNetwork()).chainId;
-  const chainCode = GetOpenOceanChainCodeByChainId(chainId);
-  const gasPrice = norm((await GetAvgGasPrice()).toString(), 9) * 1.1; // avg gas price + 10%
-  const maxSlippage = 1; // 1%
-
-  const openOceanURL =
-    `https://open-api.openocean.finance/v3/${chainCode}/swap_quote?` +
-    `inTokenAddress=${collateralToken.address}` +
-    `&outTokenAddress=${pegToken.address}` +
-    `&amount=${collateralAmountNorm}` +
-    `&slippage=${maxSlippage}` +
-    `&gasPrice=${gasPrice}` +
-    `&account=${await GetGatewayAddress()}` +
-    `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
-
-  Log(`getSwapOpenOcean: ${openOceanURL}`);
-
-  const openOceanResponse = await HttpGet<OpenOceanSwapQuoteResponse>(openOceanURL);
-
-  return {
-    pegTokenReceivedWei: BigInt(openOceanResponse.data.outAmount),
-    swapData: openOceanResponse.data.data,
-    routerAddress: openOceanResponse.data.to
-  };
-}
-
-function getOpenOceanExcludedProtocols(chainCode: bigint) {
-  // need to take the index from this page: https://open-api.openocean.finance/v3/eth/dexList
-  switch (chainCode) {
-    case 1n:
-      return '7,41';
-    case 42161n:
-      return '';
-    default:
-      throw new Error(`Unknown chaincode: ${chainCode}`);
-  }
 }
 
 async function processBid(
   auction: Auction,
   term: LendingTerm,
   web3Provider: ethers.JsonRpcProvider,
-  minProfit: number,
-  routerAddress: string, // either univ2, 1inch, openocean etc...
+  minProfitUsd: number,
+  flashloanToken: TokenConfig,
+  flashloanAmount: bigint,
+  routerAddress: string,
   swapData: string,
-  estimatedProfit: number
+  routerAddressToFlashloanToken: string,
+  swapDataToFlashloanToken: string,
+  estimatedProfitUsd: number
 ) {
   if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
     throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
   }
+
   const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
-  const gatewayContract = GatewayV1__factory.connect(await GetGatewayAddress(), signer);
-  const minProfitWei = new BigNumber(minProfit)
-    .times(new BigNumber(10).pow((await getTokenByAddress(await GetPegTokenAddress())).decimals))
-    .toString(10);
-  const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(
-    auction.loanId,
-    auction.lendingTermAddress,
-    GetPSMAddress(),
-    term.collateralAddress, // collateralTokenAddress
-    GetPegTokenAddress(), // pegTokenAddress
-    minProfitWei,
-    routerAddress,
-    swapData,
-    { gasLimit: 2_000_000 }
-  );
+  const gatewayContract = GatewayV1NoACL__factory.connect(GATEWAY_ADDRESS, signer);
+  const minProfitFlashloanedTokenWei = new BigNumber(
+    minProfitUsd / (await PriceService.GetTokenPrice(flashloanToken.address))
+  )
+    .times(new BigNumber(10).pow(flashloanToken.decimals))
+    .toFixed(0);
+
+  const struct = {
+    loanId: auction.loanId,
+    term: auction.lendingTermAddress,
+    psm: await GetPSMAddress(),
+    collateralToken: term.collateralAddress,
+    pegToken: PEG_TOKEN.address,
+    flashloanedToken: flashloanToken.address,
+    flashloanAmount: flashloanAmount,
+    minProfit: minProfitFlashloanedTokenWei,
+    routerAddress: routerAddress,
+    routerCallData: swapData,
+    routerAddressToFlashloanedToken: routerAddressToFlashloanToken,
+    routerCallDataToFlashloanedToken: swapDataToFlashloanToken
+  };
+
+  const txReceipt = await gatewayContract.bidWithBalancerFlashLoan(struct, { gasLimit: 3_000_000 });
   await txReceipt.wait();
-  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
 
   if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
     await SendNotifications(
       'Auction Bidder',
       `Auction ${auction.loanId} fulfilled`,
-      `Estimated ${estimatedProfit} ${pegToken.symbol} profit`
+      `Estimated $${estimatedProfitUsd} profit`
     );
   }
 }
@@ -433,4 +334,112 @@ async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProv
   await SendNotifications('Auction Bidder', 'Forgave auction', auction.loanId);
 }
 
+async function getKyberSwapDataForPegTokenAmount(
+  pegToken: TokenConfig,
+  flashloanToken: TokenConfig,
+  pegTokenAmountNeeded: bigint
+): Promise<{ swapData: string; routerAddress: string; flashloanAmount: bigint; swapLabel: string }> {
+  // call kyberswap to get quote on the reversed route: pegToken -> flashloanToken. It will give a head start
+
+  Log(
+    `Finding big enough amount of ${flashloanToken.symbol} to swap for ${norm(
+      pegTokenAmountNeeded,
+      pegToken.decimals
+    )} ${pegToken.symbol}`
+  );
+
+  // base amount in flashloan token unit is {pegTokenAmountNeeded} * {pegTokenPrice} / {flashloanTokenPrice}
+  const baseAmountFlashloanTokenNorm =
+    norm(pegTokenAmountNeeded, pegToken.decimals) *
+    ((await PriceService.GetTokenPrice(pegToken.address)) / (await PriceService.GetTokenPrice(flashloanToken.address)));
+  const baseAmountFlashloanToken = new BigNumber(baseAmountFlashloanTokenNorm)
+    .times(new BigNumber(10).pow(flashloanToken.decimals))
+    .toFixed(0);
+
+  let flashloanAmount = BigInt(baseAmountFlashloanToken);
+  let validData: any;
+  let enoughFlashloanAmount = false;
+  while (!enoughFlashloanAmount) {
+    enoughFlashloanAmount = true;
+
+    const urlGet =
+      'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
+      `tokenIn=${flashloanToken.address}` +
+      `&tokenOut=${pegToken.address}` +
+      `&amountIn=${flashloanAmount.toString(10)}` +
+      '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+
+    const dataFlashloanToken = await HttpGet<any>(urlGet);
+    const pegTokenReceived = BigInt(dataFlashloanToken.data.routeSummary.amountOut);
+
+    if (pegTokenReceived < pegTokenAmountNeeded) {
+      Log(
+        `[NOT OK] ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} gets ${norm(
+          pegTokenReceived,
+          pegToken.decimals
+        )} ${pegToken.symbol}`
+      );
+      enoughFlashloanAmount = false;
+      flashloanAmount = (flashloanAmount * 102n) / 100n;
+      await sleep(2000);
+    } else {
+      Log(
+        `[OK] ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} gets ${norm(
+          pegTokenReceived,
+          pegToken.decimals
+        )} ${pegToken.symbol}`
+      );
+      validData = dataFlashloanToken;
+    }
+  }
+
+  // create the swap data using post
+  const urlPost = 'https://aggregator-api.kyberswap.com/arbitrum/api/v1/route/build';
+  const dataPost = await HttpPost<any>(urlPost, {
+    routeSummary: validData.data.routeSummary,
+    slippageTolerance: 0.005 * 10_000, // 0.005 -> 50 (0.5%)
+    sender: GATEWAY_ADDRESS,
+    recipient: GATEWAY_ADDRESS
+  });
+
+  const swapLabel = `Swapping ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} => ${norm(
+    validData.data.routeSummary.amountOut,
+    pegToken.decimals
+  )} ${pegToken.symbol} using Kyber`;
+
+  return {
+    swapData: dataPost.data.data,
+    routerAddress: dataPost.data.routerAddress,
+    flashloanAmount: flashloanAmount,
+    swapLabel
+  };
+}
+
 AuctionBidder();
+
+// async function test() {
+//   const data = '';
+
+//   const abiCoder = new ethers.AbiCoder();
+//   const decoded = abiCoder.decode(
+//     ['(bytes32,address,address,address,address,address,uint256,uint256,address,bytes,address,bytes)'],
+//     data
+//   );
+
+//   console.log(decoded);
+
+//   // // peg token is OD, collateral is USDC and flashloaned token is WETH
+//   // const collateralToken = await getTokenBySymbol('USDC');
+//   // const pegToken = await getTokenBySymbol('WETH');
+//   // const flashloanToken = await getTokenBySymbol('DAI');
+//   // const res = await checkBidProfitability2Step(
+//   //   BidderSwapMode.OPEN_OCEAN,
+//   //   collateralToken.address,
+//   //   { collateralReceived: 4_000n * 10n ** 6n, creditAsked: 10n ** 18n },
+//   //   GetWeb3Provider(),
+//   //   10n ** 18n,
+//   //   flashloanToken
+//   // );
+// }
+
+// test();
