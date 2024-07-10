@@ -2,7 +2,7 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { BN_1e18, DATA_DIR, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import { AuctionHouse__factory, GatewayV12Steps__factory } from '../contracts/types';
+import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
 import {
   GetGatewayAddress,
   GetNodeConfig,
@@ -288,7 +288,7 @@ async function processBid(
   }
 
   const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
-  const gatewayContract = GatewayV12Steps__factory.connect(GATEWAY_ADDRESS, signer);
+  const gatewayContract = GatewayV1NoACL__factory.connect(GATEWAY_ADDRESS, signer);
   const minProfitFlashloanedTokenWei = new BigNumber(
     minProfitUsd / (await PriceService.GetTokenPrice(flashloanToken.address))
   )
