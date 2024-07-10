@@ -295,7 +295,7 @@ async function processBid(
     minProfitUsd / (await PriceService.GetTokenPrice(flashloanToken.address))
   )
     .times(new BigNumber(10).pow(flashloanToken.decimals))
-    .toString(10);
+    .toFixed(0);
 
   const struct = {
     loanId: auction.loanId,
