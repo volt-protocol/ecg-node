@@ -109,7 +109,7 @@ async function computeIncentives() {
       if (!usersData[event.args.borrower]) {
         usersData[event.args.borrower] = { amountPtUsde: 0, currentWeight: 0 };
       }
-      usersData[event.args.borrower].amountPtUsde -= norm(loan?.collateralAmount);
+      usersData[event.args.borrower].amountPtUsde -= norm(loan.collateralAmount);
     }
   }
 
