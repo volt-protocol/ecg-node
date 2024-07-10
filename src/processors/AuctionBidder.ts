@@ -4,7 +4,7 @@ import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV12Steps__factory } from '../contracts/types';
 import {
-  GetGatewayAddress2Steps,
+  GetGatewayAddress,
   GetNodeConfig,
   GetPSMAddress,
   GetPegTokenAddress,
@@ -37,7 +37,8 @@ async function AuctionBidder() {
     Log(`starting with swap mode: ${SWAP_MODE}`);
     const auctionBidderConfig = (await GetNodeConfig()).processors.AUCTION_BIDDER;
     const creditMultiplier = GetProtocolData().creditMultiplier;
-    GATEWAY_ADDRESS = await GetGatewayAddress2Steps();
+    GATEWAY_ADDRESS = await GetGatewayAddress();
+    PEG_TOKEN = await getTokenByAddress(await GetPegTokenAddress());
 
     const auctionsFilename = path.join(DATA_DIR, 'auctions.json');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
@@ -49,7 +50,6 @@ async function AuctionBidder() {
     if (!rpcURL) {
       throw new Error('Cannot find RPC_URL in env');
     }
-    PEG_TOKEN = await getTokenByAddress(await GetPegTokenAddress());
     const auctionsToCheck = auctionFileData.auctions.filter((_) => _.status == AuctionStatus.ACTIVE);
     Log(`Will check ${auctionsToCheck.length} auctions`);
 
