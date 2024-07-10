@@ -86,7 +86,7 @@ export async function retry<T extends (...arg0: any[]) => any>(
     if (axios.isAxiosError(e)) {
       // Access to config, request, and response
       Log(
-        `Retry ${currRetry} failed calling ${e.request.protocol}//${e.request.host}/${e.request.path}: ${e}. Waiting ${retryCount} second(s)`
+        `Retry ${currRetry} failed calling ${e.request.protocol}//${e.request.host}${e.request.path}: ${e}. Waiting ${retryCount} second(s)`
       );
     } else {
       Log(`Retry ${currRetry} failed: ${e}. Waiting ${retryCount} second(s)`);
