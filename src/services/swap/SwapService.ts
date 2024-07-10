@@ -231,7 +231,7 @@ function getOpenOceanExcludedProtocols(chainCode: bigint) {
     case 1n:
       return '7,41';
     case 42161n:
-      return '';
+      return '2';
     default:
       throw new Error(`Unknown chaincode: ${chainCode}`);
   }

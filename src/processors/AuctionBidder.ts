@@ -240,7 +240,7 @@ async function checkBidProfitability(
         collateralToken.symbol
       }. Cost: ${norm(bidDetail.creditAsked, 18)} g${PEG_TOKEN.symbol}\n` +
       `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
-      `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}` +
+      `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
       `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
         amountFlashloanTokenReceivedUsd - creditCostUsd
       }` +
