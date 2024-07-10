@@ -141,6 +141,9 @@ async function computeIncentives() {
   console.log(csv);
 }
 
+// this function read all the terms.json and loans.json files from all markets available in
+// ./data directory. YOU NEED TO HAVE ./data directory updated with all the latest data available
+// best way to do that is to copy the data from ecg-node-1
 function getAllTermsFromFile(): { allTerms: LendingTerm[]; allLoans: Loan[] } {
   const terms: LendingTerm[] = [];
   const loans: Loan[] = [];
@@ -157,9 +160,12 @@ function getAllTermsFromFile(): { allTerms: LendingTerm[]; allLoans: Loan[] } {
     const loansFilename = path.join(marketPath, 'loans.json');
     const termFile: LendingTermsFileStructure = ReadJSON(termsFilename);
     const loansFile: LoansFileStructure = ReadJSON(loansFilename);
+
+    // keep only terms on ptsude token as collateral
     const ptusdeTerms = termFile.terms.filter((_) => _.collateralAddress == PT_USDE_ADDRESS);
     terms.push(...ptusdeTerms);
 
+    // keep only loans that are on the ptusde terms
     const loansOnPtusdeTerms = loansFile.loans.filter((loan) =>
       ptusdeTerms.map((t) => t.termAddress).includes(loan.lendingTermAddress)
     );
