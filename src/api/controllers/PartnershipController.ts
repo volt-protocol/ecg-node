@@ -126,11 +126,7 @@ class PartnershipController {
     return response;
   }
 
-  static async GetBorrowerWeightsData(
-    collateralToken: string,
-    startDate: string,
-    endDate: string
-  ): Promise<any> {
+  static async GetBorrowerWeightsData(collateralToken: string, startDate: string, endDate: string): Promise<any> {
     const { allTerms, allLoans } = getAllTermsFromFile();
 
     const collateralTerms = allTerms.filter((_) => _.collateralAddress.toLowerCase() == collateralToken.toLowerCase());
