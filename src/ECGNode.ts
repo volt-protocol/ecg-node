@@ -1,6 +1,15 @@
 import fs from 'fs';
 import path from 'path';
-import { DATA_DIR, MARKET_ID } from './utils/Constants';
+import {
+  AUCTION_BIDDER_ENABLED,
+  DATA_DIR,
+  HISTORICAL_DATA_FETCHER_ENABLED,
+  LOAN_CALLER_ENABLED,
+  MARKET_ID,
+  TERM_OFFBOARDER_ENABLED,
+  TESTNET_MARKET_MAKER_ENABLED,
+  USER_SLASHER_ENABLED
+} from './utils/Constants';
 import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { spawn } from 'node:child_process';
@@ -43,19 +52,19 @@ function isDebug() {
 }
 
 async function startProcessors(nodeConfig: NodeConfig) {
-  if (nodeConfig.processors.AUCTION_BIDDER.enabled) {
+  if (AUCTION_BIDDER_ENABLED) {
     startWithSpawn('AuctionBidder');
     await sleep(5000);
   }
-  if (nodeConfig.processors.LOAN_CALLER.enabled) {
+  if (LOAN_CALLER_ENABLED) {
     startWithSpawn('LoanCaller');
     await sleep(5000);
   }
-  if (nodeConfig.processors.TERM_OFFBOARDER.enabled) {
+  if (TERM_OFFBOARDER_ENABLED) {
     startWithSpawn('TermOffboarder');
     await sleep(5000);
   }
-  if (nodeConfig.processors.USER_SLASHER.enabled) {
+  if (USER_SLASHER_ENABLED) {
     startWithSpawn('UserSlasher');
     await sleep(5000);
   }
@@ -63,11 +72,11 @@ async function startProcessors(nodeConfig: NodeConfig) {
   //   startWithSpawn('TermOnboardingWatcher');
   //   await sleep(5000);
   // }
-  if (nodeConfig.processors.TESTNET_MARKET_MAKER.enabled) {
+  if (TESTNET_MARKET_MAKER_ENABLED) {
     startWithSpawn('TestnetMarketMaker');
     await sleep(5000);
   }
-  if (nodeConfig.processors.HISTORICAL_DATA_FETCHER.enabled) {
+  if (HISTORICAL_DATA_FETCHER_ENABLED) {
     startWithSpawn('HistoricalDataFetcher');
     await sleep(5000);
   }

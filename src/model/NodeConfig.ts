@@ -12,9 +12,8 @@ export interface Processors {
   HISTORICAL_DATA_FETCHER: ProcessorConfig;
 }
 
-export interface ProcessorConfig {
-  enabled: boolean;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface ProcessorConfig {}
 
 export interface TermOffboarderConfig extends ProcessorConfig {
   performCleanup?: boolean; // default to false
