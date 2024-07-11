@@ -1,10 +1,7 @@
 {
     "processors": {
-        "LOAN_CALLER": {
-            "enabled": true
-        },
+        "LOAN_CALLER": {},
         "TERM_OFFBOARDER": {
-            "enabled": true,
             "performCleanup": true,
             "onlyLogging": false,
             "defaultMinOvercollateralization": 1.2,
@@ -29,23 +26,16 @@
                 }
             }
         },
-        "TERM_ONBOARDING_WATCHER": {
-            "enabled": true
-        },
+        "TERM_ONBOARDING_WATCHER": {},
         "USER_SLASHER": {
-            "enabled": true,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": true,
             "enableForgive": true,
             "minProfitUsd": 5
         },
-        "HISTORICAL_DATA_FETCHER": {
-            "enabled": true
-        },
+        "HISTORICAL_DATA_FETCHER": {},
         "TESTNET_MARKET_MAKER": {
-            "enabled": false,
             "threshold": 0.005,
             "uniswapPairs": []
         }

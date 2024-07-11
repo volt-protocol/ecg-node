@@ -3,7 +3,7 @@ import { ReadJSON, buildTxUrl, sleep } from '../utils/Utils';
 import { FetchECGData } from './ECGDataFetcher';
 import { SendNotificationsList } from '../utils/Notifications';
 import { Log, Warn } from '../utils/Logger';
-import { DATA_DIR, EXPLORER_URI, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, EXPLORER_URI, MARKET_ID, TERM_ONBOARDING_WATCHER_ENABLED } from '../utils/Constants';
 import {
   GuildToken__factory,
   LendingTermFactory__factory,
@@ -109,10 +109,7 @@ async function guildTokenMustUpdate(event: EventDataV2): Promise<{
     case 'decrementgaugeweight': {
       // check if the event was about the good gaugeType (marketId)
       if ((await GetTermMarketId(parsed.args.gauge)) == MARKET_ID) {
-        if (
-          parsed.name.toLowerCase() == 'removegauge' &&
-          (await GetNodeConfig()).processors.TERM_ONBOARDING_WATCHER.enabled
-        ) {
+        if (parsed.name.toLowerCase() == 'removegauge' && TERM_ONBOARDING_WATCHER_ENABLED) {
           await SendOffboardingNotification(parsed.args.gauge);
         }
 

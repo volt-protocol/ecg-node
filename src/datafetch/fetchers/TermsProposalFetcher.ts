@@ -12,7 +12,13 @@ import {
   LendingTerm as LendingTermType,
   LendingTermOnboarding__factory
 } from '../../contracts/types';
-import { BLOCK_PER_HOUR, DATA_DIR, EXPLORER_URI, MARKET_ID } from '../../utils/Constants';
+import {
+  BLOCK_PER_HOUR,
+  DATA_DIR,
+  EXPLORER_URI,
+  MARKET_ID,
+  TERM_ONBOARDING_WATCHER_ENABLED
+} from '../../utils/Constants';
 import { ReadJSON, WriteJSON, roundTo } from '../../utils/Utils';
 import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
@@ -249,10 +255,7 @@ async function fetchProposalEvents(
       foundProposal.quorum = quorum.toString();
 
       // send notification only if it's been proposed less than 12 hours ago
-      if (
-        (await GetNodeConfig()).processors.TERM_ONBOARDING_WATCHER.enabled &&
-        proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR
-      ) {
+      if (TERM_ONBOARDING_WATCHER_ENABLED && proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR) {
         await SendNotificationsList(
           'TermOnboardingWatcher',
           'New term is proposed',

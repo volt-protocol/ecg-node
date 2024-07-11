@@ -34,3 +34,11 @@ export const GET_PRICES_FROM_API = process.env.GET_PRICES_FROM_API == 'true' ? t
 export const ECG_NODE_API_URI = process.env.ECG_NODE_API_URI;
 
 export const BN_1e18 = 10n ** 18n;
+
+export const HISTORICAL_DATA_FETCHER_ENABLED = process.env.HISTORICAL_DATA_FETCHER_ENABLED == 'true' ? true : false;
+export const TESTNET_MARKET_MAKER_ENABLED = process.env.TESTNET_MARKET_MAKER_ENABLED == 'true' ? true : false;
+export const USER_SLASHER_ENABLED = process.env.USER_SLASHER_ENABLED == 'true' ? true : false;
+export const TERM_OFFBOARDER_ENABLED = process.env.TERM_OFFBOARDER_ENABLED == 'true' ? true : false;
+export const LOAN_CALLER_ENABLED = process.env.LOAN_CALLER_ENABLED == 'true' ? true : false;
+export const AUCTION_BIDDER_ENABLED = process.env.AUCTION_BIDDER_ENABLED == 'true' ? true : false;
+export const TERM_ONBOARDING_WATCHER_ENABLED = process.env.TERM_ONBOARDING_WATCHER_ENABLED == 'true' ? true : false;
