@@ -13,11 +13,9 @@ import {
 import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
 import { spawn } from 'node:child_process';
-import { NodeConfig } from './model/NodeConfig';
 import { sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
-import { GetNodeConfig } from './config/Config';
 import { StartUniversalEventListener } from './datafetch/EventWatcher';
 dotenv.config();
 
@@ -28,9 +26,6 @@ async function main() {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
   }
 
-  // load configuration from working dir
-  const nodeConfig = await GetNodeConfig();
-
   await FetchECGData();
 
   // set a timeout to check if the last fetch was performed recently and fetch if needed
@@ -40,7 +35,7 @@ async function main() {
 
   // only start processors if running in production
   if (!isDebug()) {
-    startProcessors(nodeConfig);
+    startProcessors();
   }
 }
 
@@ -51,7 +46,7 @@ function isDebug() {
   return process.argv[1].endsWith('.ts');
 }
 
-async function startProcessors(nodeConfig: NodeConfig) {
+async function startProcessors() {
   if (AUCTION_BIDDER_ENABLED) {
     startWithSpawn('AuctionBidder');
     await sleep(5000);
