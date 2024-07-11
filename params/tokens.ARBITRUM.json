@@ -287,6 +287,24 @@
 		"coincapId": ""
 	},
 	{
+		"address": "0x18C14C2D707b2212e17d1579789Fc06010cfca23",
+		"symbol": "ETH+",
+		"decimals": 18,
+		"permitAllowed": false,
+		"protocolToken": false,
+		"coingeckoId": "",
+		"coincapId": ""
+	},
+	{
+		"address": "0x12275DCB9048680c4Be40942eA4D92c74C63b844",
+		"symbol": "eUSD",
+		"decimals": 18,
+		"permitAllowed": false,
+		"protocolToken": false,
+		"coingeckoId": "",
+		"coincapId": ""
+	},
+	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
 		"symbol": "PT-rsETH-27JUN2024",
 		"decimals": 18,
@@ -409,6 +427,24 @@
 				"chainId": 42161,
 				"symbol": "ETH",
 				"address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+			}
+		}
+	},
+	{
+		"address": "0x9D17d67dDA1256c5dF78035ce6c8795eA3136E89",
+		"symbol": "PT-dUSDC-26SEP2024",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x2fB73D98B1D60B35FD12508933578098f352cE7e",
+			"ytAddress": "0x916758e7605d0a4da4D9144e4e6fFc46E401eE67",
+			"syTokenOut": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+			"expiry": "2024-09-26T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 42161,
+				"symbol": "USDC",
+				"address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
 			}
 		}
 	}
