@@ -1,46 +1,36 @@
 {
     "processors": {
-        "LOAN_CALLER": {
-            "enabled": true
-        },
+        "LOAN_CALLER": {},
         "TERM_OFFBOARDER": {
-            "enabled": true,
             "performCleanup": true,
             "onlyLogging": true,
             "defaultMinOvercollateralization": 1.2,
-			"tokens": {
-				"PT-USDe-29AUG2024": {
-					"defaultMinOvercollateralization": 1.1,
-					"auctionDurationSpecifics": []
-				},
-				"WETH": {
-					"defaultMinOvercollateralization": 1.2,
-					"auctionDurationSpecifics": [
-						{
-							"maxMidpointDuration": 1800,
-							"minOvercollateralization": 1.1
-						}
-					]
-				}
-			}
+            "tokens": {
+                "PT-USDe-29AUG2024": {
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "WETH": {
+                    "defaultMinOvercollateralization": 1.2,
+                    "auctionDurationSpecifics": [
+                        {
+                            "maxMidpointDuration": 1800,
+                            "minOvercollateralization": 1.1
+                        }
+                    ]
+                }
+            }
         },
-        "TERM_ONBOARDING_WATCHER": {
-            "enabled": true
-        },
+        "TERM_ONBOARDING_WATCHER": {},
         "USER_SLASHER": {
-            "enabled": true,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": false,
             "enableForgive": true,
             "minProfitUsd": 5
         },
-        "HISTORICAL_DATA_FETCHER": {
-            "enabled": true
-        },
+        "HISTORICAL_DATA_FETCHER": {},
         "TESTNET_MARKET_MAKER": {
-            "enabled": false,
             "threshold": 0.005,
             "uniswapPairs": []
         }
