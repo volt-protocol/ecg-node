@@ -1,5 +1,5 @@
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
-import { BN_1e18, DATA_DIR, SWAP_MODE } from '../utils/Constants';
+import { BN_1e18, DATA_DIR, NETWORK, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
@@ -24,6 +24,7 @@ import BigNumber from 'bignumber.js';
 import { TokenConfig } from '../model/Config';
 import PriceService from '../services/price/PriceService';
 import SwapService from '../services/swap/SwapService';
+import { OdosQuoteAssemble, OdosQuoteResponse } from '../model/OdosApi';
 
 const RUN_EVERY_SEC = 15;
 
@@ -167,16 +168,32 @@ async function checkBidProfitability(
   };
 
   if (flashloanToken.address != PEG_TOKEN.address) {
-    // get the swap data to flashloan "flashloanToken" so that we can swap to pegToken
-    const { swapData, routerAddress, flashloanAmount, swapLabel } = await getKyberSwapDataForPegTokenAmount(
-      PEG_TOKEN,
-      flashloanToken,
-      creditAskedInPegToken
-    );
-    flashloanToPegTokenSwapResults.swapData = swapData;
-    flashloanToPegTokenSwapResults.routerAddress = routerAddress;
-    flashloanToPegTokenSwapResults.swapLabel = swapLabel;
-    flashloanAmountInFlashloanToken = flashloanAmount;
+    if (PEG_TOKEN.symbol == 'stUSD') {
+      // for peg token stUSD, we need to swap {flashloanToken} for stUSD, we need to use ODOS to do that as it's the
+      // only aggregator that knows how to swap {flashloanToken} for stUSD
+
+      // get the swap data to flashloan "flashloanToken" so that we can swap to pegToken
+      const { swapData, routerAddress, flashloanAmount, swapLabel } = await getOdosSwapDataForPegTokenAmount(
+        PEG_TOKEN,
+        flashloanToken,
+        creditAskedInPegToken
+      );
+      flashloanToPegTokenSwapResults.swapData = swapData;
+      flashloanToPegTokenSwapResults.routerAddress = routerAddress;
+      flashloanToPegTokenSwapResults.swapLabel = swapLabel;
+      flashloanAmountInFlashloanToken = flashloanAmount;
+    } else {
+      // get the swap data to flashloan "flashloanToken" so that we can swap to pegToken
+      const { swapData, routerAddress, flashloanAmount, swapLabel } = await getKyberSwapDataForPegTokenAmount(
+        PEG_TOKEN,
+        flashloanToken,
+        creditAskedInPegToken
+      );
+      flashloanToPegTokenSwapResults.swapData = swapData;
+      flashloanToPegTokenSwapResults.routerAddress = routerAddress;
+      flashloanToPegTokenSwapResults.swapLabel = swapLabel;
+      flashloanAmountInFlashloanToken = flashloanAmount;
+    }
   }
 
   let getSwapFunction;
@@ -236,9 +253,9 @@ async function checkBidProfitability(
       `Bid in 2 steps via ${flashloanToken.symbol} flashloan\n` +
       `\t - Flashloan ${norm(flashloanAmountInFlashloanToken, flashloanToken.decimals)} ${flashloanToken.symbol}\n` +
       `\t - ${flashloanToPegTokenSwapResults.swapLabel}\n` +
-      `\t - Bid to get ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
+      `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
         collateralToken.symbol
-      }. Cost: ${norm(bidDetail.creditAsked, 18)} g${PEG_TOKEN.symbol}\n` +
+      }\n` +
       `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
       `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
@@ -415,31 +432,116 @@ async function getKyberSwapDataForPegTokenAmount(
   };
 }
 
+async function getOdosSwapDataForPegTokenAmount(
+  pegToken: TokenConfig,
+  flashloanToken: TokenConfig,
+  pegTokenAmountNeeded: bigint
+): Promise<{ swapData: string; routerAddress: string; flashloanAmount: bigint; swapLabel: string }> {
+  // call kyberswap to get quote on the reversed route: pegToken -> flashloanToken. It will give a head start
+
+  Log(
+    `Finding big enough amount of ${flashloanToken.symbol} to swap for ${norm(
+      pegTokenAmountNeeded,
+      pegToken.decimals
+    )} ${pegToken.symbol}`
+  );
+
+  // base amount in flashloan token unit is {pegTokenAmountNeeded} * {pegTokenPrice} / {flashloanTokenPrice}
+  const baseAmountFlashloanTokenNorm =
+    norm(pegTokenAmountNeeded, pegToken.decimals) *
+    ((await PriceService.GetTokenPrice(pegToken.address)) / (await PriceService.GetTokenPrice(flashloanToken.address)));
+  const baseAmountFlashloanToken = new BigNumber(baseAmountFlashloanTokenNorm)
+    .times(new BigNumber(10).pow(flashloanToken.decimals))
+    .toFixed(0);
+
+  let flashloanAmount = BigInt(baseAmountFlashloanToken);
+  let validData: OdosQuoteResponse;
+  let enoughFlashloanAmount = false;
+  const odosQuoteURL = 'https://api.odos.xyz/sor/quote/v2';
+
+  while (!enoughFlashloanAmount) {
+    enoughFlashloanAmount = true;
+
+    const body = {
+      chainId: NETWORK == 'ARBITRUM' ? 42161 : 1,
+      compact: true,
+      inputTokens: [
+        {
+          amount: flashloanAmount.toString(10),
+          tokenAddress: flashloanToken.address
+        }
+      ],
+      outputTokens: [
+        {
+          proportion: 1,
+          tokenAddress: pegToken.address
+        }
+      ],
+      referralCode: 0,
+      slippageLimitPercent: 0.3,
+      sourceBlacklist: ['Balancer V2 Stable', 'Balancer V2 Weighted'],
+      userAddr: GATEWAY_ADDRESS
+    };
+
+    const odosQuoteResponse = await HttpPost<OdosQuoteResponse>(odosQuoteURL, body);
+    const pegTokenReceived = BigInt(odosQuoteResponse.outAmounts[0]);
+
+    if (pegTokenReceived < pegTokenAmountNeeded) {
+      Log(
+        `[NOT OK] ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} gets ${norm(
+          pegTokenReceived,
+          pegToken.decimals
+        )} ${pegToken.symbol}`
+      );
+      enoughFlashloanAmount = false;
+      flashloanAmount = (flashloanAmount * 102n) / 100n;
+      await sleep(2000);
+    } else {
+      Log(
+        `[OK] ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} gets ${norm(
+          pegTokenReceived,
+          pegToken.decimals
+        )} ${pegToken.symbol}`
+      );
+      validData = odosQuoteResponse;
+    }
+  }
+
+  // create the swap data using post
+  const odosAssembleUrl = 'https://api.odos.xyz/sor/assemble';
+  const odosAssembleResponse = await HttpPost<OdosQuoteAssemble>(odosAssembleUrl, {
+    pathId: validData!.pathId,
+    simulate: false,
+    userAddr: GATEWAY_ADDRESS
+  });
+
+  const swapLabel = `Swapping ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} => ${norm(
+    BigInt(validData!.outAmounts[0]),
+    pegToken.decimals
+  )} ${pegToken.symbol} using Odos`;
+
+  return {
+    swapData: odosAssembleResponse.transaction.data,
+    routerAddress: odosAssembleResponse.transaction.to,
+    flashloanAmount: flashloanAmount,
+    swapLabel
+  };
+}
+
 AuctionBidder();
 
 // async function test() {
-//   const data = '';
-
-//   const abiCoder = new ethers.AbiCoder();
-//   const decoded = abiCoder.decode(
-//     ['(bytes32,address,address,address,address,address,uint256,uint256,address,bytes,address,bytes)'],
-//     data
+//   const collateralToken = await getTokenBySymbol('WETH');
+//   const flashloanToken = await getTokenBySymbol('USDC');
+//   PEG_TOKEN = await getTokenBySymbol('stUSD');
+//   GATEWAY_ADDRESS = await GetGatewayAddress();
+//   const res = await checkBidProfitability(
+//     collateralToken.address,
+//     { collateralReceived: 35n * 10n ** 17n, creditAsked: 10000n * 10n ** 18n },
+//     GetWeb3Provider(),
+//     10n ** 18n,
+//     flashloanToken
 //   );
-
-//   console.log(decoded);
-
-//   // // peg token is OD, collateral is USDC and flashloaned token is WETH
-//   // const collateralToken = await getTokenBySymbol('USDC');
-//   // const pegToken = await getTokenBySymbol('WETH');
-//   // const flashloanToken = await getTokenBySymbol('DAI');
-//   // const res = await checkBidProfitability2Step(
-//   //   BidderSwapMode.OPEN_OCEAN,
-//   //   collateralToken.address,
-//   //   { collateralReceived: 4_000n * 10n ** 6n, creditAsked: 10n ** 18n },
-//   //   GetWeb3Provider(),
-//   //   10n ** 18n,
-//   //   flashloanToken
-//   // );
 // }
 
 // test();
