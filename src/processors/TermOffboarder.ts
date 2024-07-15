@@ -1,13 +1,12 @@
 import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
-import { GetNodeConfig, ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
+import { ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
 import { DATA_DIR, NETWORK } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
+  GetNodeConfig,
   GetPegTokenAddress,
-  LoadConfiguration,
-  TokenConfig,
   getTokenByAddress,
   getTokenByAddressNoError
 } from '../config/Config';
@@ -21,6 +20,7 @@ import { FileMutex } from '../utils/FileMutex';
 import { Log, Warn } from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
+import { TokenConfig } from '../model/Config';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -29,10 +29,8 @@ TermOffboarder();
 async function TermOffboarder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     const startDate = Date.now();
-    const offboarderConfig = GetNodeConfig().processors.TERM_OFFBOARDER;
+    const offboarderConfig = (await GetNodeConfig()).processors.TERM_OFFBOARDER;
 
     process.title = 'ECG_NODE_TERM_OFFBOARDER';
     Log('starting');
@@ -69,14 +67,44 @@ async function TermOffboarder() {
         } else {
           Log(`[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'onlyLogging' is enabled`);
         }
-      } else {
-        Log(`[${term.label}]: Term is healthy`);
       }
     }
-    Log('Ending');
+
+    await tryCleanup(termFileData, offboarderConfig);
 
     await WaitUntilScheduled(startDate, RUN_EVERY_SEC);
   }
+}
+
+async function tryCleanup(termFileData: LendingTermsFileStructure, offboarderConfig: TermOffboarderConfig) {
+  if (!process.env.ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find ETH_PRIVATE_KEY in env');
+  }
+
+  const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, GetWeb3Provider());
+
+  const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
+    await GetLendingTermOffboardingAddress(),
+    signer
+  );
+
+  for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.DEPRECATED)) {
+    Log(`Trying to cleanup term ${term.termAddress}`);
+
+    const canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
+
+    if (canOffboard == 2n && offboarderConfig.performCleanup) {
+      const cleanupResp = await lendingTermOffboardingContract.cleanup(term.termAddress);
+      await cleanupResp.wait();
+
+      await SendNotifications(
+        'Term Offboarder',
+        `Cleaned up term ${term.label} ${term.termAddress}`,
+        `Tx: ${buildTxUrl(cleanupResp.hash)}`
+      );
+    }
+  }
+  Log('Ending');
 }
 
 async function checkTermForOffboard(
@@ -84,7 +112,7 @@ async function checkTermForOffboard(
   offboarderConfig: TermOffboarderConfig,
   auctionHouses: AuctionHouseData[]
 ): Promise<{ termMustBeOffboarded: boolean; reason: string }> {
-  let collateralToken = getTokenByAddressNoError(term.collateralAddress);
+  let collateralToken = await getTokenByAddressNoError(term.collateralAddress);
   if (!collateralToken) {
     collateralToken = {
       address: term.collateralAddress,
@@ -98,23 +126,21 @@ async function checkTermForOffboard(
     );
   }
 
-  const collateralRealPrice = await PriceService.GetTokenPrice(
-    collateralToken.mainnetAddress || collateralToken.address
-  );
+  const collateralRealPrice = await PriceService.GetTokenPrice(collateralToken.address);
   if (!collateralRealPrice) {
-    Warn(`Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`);
+    Warn(`Cannot find price for ${collateralToken.address}. ASSUMING HEALTHY`);
     return {
       termMustBeOffboarded: false,
-      reason: `Cannot find price for ${collateralToken.mainnetAddress || collateralToken.address}. ASSUMING HEALTHY`
+      reason: `Cannot find price for ${collateralToken.address}. ASSUMING HEALTHY`
     };
   }
-  const pegToken = getTokenByAddress(GetPegTokenAddress());
-  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.mainnetAddress || pegToken.address);
+  const pegToken = await getTokenByAddress(await GetPegTokenAddress());
+  const pegTokenRealPrice = await PriceService.GetTokenPrice(pegToken.address);
   if (!pegTokenRealPrice) {
-    Warn(`Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`);
+    Warn(`Cannot find price for ${pegToken.address}`);
     return {
       termMustBeOffboarded: false,
-      reason: `Cannot find price for ${pegToken.mainnetAddress || pegToken.address}`
+      reason: `Cannot find price for ${pegToken.address}`
     };
   }
 
@@ -138,11 +164,25 @@ async function checkTermForOffboard(
   );
 
   if (currentOvercollateralization < minOvercollateralization) {
+    if (
+      offboarderConfig.tokens[collateralToken.symbol] &&
+      offboarderConfig.tokens[collateralToken.symbol].doNotOffboardCollateral
+    ) {
+      Log(
+        `[${term.label}]: TERM NEEDS TO BE OFFBOARDED, but 'doNotOffboardCollateral' is true for ${collateralToken.symbol}`
+      );
+
+      return {
+        termMustBeOffboarded: false,
+        reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`
+      };
+    }
     return {
       termMustBeOffboarded: true,
       reason: `Current overcollateralization: ${currentOvercollateralization}, min: ${minOvercollateralization}. Collateral price: $${collateralRealPrice} / pegToken price: $${pegTokenRealPrice}. Borrow ratio: ${normBorrowRatio}`
     };
   } else {
+    Log(`[${term.label}]: Term is healthy`);
     return {
       termMustBeOffboarded: false,
       reason: 'Term healthy'
@@ -202,7 +242,7 @@ async function offboardProcess(
   const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
 
   const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
-    GetLendingTermOffboardingAddress(),
+    await GetLendingTermOffboardingAddress(),
     signer
   );
 

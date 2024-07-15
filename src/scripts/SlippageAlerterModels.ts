@@ -1,4 +1,4 @@
-import { TokenConfig } from '../config/Config';
+import { TokenConfig } from '../model/Config';
 
 export interface LastRunData {
   lastRecapMsgSentMs: number; // timestamp ms
@@ -29,4 +29,5 @@ export interface PerMarketResult extends PerMarketCollateralData {
   slippage: number;
   overCollateralizationWithSlippage: number;
   pegTokenInfo: TokenConfig;
+  errorMsg?: string;
 }

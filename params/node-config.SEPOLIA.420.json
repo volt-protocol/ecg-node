@@ -1,0 +1,52 @@
+{
+    "processors": {
+        "LOAN_CALLER": {
+            "enabled": false
+        },
+        "TERM_OFFBOARDER": {
+            "enabled": true,
+            "performCleanup": true,
+            "onlyLogging": true,
+            "defaultMinOvercollateralization": 1.2,
+            "tokens": {
+                "WBTC": {
+                    "defaultMinOvercollateralization": 1.2,
+					"auctionDurationSpecifics": []
+                },
+                "sDAI": {
+                    "defaultMinOvercollateralization": 1.035,
+					"auctionDurationSpecifics": []
+                }
+            }
+        },
+        "TERM_ONBOARDING_WATCHER": {
+            "enabled": true
+        },
+        "USER_SLASHER": {
+            "enabled": false,
+            "minSizeToSlash": 20000
+        },
+        "AUCTION_BIDDER": {
+            "enabled": false,
+            "enableForgive": true,
+            "minProfitPegToken": 200
+        },
+        "TESTNET_MARKET_MAKER": {
+            "enabled": false,
+            "threshold": 0.005,
+            "uniswapPairs": [
+                {
+                    "path": ["USDC", "sDAI"],
+                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0"
+                },
+                {
+                    "path": ["WBTC", "USDC"],
+                    "poolAddress": "0xB0c49AB59ebE2DF86FF7807634737Ac7a1575cD8"
+                }
+            ]
+        },
+        "HISTORICAL_DATA_FETCHER": {
+            "enabled": true
+        }
+    }
+}

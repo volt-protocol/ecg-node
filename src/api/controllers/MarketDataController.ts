@@ -3,9 +3,9 @@ import path from 'path';
 import { GLOBAL_DATA_DIR } from '../../utils/Constants';
 import { ReadJSON } from '../../utils/Utils';
 import { LendingTermsApiResponse } from '../model/LendingTermsResponse';
-import { LendingTermsFileStructure } from '../../model/LendingTerm';
+import { LendingTermStatus, LendingTermsFileStructure } from '../../model/LendingTerm';
 import { norm } from '../../utils/TokenUtils';
-import { TokenConfig, getAllTokens } from '../../config/Config';
+import { GetAllTokensFromConfiguration } from '../../config/Config';
 import { TokensApiInfo } from '../model/TokensResponse';
 import { AuctionsApiReponse } from '../model/AuctionsApiReponse';
 import { AuctionsFileStructure } from '../../model/Auction';
@@ -20,6 +20,7 @@ import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
 import PriceService from '../../services/price/PriceService';
+import { TokenConfig } from '../../model/Config';
 
 class MarketDataController {
   static async GetMarketData(marketId: number): Promise<MarketDataResponse> {
@@ -88,7 +89,7 @@ class MarketDataController {
         maxDelayBetweenPartialRepay: term.maxDelayBetweenPartialRepay,
         minPartialRepayPercent: norm(term.minPartialRepayPercent),
         openingFee: norm(term.openingFee),
-        status: term.status,
+        status: term.status == LendingTermStatus.LIVE ? 'live' : 'deprecated',
         debtCeiling: norm(term.debtCeiling),
         gaugeWeight: norm(term.gaugeWeight),
         issuance: norm(term.issuance),
@@ -252,7 +253,7 @@ class MarketDataController {
     const termsFile: LendingTermsFileStructure = ReadJSON(termsFileName);
 
     const allTokens: TokenConfig[] = [];
-    allTokens.push(...getAllTokens());
+    allTokens.push(...(await GetAllTokensFromConfiguration()));
 
     // add all tokens from lending terms that might be unknown
 
@@ -274,7 +275,8 @@ class MarketDataController {
         decimals: token.decimals,
         name: token.symbol,
         symbol: token.symbol,
-        price: await PriceService.GetTokenPrice(token.address)
+        price: await PriceService.GetTokenPrice(token.address),
+        pendleConfig: token.pendleConfiguration
       });
     }
 

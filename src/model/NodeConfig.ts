@@ -29,13 +29,13 @@ export interface UserSlasherConfig extends ProcessorConfig {
 
 export interface TermOffboarderConfigToken {
   defaultMinOvercollateralization: number;
+  doNotOffboardCollateral?: boolean;
   auctionDurationSpecifics: { maxMidpointDuration: number; minOvercollateralization: number }[];
 }
 
 export interface AuctionBidderConfig extends ProcessorConfig {
   minProfitPegToken: number;
   enableForgive: boolean;
-  swapMode: BidderSwapMode;
 }
 
 export enum BidderSwapMode {

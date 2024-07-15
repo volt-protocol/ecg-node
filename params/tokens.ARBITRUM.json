@@ -42,6 +42,41 @@
 		"protocolToken": true
 	},
 	{
+		"address": "0x8D8b654E2B6A0289D8f758cBCCc42aB387c67B61",
+		"symbol": "gARB-4",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x4139724fCB5E27d9F13Be9928E4436a32d12E00b",
+		"symbol": "gOD-5",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x2170eea4D493e53e835d59f8aC559D007bC9A527",
+		"symbol": "gDOLA-6",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x808831eC837534E28A24097122875A6eE39C6A38",
+		"symbol": "gWSTETH-7",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
+		"address": "0x63Bebf6E5152ddeF1445e24B456f8128a9Fda7fc",
+		"symbol": "gstUSD-8",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": true
+	},
+	{
 		"address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
 		"symbol": "USDC",
 		"decimals": 6,
@@ -215,6 +250,42 @@
 		"openoceanId": 2350
 	},
 	{
+		"address": "0x221A0f68770658C15B525d0F89F5da2baAB5f321",
+		"symbol": "OD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "open-dollar",
+		"coincapId": ""
+	},
+	{
+		"address": "0x000D636bD52BFc1B3a699165Ef5aa340BEA8939c",
+		"symbol": "ODG",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "open-dollar-governance",
+		"coincapId": ""
+	},
+	{
+		"address": "0x6A7661795C374c0bFC635934efAddFf3A7Ee23b6",
+		"symbol": "DOLA",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "dola-usd",
+		"coincapId": ""
+	},
+	{
+		"address": "0x0022228a2cc5E7eF0274A7Baa600d44da5aB5776",
+		"symbol": "stUSD",
+		"decimals": 18,
+		"permitAllowed": false,
+		"protocolToken": false,
+		"coingeckoId": "",
+		"coincapId": ""
+	},
+	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
 		"symbol": "PT-rsETH-27JUN2024",
 		"decimals": 18,
@@ -222,7 +293,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x6Ae79089b2CF4be441480801bb741A531d94312b",
+			"ytAddress": "0xDA53c73a28dfF704Fe757b8B4f6f6359707533Da",
 			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
+			"expiry": "2024-06-27T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 42161,
 				"symbol": "ETH",
@@ -238,7 +311,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x2Dfaf9a5E4F293BceedE49f2dBa29aACDD88E0C4",
+			"ytAddress": "0xF478f7FeaeAB0DFdC91E02cDd6C63c66E30a7335",
 			"syTokenOut": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+			"expiry": "2024-08-29T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "USDe",
@@ -254,7 +329,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0x952083cde7aaa11AB8449057F7de23A970AA8472",
+			"ytAddress": "0xDcdC1004d5C271ADc048982d7EB900cC4F472333",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"expiry": "2024-06-27T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "eETH",
@@ -270,7 +347,9 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0xf9F9779d8fF604732EBA9AD345E6A27EF5c2a9d6",
+			"ytAddress": "0xfB2A7AC0372C2425c273932f8d438518402A873E",
 			"syTokenOut": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+			"expiry": "2024-09-26T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "eETH",
@@ -286,7 +365,45 @@
 		"protocolToken": false,
 		"pendleConfiguration": {
 			"market": "0xED99fC8bdB8E9e7B8240f62f69609a125A0Fbf14",
+			"ytAddress": "0x2FDc424946AA72D42E2F897447d7c335E64845F0",
 			"syTokenOut": "0x4186BFC76E2E237523CBC30FD220FE055156b41F",
+			"expiry": "2024-09-26T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 42161,
+				"symbol": "ETH",
+				"address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+			}
+		}
+	}, 
+	{
+		"address": "0x1255638EFeca62e12E344E0b6B22ea853eC6e2c7",
+		"symbol": "PT-wstETH-26JUN2025",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x08a152834de126d2ef83D612ff36e4523FD0017F",
+			"ytAddress": "0xC8D9369809e48d03FF7B69D7979b174e2D34874C",
+			"syTokenOut": "0x5979D7b546E38E414F7E9822514be443A4800529",
+			"expiry": "2025-06-26T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 1,
+				"symbol": "stETH",
+				"address": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
+			}
+		}
+	},
+	{
+		"address": "0x685155D3BD593508Fe32Be39729810A591ED9c87",
+		"symbol": "PT-rETH-26JUN2025",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x14FbC760eFaF36781cB0eb3Cb255aD976117B9Bd",
+			"ytAddress": "0xe822AE44EB2466B4E263b1cbC94b4833dDEf9700",
+			"syTokenOut": "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8",
+			"expiry": "2025-06-26T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 42161,
 				"symbol": "ETH",

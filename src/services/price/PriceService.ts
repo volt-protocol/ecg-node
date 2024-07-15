@@ -1,9 +1,8 @@
 import { median } from 'simple-statistics';
-import { DexEnum, TokenConfig, getAllTokens, getTokenByAddressNoError } from '../../config/Config';
 import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
-import { UniswapV3Pool__factory } from '../../contracts/types';
+import { CamelotAlgebraPool__factory, UniswapV3Pool__factory } from '../../contracts/types';
 import SimpleCacheService from '../cache/CacheService';
 import { HttpGet } from '../../utils/HttpHelper';
 import { PendleMarketResponse } from '../../model/PendleApi';
@@ -15,6 +14,8 @@ import { CoincapAssetsResponse } from '../../model/Coincap';
 import { TokenListResponse } from '../../model/OpenOceanApi';
 import { DexGuruTokensResponse } from '../../model/DexGuru';
 import { SendNotifications } from '../../utils/Notifications';
+import { GetAllTokensFromConfiguration, getTokenByAddressNoError } from '../../config/Config';
+import { DexEnum, TokenConfig } from '../../model/Config';
 
 interface PriceResult {
   source: string;
@@ -36,7 +37,7 @@ export default class PriceService {
       const unkTokenPrice = await SimpleCacheService.GetAndCache(
         `unk-token-price-${tokenAddress}`,
         async () => {
-          let unkToken = getTokenByAddressNoError(tokenAddress);
+          let unkToken = await getTokenByAddressNoError(tokenAddress);
           if (!unkToken) {
             unkToken = await GetERC20Infos(GetWeb3Provider(), tokenAddress);
           }
@@ -67,7 +68,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
     allPrices = await HttpGet<{ [tokenAddress: string]: number }>(nodeApiPriceUrl);
   } else {
     Log('LoadConfigTokenPrices: loading configuration token prices');
-    const tokens = getAllTokens();
+    const tokens = await GetAllTokensFromConfiguration();
     Log(`LoadConfigTokenPrices: will fetch price for ${tokens.length} tokens`);
     const genericTokenToFetch: TokenConfig[] = [];
 
@@ -96,6 +97,13 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         continue;
       }
 
+      if (token.address == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
+        allPrices[token.address] = await getODPriceCamelot();
+        Log(`LoadConfigTokenPrices: price for ${token.symbol} from camelot: ${allPrices[token.address]}`);
+
+        continue;
+      }
+
       if (token.pendleConfiguration) {
         // fetch price using pendle api
         allPrices[token.address] = await GetPendleApiMarketPrice(token.pendleConfiguration.market);
@@ -115,6 +123,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
       promises.push(GetCoinGeckoPriceMulti(genericTokenToFetch));
       promises.push(GetCoinCapPriceMulti(genericTokenToFetch));
       promises.push(GetOpenOceanPriceMulti(genericTokenToFetch));
+      promises.push(GetOdosPriceMulti(genericTokenToFetch));
       if (process.env.DEX_GURU_API_KEY) {
         promises.push(GetDexGuruPriceMulti(genericTokenToFetch));
       }
@@ -519,13 +528,12 @@ async function GetDexGuruPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
         (_) => _.address.toLowerCase() == (token.mainnetAddress || token.address).toLowerCase()
       );
 
-      if (foundAsset) {
+      if (foundAsset && foundAsset.price_usd != 0) {
         prices[token.address] = foundAsset.price_usd;
+        Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
       } else {
-        prices[token.address] = 0;
+        Log(`GetDexGuruPriceMulti: ignoring price ${prices[token.address]} for token ${token.symbol}`);
       }
-
-      Log(`GetDexGuruPriceMulti: price for ${token.symbol} from dex guru: $${prices[token.address]}`);
     }
   } catch (e) {
     Warn('Exception calling DexGuru price api', e);
@@ -571,13 +579,12 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
     for (const token of tokens) {
       const foundPrice = oneInchPriceResponse[(token.mainnetAddress || token.address).toLowerCase()];
 
-      if (foundPrice != undefined) {
+      if (foundPrice != undefined && Number(foundPrice) != 0) {
         prices[token.address] = Number(foundPrice);
+        Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
       } else {
-        prices[token.address] = 0;
+        Log(`GetOneInchPriceMulti: ignoring price ${foundPrice} for token ${token.symbol}`);
       }
-
-      Log(`GetOneInchPriceMulti: price for ${token.symbol} from 1inch: $${prices[token.address]}`);
     }
   } catch (e) {
     Warn('Exception calling 1inch price api', e);
@@ -591,4 +598,60 @@ async function GetOneInchPriceMulti(tokens: TokenConfig[]): Promise<PriceResult>
   }
 
   return { source: '1INCH', prices: prices };
+}
+
+async function GetOdosPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
+  const prices: { [tokenAddress: string]: number } = {};
+
+  try {
+    const tokenAddresses = tokens.map((_) => _.mainnetAddress || _.address);
+    const chainid = NETWORK == 'ARBITRUM' ? 42161 : 1;
+    const url = `https://api.odos.xyz/pricing/token/${chainid}`;
+
+    const odoPriceResponse = await HttpGet<{ currencyId: string; tokenPrices: { [tokenAddress: string]: number } }>(
+      url,
+      3
+    );
+
+    for (const token of tokens) {
+      const foundPrice = odoPriceResponse.tokenPrices[token.mainnetAddress || token.address];
+
+      if (foundPrice != undefined && foundPrice != 0) {
+        prices[token.address] = foundPrice;
+        Log(`GetOdosPriceMulti: price for ${token.symbol} from odos: $${prices[token.address]}`);
+      } else {
+        Log(`GetOdosPriceMulti: ignoring price ${foundPrice} for token ${token.symbol}`);
+      }
+    }
+  } catch (e) {
+    Warn('Exception calling odos price api', e);
+    for (const token of tokens) {
+      if (token.coingeckoId) {
+        prices[token.address] = 0;
+
+        Log(`GetOdosPriceMulti: price for ${token.symbol} from odos: $${prices[token.address]}`);
+      }
+    }
+  }
+
+  return { source: 'ODOS', prices: prices };
+}
+
+async function getODPriceCamelot(): Promise<number> {
+  // OD-WETH pair
+  const camelotPairAddress = '0x824959a55907d5350e73e151Ff48DabC5A37a657';
+  const camelotPairContract = CamelotAlgebraPool__factory.connect(camelotPairAddress, GetWeb3Provider());
+  const globalState = await camelotPairContract.globalState();
+  const tick = globalState.tick;
+
+  const token0DecimalFactor = 10 ** 18;
+  const token1DecimalFactor = 10 ** 18;
+  const price = 1.0001 ** Number(tick);
+  const priceOdInEth = (price * token0DecimalFactor) / token1DecimalFactor;
+  // Log(`getODPriceCamelot: 1 OD = ${priceOdInEth} WETH`);
+
+  const wethPrice = await getSafeWethPrice();
+  const ODPriceUsd = priceOdInEth * wethPrice;
+  // Log(`getODPriceCamelot: $${ODPriceUsd}`);
+  return ODPriceUsd;
 }

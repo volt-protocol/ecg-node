@@ -1,15 +1,24 @@
 {
     "processors": {
         "LOAN_CALLER": {
-            "enabled": false
+            "enabled": true
         },
         "TERM_OFFBOARDER": {
-            "enabled": false,
+            "enabled": true,
             "performCleanup": true,
-            "onlyLogging": true,
+            "onlyLogging": false,
             "defaultMinOvercollateralization": 1.2,
             "tokens": {
-                "USDC": {
+                "OD": {
+                    "doNotOffboardCollateral": true,
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "PT-USDe-29AUG2024": {
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "WETH": {
                     "defaultMinOvercollateralization": 1.2,
                     "auctionDurationSpecifics": [
                         {
@@ -21,34 +30,24 @@
             }
         },
         "TERM_ONBOARDING_WATCHER": {
-            "enabled": false
+            "enabled": true
         },
         "USER_SLASHER": {
-            "enabled": false,
+            "enabled": true,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": false,
+            "enabled": true,
             "enableForgive": true,
-            "minProfitPegToken": 20,
-            "swapMode": "UNISWAPV2"
+            "minProfitPegToken": 0.2
+        },
+        "HISTORICAL_DATA_FETCHER": {
+            "enabled": true
         },
         "TESTNET_MARKET_MAKER": {
             "enabled": false,
             "threshold": 0.005,
-            "uniswapPairs": [
-                {
-                    "path": ["USDC", "sDAI"],
-                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0"
-                },
-                {
-                    "path": ["WBTC", "USDC"],
-                    "poolAddress": "0xB0c49AB59ebE2DF86FF7807634737Ac7a1575cD8"
-                }
-            ]
-        },
-        "HISTORICAL_DATA_FETCHER": {
-            "enabled": false
+            "uniswapPairs": []
         }
     }
 }

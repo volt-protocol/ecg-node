@@ -1,8 +1,8 @@
 import path from 'path';
 import fs from 'fs';
-import { GetNodeConfig, ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
+import { ReadJSON, WriteJSON, buildTxUrl, sleep } from '../utils/Utils';
 import { GuildToken__factory, Multicall3 } from '../contracts/types';
-import { GetGuildTokenAddress, LoadConfiguration } from '../config/Config';
+import { GetGuildTokenAddress, GetNodeConfig } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
 import { DATA_DIR } from '../utils/Constants';
@@ -22,11 +22,9 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.jso
 async function UserSlasher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // load external config
-    await LoadConfiguration();
     process.title = 'ECG_NODE_USER_SLASHER';
     Log('starting');
-    const config = GetNodeConfig().processors.USER_SLASHER;
+    const config = (await GetNodeConfig()).processors.USER_SLASHER;
 
     if (!process.env.RPC_URL) {
       throw new Error('Cannot find RPC_URL in env');
@@ -69,7 +67,7 @@ async function UserSlasher() {
             try {
               const web3Provider = GetWeb3Provider();
               const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, web3Provider);
-              const guildToken = GuildToken__factory.connect(GetGuildTokenAddress(), signer);
+              const guildToken = GuildToken__factory.connect(await GetGuildTokenAddress(), signer);
               await guildToken.applyGaugeLoss.staticCall(gauge.address, user.address);
               // if here, the static call does not revert so we can add the applyGaugeLoss to the multicall
               const applyGaugeLossResponse = await guildToken.applyGaugeLoss(gauge.address, user.address);

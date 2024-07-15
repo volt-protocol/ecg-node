@@ -1,6 +1,8 @@
 // all helpers function related to the ECG
 
-import { GuildToken } from '../contracts/types';
+import { GetGuildTokenAddress } from '../config/Config';
+import { GuildToken, GuildToken__factory } from '../contracts/types';
+import { GetWeb3Provider } from './Web3Helper';
 
 export async function GetGaugeForMarketId(
   guildContract: GuildToken,
@@ -29,4 +31,10 @@ export async function GetGaugeForMarketId(
   }
 
   return gaugeForMarketId;
+}
+
+export async function GetTermMarketId(termAddress: string) {
+  const guildContract = GuildToken__factory.connect(await GetGuildTokenAddress(), GetWeb3Provider());
+  const gaugeType = await guildContract.gaugeType(termAddress);
+  return Number(gaugeType);
 }

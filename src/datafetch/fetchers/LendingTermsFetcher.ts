@@ -1,8 +1,14 @@
 import { JsonRpcProvider } from 'ethers';
-import { GetGuildTokenAddress, GetProfitManagerAddress, getTokenByAddressNoError } from '../../config/Config';
+import {
+  GetGuildTokenAddress,
+  GetLendingTermOffboardingAddress,
+  GetProfitManagerAddress,
+  getTokenByAddressNoError
+} from '../../config/Config';
 import {
   GuildToken,
   GuildToken__factory,
+  LendingTermOffboarding__factory,
   LendingTerm as LendingTermType,
   LendingTerm__factory,
   ProfitManager,
@@ -23,7 +29,7 @@ export default class LendingTermsFetcher {
   static async fetchAndSaveTerms(web3Provider: JsonRpcProvider, currentBlock: number) {
     Log('FetchECGData[Terms]: starting');
     const multicallProvider = MulticallWrapper.wrap(web3Provider);
-    const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
+    const guildTokenContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
     const gauges = await GetGaugeForMarketId(guildTokenContract, MARKET_ID, false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const results: any[] = await retry(() => LendingTermsFetcher.multicallLendingTermData(gauges), [], 5, 10);
@@ -43,7 +49,7 @@ export default class LendingTermsFetcher {
 
       const realCap = termParameters.hardCap > debtCeiling ? debtCeiling : termParameters.hardCap;
       const availableDebt = issuance > realCap ? 0n : realCap - issuance;
-      let collateralToken = getTokenByAddressNoError(termParameters.collateralToken);
+      let collateralToken = await getTokenByAddressNoError(termParameters.collateralToken);
       if (!collateralToken) {
         collateralToken = await GetERC20Infos(web3Provider, termParameters.collateralToken);
         Warn(
@@ -95,6 +101,24 @@ export default class LendingTermsFetcher {
       }
     }
 
+    // check if terms have been cleaned up
+    const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
+      await GetLendingTermOffboardingAddress(),
+      web3Provider
+    );
+
+    const offboardStatusResults = await Promise.all(
+      deprecatedGauges.map((_) => lendingTermOffboardingContract.canOffboard(_))
+    );
+
+    for (let i = 0; i < deprecatedGauges.length; i++) {
+      const deprecatedGauge = deprecatedGauges[i];
+      const foundTerm = lendingTerms.find((_) => _.termAddress == deprecatedGauge);
+      if (foundTerm && offboardStatusResults[i] == 0n) {
+        foundTerm.status = LendingTermStatus.CLEANED;
+      }
+    }
+
     const lendingTermsPath = path.join(DATA_DIR, 'terms.json');
     const fetchData = Date.now();
     const termFileData: LendingTermsFileStructure = {
@@ -111,8 +135,8 @@ export default class LendingTermsFetcher {
   private static async multicallLendingTermData(terms: string[]) {
     const multicallProvider = GetMulticallProvider();
     const promises: any[] = [];
-    const guildTokenContract = GuildToken__factory.connect(GetGuildTokenAddress(), multicallProvider);
-    const profitManagerContract = ProfitManager__factory.connect(GetProfitManagerAddress(), multicallProvider);
+    const guildTokenContract = GuildToken__factory.connect(await GetGuildTokenAddress(), multicallProvider);
+    const profitManagerContract = ProfitManager__factory.connect(await GetProfitManagerAddress(), multicallProvider);
     promises.push(profitManagerContract.minBorrow());
     promises.push(guildTokenContract.totalTypeWeight(MARKET_ID));
     for (const lendingTermAddress of terms) {

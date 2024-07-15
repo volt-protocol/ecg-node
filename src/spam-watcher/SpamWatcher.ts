@@ -19,7 +19,8 @@ const PSM_ADDRESSES = [
   { token: 'USDC-test', address: '0x47fa48413508b979Ca72Fe638011Ecf0556429bE' },
   { token: 'USDC', address: '0xc273c03D7F28f570C6765Be50322BC06bdd4bFab' },
   { token: 'WETH', address: '0x475840078280BaE8EF2428dbe151c7b349CF3f50' },
-  { token: 'ARB', address: '0x4dC22679436e4C751bdfe6c518CD7768E999CED3' }
+  { token: 'ARB', address: '0x4dC22679436e4C751bdfe6c518CD7768E999CED3' },
+  { token: 'OD', address: '0x9c54AdE47B22Cd9C661cCd269F84d40eade32373' }
 ];
 
 let guildTokenContract: Contract | undefined = undefined;

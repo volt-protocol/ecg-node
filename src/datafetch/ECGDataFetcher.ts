@@ -28,7 +28,7 @@ export async function FetchECGData() {
     const currentBlock = await web3Provider.getBlockNumber();
     Log(`FetchECGData: fetching data up to block ${currentBlock}`);
 
-    const syncData: SyncData = getSyncData();
+    const syncData: SyncData = await getSyncData();
     Log('FetchECGData: start fetching');
     let fetchStart = performance.now();
     const protocolData = await ProtocolDataFetcher.fetchAndSaveProtocolData(web3Provider);
@@ -63,14 +63,14 @@ export async function FetchECGData() {
   }
 }
 
-function getSyncData() {
+async function getSyncData() {
   const syncDataPath = path.join(DATA_DIR, 'sync.json');
   if (!fs.existsSync(syncDataPath)) {
     // create the sync file
     const syncData: SyncData = {
       termSync: [],
       gaugeSync: {
-        lastBlockFetched: GetDeployBlock()
+        lastBlockFetched: await GetDeployBlock()
       },
       auctionSync: []
     };

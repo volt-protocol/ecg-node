@@ -1,5 +1,5 @@
-import express, { Request, Response } from 'express';
 import HistoricalDataController from '../controllers/HistoricalDataController';
+import express, { Request, Response } from 'express';
 import SimpleCacheService from '../../services/cache/CacheService';
 
 const router = express.Router();
