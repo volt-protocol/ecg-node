@@ -34,7 +34,10 @@ const marketSgm: { [marketId: number]: string } = {
   1: '0xB94AaAe7472a694Dd959C8497b2f09730391dc52',
   3: '0x55aB4C8a5f11f8E62d7822d5AEd778784DF12aFD',
   4: '0x6995aA07B177918423d2127B885b67E7A3ceC265',
-  5: '0x71215ac6faf015aea177675543a8635beb08d183',
+  5: '0x71215ac6faF015AEa177675543A8635beb08D183',
+  6: '0xaa5bb0ffBFABeC29A0Df298b4B6a1A8e24CFE17E',
+  7: '0x7c171a82F73E9C030cF9133606D883883c826AcB',
+  8: '0x72C0a3D34aABd20dB73a38C494f6e6bE503F4A5b'
 };
 
 interface AirdropData {
@@ -242,7 +245,9 @@ async function computeAirdropData() {
       )[config.pegTokenAddress];
 
       if (!pegTokenValue) {
-        throw new Error(`Cannot find peg token price at timestamp ${blockTimestamp} for market ${marketId} (${config.PEGTOKEN})`);
+        throw new Error(
+          `Cannot find peg token price at timestamp ${blockTimestamp} for market ${marketId} (${config.PEGTOKEN})`
+        );
       }
 
       for (const creditHolder of creditHolders) {

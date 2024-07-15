@@ -30,7 +30,8 @@
         "prettier:format": "prettier --config .prettierrc \"./(src|scripts)/**/*.ts\" --write",
         "prettier:watch": "onchange \"(src|scripts)/**/*.ts\" -- prettier --write {{changed}}",
         "typechain": "typechain --target=ethers-v6 --out-dir ./src/contracts/types ./src/contracts/abi/*.json",
-        "debug:discord": "node --inspect -r ts-node/register ./src/discord-bot/GuildBot.ts"
+        "debug:discord": "node --inspect -r ts-node/register ./src/discord-bot/GuildBot.ts",
+        "sync": "scp -r ecg-node-1:/app/ecg-node/data ./data"
     },
     "keywords": [],
     "author": "",
