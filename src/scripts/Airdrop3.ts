@@ -1,13 +1,12 @@
 import { ethers } from 'ethers';
 import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
-import { existsSync, writeFileSync } from 'fs';
 import path from 'path';
-import { GetFullConfigFile, ConfigFile, LoadTokens } from '../config/Config';
+import { GetFullConfigFile, GetAllTokensFromConfiguration } from '../config/Config';
 import { ERC20, ERC20__factory, GuildToken, GuildToken__factory, LendingTerm__factory } from '../contracts/types';
 import { SurplusGuildMinter } from '../contracts/types/SurplusGuildMinter';
 import { SurplusGuildMinter__factory } from '../contracts/types/factories/SurplusGuildMinter__factory';
 import { LoansFileStructure } from '../model/Loan';
-import { ProtocolConstants } from '../model/ProtocolConstants';
+import { ProtocolConstants, ConfigFile } from '../model/Config';
 import { GLOBAL_DATA_DIR } from '../utils/Constants';
 import { GetGaugeForMarketId } from '../utils/ECGHelper';
 import { HttpGet } from '../utils/HttpHelper';
@@ -16,7 +15,6 @@ import { ReadJSON, retry, WriteJSON } from '../utils/Utils';
 import { GetArchiveWeb3Provider, FetchAllEvents } from '../utils/Web3Helper';
 import * as dotenv from 'dotenv';
 import { GetTokenPriceMultiAtTimestamp } from '../processors/HistoricalDataFetcher';
-import { totalmem } from 'os';
 import { LendingTermsFileStructure } from '../model/LendingTerm';
 
 dotenv.config();
@@ -76,7 +74,7 @@ interface MarketBalance {
 
 async function computeAirdropData() {
   const fullConfig = await GetFullConfigFile();
-  await LoadTokens();
+  await GetAllTokensFromConfiguration();
   const web3ProviderArchival = GetArchiveWeb3Provider();
   const currentBlock = await web3ProviderArchival.getBlockNumber();
   const multicallArchivalProvider = MulticallWrapper.wrap(web3ProviderArchival, 0);

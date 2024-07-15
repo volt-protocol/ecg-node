@@ -3,6 +3,7 @@ export interface ConfigFile {
 }
 
 export interface ProtocolConstants {
+  PEGTOKEN: string;
   deployBlock: number;
   historicalMinBlock: number;
   guildTokenAddress: string;

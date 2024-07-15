@@ -1080,4 +1080,4 @@ async function getODPriceCamelot(
   return ODPriceUsd;
 }
 
-HistoricalDataFetcher();
+//HistoricalDataFetcher();
