@@ -24,6 +24,7 @@ import BigNumber from 'bignumber.js';
 import { TokenConfig } from '../model/Config';
 import PriceService from '../services/price/PriceService';
 import SwapService from '../services/swap/SwapService';
+import { OdosQuoteAssemble, OdosQuoteResponse } from '../model/OdosApi';
 
 const RUN_EVERY_SEC = 15;
 
@@ -252,9 +253,9 @@ async function checkBidProfitability(
       `Bid in 2 steps via ${flashloanToken.symbol} flashloan\n` +
       `\t - Flashloan ${norm(flashloanAmountInFlashloanToken, flashloanToken.decimals)} ${flashloanToken.symbol}\n` +
       `\t - ${flashloanToPegTokenSwapResults.swapLabel}\n` +
-      `\t - Bid to get ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
+      `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
         collateralToken.symbol
-      }. Cost: ${norm(bidDetail.creditAsked, 18)} g${PEG_TOKEN.symbol}\n` +
+      }\n` +
       `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
       `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
@@ -454,9 +455,9 @@ async function getOdosSwapDataForPegTokenAmount(
     .toFixed(0);
 
   let flashloanAmount = BigInt(baseAmountFlashloanToken);
-  let validData: any;
+  let validData: OdosQuoteResponse;
   let enoughFlashloanAmount = false;
-  const odosURL = 'https://api.odos.xyz/sor/quote/v2';
+  const odosQuoteURL = 'https://api.odos.xyz/sor/quote/v2';
 
   while (!enoughFlashloanAmount) {
     enoughFlashloanAmount = true;
@@ -479,11 +480,11 @@ async function getOdosSwapDataForPegTokenAmount(
       referralCode: 0,
       slippageLimitPercent: 0.3,
       sourceBlacklist: ['Balancer V2 Stable', 'Balancer V2 Weighted'],
-      userAddr: '0x47E2D28169738039755586743E2dfCF3bd643f86'
+      userAddr: GATEWAY_ADDRESS
     };
 
-    const dataFlashloanToken = await HttpPost<any>(odosURL, body);
-    const pegTokenReceived = BigInt(dataFlashloanToken.data.routeSummary.amountOut);
+    const odosQuoteResponse = await HttpPost<OdosQuoteResponse>(odosQuoteURL, body);
+    const pegTokenReceived = BigInt(odosQuoteResponse.outAmounts[0]);
 
     if (pegTokenReceived < pegTokenAmountNeeded) {
       Log(
@@ -502,45 +503,45 @@ async function getOdosSwapDataForPegTokenAmount(
           pegToken.decimals
         )} ${pegToken.symbol}`
       );
-      validData = dataFlashloanToken;
+      validData = odosQuoteResponse;
     }
   }
 
   // create the swap data using post
-  const urlPost = 'https://aggregator-api.kyberswap.com/arbitrum/api/v1/route/build';
-  const dataPost = await HttpPost<any>(urlPost, {
-    routeSummary: validData.data.routeSummary,
-    slippageTolerance: 0.005 * 10_000, // 0.005 -> 50 (0.5%)
-    sender: GATEWAY_ADDRESS,
-    recipient: GATEWAY_ADDRESS
+  const odosAssembleUrl = 'https://api.odos.xyz/sor/assemble';
+  const odosAssembleResponse = await HttpPost<OdosQuoteAssemble>(odosAssembleUrl, {
+    pathId: validData!.pathId,
+    simulate: false,
+    userAddr: GATEWAY_ADDRESS
   });
 
   const swapLabel = `Swapping ${norm(flashloanAmount, flashloanToken.decimals)} ${flashloanToken.symbol} => ${norm(
-    validData.data.routeSummary.amountOut,
+    BigInt(validData!.outAmounts[0]),
     pegToken.decimals
-  )} ${pegToken.symbol} using Kyber`;
+  )} ${pegToken.symbol} using Odos`;
 
   return {
-    swapData: dataPost.data.data,
-    routerAddress: dataPost.data.routerAddress,
+    swapData: odosAssembleResponse.transaction.data,
+    routerAddress: odosAssembleResponse.transaction.to,
     flashloanAmount: flashloanAmount,
     swapLabel
   };
 }
 
-// AuctionBidder();
+AuctionBidder();
 
-async function test() {
-  const collateralToken = await getTokenBySymbol('WETH');
-  const flashloanToken = await getTokenBySymbol('USDC');
-  PEG_TOKEN = await getTokenBySymbol('stUSD');
-  const res = await checkBidProfitability(
-    collateralToken.address,
-    { collateralReceived: 100n ** 18n, creditAsked: 10n ** 18n },
-    GetWeb3Provider(),
-    10n ** 18n,
-    flashloanToken
-  );
-}
+// async function test() {
+//   const collateralToken = await getTokenBySymbol('WETH');
+//   const flashloanToken = await getTokenBySymbol('USDC');
+//   PEG_TOKEN = await getTokenBySymbol('stUSD');
+//   GATEWAY_ADDRESS = await GetGatewayAddress();
+//   const res = await checkBidProfitability(
+//     collateralToken.address,
+//     { collateralReceived: 35n * 10n ** 17n, creditAsked: 10000n * 10n ** 18n },
+//     GetWeb3Provider(),
+//     10n ** 18n,
+//     flashloanToken
+//   );
+// }
 
-test();
+// test();
