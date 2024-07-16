@@ -433,7 +433,7 @@
 	{
 		"address": "0x9D17d67dDA1256c5dF78035ce6c8795eA3136E89",
 		"symbol": "PT-dUSDC-26SEP2024",
-		"decimals": 18,
+		"decimals": 6,
 		"permitAllowed": true,
 		"protocolToken": false,
 		"pendleConfiguration": {
