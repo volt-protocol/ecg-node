@@ -55,3 +55,13 @@ Here's an example of what the node configuration file looks like:
 ```
 
 This configuration is used to set the parameters for each of the node's processors, see [processors](./processors/processors.md) for more details.
+
+### Override this configuration
+
+You can override the github config file by setting the following env variable when starting the ECGNode:
+
+`ECG_NODE_CONFIG_FULL_FILENAME`
+
+Example
+
+`export ECG_NODE_CONFIG_FULL_FILENAME=/path/to/config.json`

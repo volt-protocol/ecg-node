@@ -15,12 +15,10 @@ Example on Unix:
 
 ``` json
 "USER_SLASHER": {
-    "enabled": false,
     "minSizeToSlash": 20000
 }
 ```
 
 | Parameter  | type  | description  | example   |
 |---|---|---|---|
-| enabled  | boolean  | whether or not to activate this processor  |  true/false |
 | minSizeToSlash  | number  | The minimum of guild token to be slashed before sending a transaction |  20000 |

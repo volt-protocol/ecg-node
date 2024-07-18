@@ -20,4 +20,4 @@ Example on Unix:
 
 ## Parameters
 
-None (except the enabled true/false)
+None

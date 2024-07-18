@@ -44,3 +44,9 @@ Here are the different variables you need to set:
 - LOAN_CALLER_ENABLED
 - AUCTION_BIDDER_ENABLED
 - TERM_ONBOARDING_WATCHER_ENABLED
+
+#### Example
+
+To start the node + term offboarder, you can start with (from the .build directory):
+
+`APP_NAME=ECG_NODE_BASIC_TEST NETWORK=SEPOLIA RPC_URL=https://sepolia.infura.io/v3/xxx RPC_URL_LISTENER=https://sepolia.infura.io/v3/xxx MARKET_ID=42 TERM_OFFBOARDER_ENABLED=true ETH_PRIVATE_KEY=0x0123456... node ECGNode.js`
