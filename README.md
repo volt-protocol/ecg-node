@@ -39,59 +39,67 @@ All files needed will be in the `./build` directory
 This a very basic example about how to start the ECG-Node in your shell. 
 This assume your on an Unix platform.
 
-### Copy the config file to the build directory
+### Install dependencies in the build folder
 
-Location:
-`./ecg-node-config.json`
+`cd ./build && npm install`
 
-Should be copied to `./build/ecg-node-config.json`
+### Start the script
 
-By default, only the data fetcher will start. You can select which ECG-Node processors you want to start by setting "enabled: true"
+You need to have some env variables set before launching the script. You can set them either with
 
-[More about the config file here](./docs/config-file.md)
+`export XXX=YYY` or by starting the script with the variables directly.
 
-Then you can start the ECG-Node using the node command:
+`APP_NAME=ECG_NODE_BASIC_TEST NETWORK=SEPOLIA RPC_URL=https://sepolia.infura.io/v3/XXXXX RPC_URL_LISTENER=https://sepolia.infura.io/v3/XXXXX MARKET_ID=42 node ECGNode.js`
 
-`node ./ECGNode.js`
-
-### Requirements
-
-You need to have an `RPC_URL` environment variable set or you need to launch with an env variable
-
-Example on Unix:
-
-```
-export RPC_URL=YOUR_SEPOLIA_RPC_URL
-node ./ECGNode.js
-```
+You need to set your correct infura key in the example above
 
 ### Basic start logs
 
 #### Data fetcher
 
-Running the ECG-Node without any processor will still start the data fetcher and the event listener.
+Running the ECG-Node without any processors will still start the data fetcher and the event listener.
 
 You should see these logs:
 
 ```
-[ECG-NODE] STARTED
-FetchECGData: fetching data up to block 5470009
-FetchECGData: fetching
-FetchECGData: adding call for on lending term 0x820E8F9399514264Fd8CB21cEE5F282c723131f6
-FetchECGData: adding call for on lending term 0x938998fca53D8BFD91BC1726D26238e9Eada596C
-FetchECGData[Terms]: sending 9 multicall
-FetchECGData[Terms]: end multicall
-FetchECGData[Gauges]: getting gauges infos
-FetchECGData[Gauges]: Updated 2 gauges
-FetchECGData[Loans]: sending loans() multicall for 83 loans
-FetchECGData[Loans]: end multicall
-FetchECGData[Auctions]: sending getAuction() multicall for 19 loans
-FetchECGData[Auctions]: end multicall
-FetchECGData: finished fetching
-
+[ECG_NODE] | MARKET 42 | [ECG-NODE] STARTED FOR MARKET_ID: 42
+[ECG_NODE] | MARKET 42 | FetchECGData: fetching data up to block 6332160
+[ECG_NODE] | MARKET 42 | FetchECGData: start fetching
+[ECG_NODE] | MARKET 42 | GetFullConfigFile: loading protocol data from https://raw.githubusercontent.com/volt-protocol/ecg-node/main/params/protocol-config.SEPOLIA.json
+[ECG_NODE] | MARKET 42 | FetchECGData: protocol data took: 1125.8 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[Terms]: starting
+[ECG_NODE] | MARKET 42 | Using multicall length: 480000
+[ECG_NODE] | MARKET 42 | FetchECGData[Terms]: sending 50 multicall
+[ECG_NODE] | MARKET 42 | FetchECGData[Terms]: end multicall
+[ECG_NODE] | MARKET 42 | GetAllTokensFromConfiguration: loading tokens data from https://raw.githubusercontent.com/volt-protocol/ecg-node/main/params/tokens.SEPOLIA.json
+[ECG_NODE] | MARKET 42 | FetchECGData: terms data took: 2326.3 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: fetchNewLoanOpen starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: fetchNewLoanOpen ending
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: sending loans() multicall for 4 loans
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: end multicall
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: fetchClosedEventsAndUpdateLoans ending
+[ECG_NODE] | MARKET 42 | FetchECGData[Loans]: ending
+[ECG_NODE] | MARKET 42 | FetchECGData: loan data took: 887.1 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[Gauges]: starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Gauges]: Updated 3 gauges
+[ECG_NODE] | MARKET 42 | FetchECGData: gauges data took: 1060.1 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[Auctions]: starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Auctions]: sending getAuction() multicall for 0 loans
+[ECG_NODE] | MARKET 42 | FetchECGData[Auctions]: end multicall
+[ECG_NODE] | MARKET 42 | FetchECGData[Auctions]: ending
+[ECG_NODE] | MARKET 42 | FetchECGData: auctions data took: 1224.7 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[AuctionHouse]: starting
+[ECG_NODE] | MARKET 42 | FetchECGData[AuctionHouse]: ending
+[ECG_NODE] | MARKET 42 | FetchECGData: auction house data took: 31.3 ms
+[ECG_NODE] | MARKET 42 | FetchECGData[Proposals]: starting
+[ECG_NODE] | MARKET 42 | FetchECGData[Proposals]: ending
+[ECG_NODE] | MARKET 42 | FetchECGData: fetchProposals data took: 994.1 ms
+[ECG_NODE] | MARKET 42 | FetchECGData: finished fetching. Fetch duration: 8482.1 ms
 ```
 
-And you should see the `./data` dir (full path should be `./build/data`):
+And you should see the `./data/market_42` dir (full path should be `./build/data/market_42`):
 
 ![data files](./docs/images/data-files.png)
 
@@ -101,13 +109,9 @@ These files store the most up-to-date data about the protocol. See [ECG Data Fet
 At the end of the logs, you should see the listener being started:
 
 ```
-Starting/restarting events listener
-Started the event listener
-Starting listener on guild token 0x79E2B8553Da5361d90Ed08A9E3F2f3e5E5fF2f8f
-Started the event listener
-Started the event processor
-Starting listener on term 0x820E8F9399514264Fd8CB21cEE5F282c723131f6
-Starting listener on term 0x938998fca53D8BFD91BC1726D26238e9Eada596C
+[ECG_NODE] | MARKET 42 | Starting universal event listener
+[ECG_NODE] | MARKET 42 | Started the event processor
+[ECG_NODE] | MARKET 42 | Starting terms listener for 3/8 terms
 ```
 
 These are event listeners that will check protocol changes that require updating the protocol data. Events like: LoanOpen, LoanClose, AddGauge (new lending term), etc...

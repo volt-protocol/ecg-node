@@ -1,56 +1,57 @@
 # ECG Node Configuration
 
-The node configuration is stored in a .json file at the root of this project
+The node configuration is a .json file stored on the public github (and fetched from it by the Node when you start it).
 
-`ecg-node-config.json`
+It's in `./params/node-config.{NETWORK}.{MARKET_ID}.json`
 
-By default, it looks like that:
+The node configuration is by market, meaning each existing markets should have their own configuration file.
+
+Here's an example of what the node configuration file looks like:
 
 ``` json
 {
     "processors": {
-        "LOAN_CALLER": {
-            "enabled": false
-        },
+        "LOAN_CALLER": {},
         "TERM_OFFBOARDER": {
-            "enabled": false,
+            "performCleanup": true,
+            "onlyLogging": false,
+            "defaultMinOvercollateralization": 1.2,
             "tokens": {
-                "WBTC": {
-                    "minOvercollateralization": 1.2
+                "OD": {
+                    "doNotOffboardCollateral": true,
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
                 },
-                "sDAI": {
-                    "minOvercollateralization": 1.035
+                "PT-USDe-29AUG2024": {
+                    "defaultMinOvercollateralization": 1.1,
+                    "auctionDurationSpecifics": []
+                },
+                "WETH": {
+                    "defaultMinOvercollateralization": 1.2,
+                    "auctionDurationSpecifics": [
+                        {
+                            "maxMidpointDuration": 1800,
+                            "minOvercollateralization": 1.1
+                        }
+                    ]
                 }
             }
         },
-        "TERM_ONBOARDING_WATCHER": {
-            "enabled": false
-        },
+        "TERM_ONBOARDING_WATCHER": {},
         "USER_SLASHER": {
-            "enabled": false,
             "minSizeToSlash": 20000
         },
         "AUCTION_BIDDER": {
-            "enabled": false,
             "enableForgive": true,
-            "minProfitUsdc": 20
+            "minProfitUsd": 5
         },
+        "HISTORICAL_DATA_FETCHER": {},
         "TESTNET_MARKET_MAKER": {
-            "enabled": false,
             "threshold": 0.005,
-            "uniswapPairs": [
-                {
-                    "path": ["USDC", "sDAI"],
-                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0",
-                    "targetRatio": 1.05
-                }
-            ]
-        },
-        "HISTORICAL_DATA_FETCHER": {
-            "enabled": false
+            "uniswapPairs": []
         }
     }
 }
 ```
 
-Its role is to enable/disable and to give some parameters for the processors, see [processors](./processors/processors.md) for more details.
+This configuration is used to set the parameters for each of the node's processors, see [processors](./processors/processors.md) for more details.
