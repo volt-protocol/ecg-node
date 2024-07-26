@@ -299,10 +299,11 @@
 		"address": "0x12275DCB9048680c4Be40942eA4D92c74C63b844",
 		"symbol": "eUSD",
 		"decimals": 18,
-		"permitAllowed": false,
+		"permitAllowed": true,
 		"protocolToken": false,
-		"coingeckoId": "",
-		"coincapId": ""
+		"coingeckoId": "electronic-usd",
+		"coincapId": "electronic-usd",
+		"flashloanToken": "USDC"
 	},
 	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
