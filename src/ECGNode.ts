@@ -12,7 +12,7 @@ import {
 } from './utils/Constants';
 import { FetchECGData, FetchIfTooOld } from './datafetch/ECGDataFetcher';
 import { StartEventProcessor } from './datafetch/EventProcessor';
-import { spawn } from 'node:child_process';
+import { spawn, exec } from 'node:child_process';
 import { sleep } from './utils/Utils';
 import * as dotenv from 'dotenv';
 import { Log } from './utils/Logger';
@@ -78,6 +78,9 @@ async function startProcessors() {
 }
 
 function startWithSpawn(processorName: string) {
+  Log(`Killall ${process.title}_${processorName}`);
+  exec(`killall ${process.title}_${processorName}`);
+
   const nodeProcessFullPath = path.join(process.cwd(), 'processors', `${processorName}.js`);
   Log(`Starting ${nodeProcessFullPath}`);
   const child = spawn('node', [nodeProcessFullPath], { stdio: 'inherit' });
