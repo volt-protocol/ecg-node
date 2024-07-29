@@ -90,3 +90,29 @@ function startWithSpawn(processorName: string) {
   Log(`Started ${nodeProcessFullPath}`);
 }
 main();
+
+// handle exit cases
+process
+  .on('unhandledRejection', (err) => {
+    Log('Exit process (unhandled rejection)', err);
+  })
+  .on('uncaughtException', (err) => {
+    Log('Exit process (uncaught exception)', err);
+  })
+  .on('message', (message) => {
+    if (message === 'shutdown') {
+      Log('Exit process (shutdown message)');
+    }
+  })
+  .once('exit', () => {
+    Log('Exit process (exit)');
+  })
+  .once('beforeExit', () => {
+    Log('Exit process (beforeExit)');
+  })
+  .once('SIGINT', () => {
+    Log('Exit process (SIGINT)');
+  })
+  .once('SIGTERM', () => {
+    Log('Exit process (SIGTERM)');
+  });
