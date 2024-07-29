@@ -43,7 +43,7 @@ async function TestGatewayACLs() {
     const result = fullyAllowedResults[i];
 
     if (!result) {
-      errors.push(`Address ${a} should be fulled allowed and is not`);
+      errors.push(`Address ${a} should be fully allowed but is not`);
     }
   }
 
@@ -67,7 +67,7 @@ async function TestGatewayACLs() {
     const result = onlyApproveAllowedResults[i];
 
     if (!result) {
-      errors.push(`Address ${a} have "approve" allowed and is not`);
+      errors.push(`Address ${a} should have "approve(address,uint256)" (0x095ea7b3) allowed but does not`);
     }
   }
 
