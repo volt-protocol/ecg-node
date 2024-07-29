@@ -8,6 +8,7 @@ import { GetLendingTermOnboardingAddress, getTokenByAddressNoError } from '../co
 import { sleep } from '../utils/Utils';
 import { GetERC20Infos, GetListenerWeb3Provider } from '../utils/Web3Helper';
 import { Log } from '../utils/Logger';
+import { MARKET_ID } from '../utils/Constants';
 dotenv.config();
 
 let onboardingContract: Contract | undefined;
@@ -15,7 +16,7 @@ let onboardingContract: Contract | undefined;
 const web3Provider = GetListenerWeb3Provider(15000);
 
 async function TermOnboardingWatcher() {
-  process.title = 'ECG_NODE_TERM_ONBOARDING_WATCHER';
+  process.title = `ECG_NODE_${MARKET_ID}_TermOnboardingWatcher`;
   Log('starting');
 
   const atLeastOneNotificationChannelEnabled =

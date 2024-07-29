@@ -20,7 +20,7 @@ import { StartUniversalEventListener } from './datafetch/EventWatcher';
 dotenv.config();
 
 async function main() {
-  process.title = 'ECG_NODE';
+  process.title = `ECG_NODE_${MARKET_ID}`;
   Log(`[ECG-NODE] STARTED FOR MARKET_ID: ${MARKET_ID}`);
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });

@@ -57,7 +57,7 @@ const STEP_BLOCK = BLOCK_PER_HOUR;
 async function HistoricalDataFetcher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = 'ECG_NODE_HISTORICAL_DATA_FETCHER';
+    process.title = `ECG_NODE_${MARKET_ID}_HistoricalDataFetcher`;
     const startDate = Date.now();
     Log('starting');
     const rpcURL = process.env.RPC_URL;
