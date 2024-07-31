@@ -241,12 +241,18 @@ class PartnershipController {
       }
     }
 
-    const result = Object.keys(usersData).reduce(function (result: any, userAddress) {
-      result[userAddress] = result[userAddress] || 0;
-      result[userAddress] += Math.round(usersData[userAddress].currentWeight);
+    const resultUnsorted = Object.keys(usersData).reduce(function (result: any, userAddress) {
+      result[userAddress] = result[userAddress] || '0';
+      result[userAddress] = (BigInt(result[userAddress]) + BigInt(Math.round(usersData[userAddress].currentWeight))).toString();
       return result;
     }, {});
-    return result;
+    const resultSorted = Object.keys(resultUnsorted).sort(function(a, b) {
+      return BigInt(resultUnsorted[a]) < BigInt(resultUnsorted[b]) ? 1 : -1;
+    }).reduce(function (result: any, userAddress) {
+      result[userAddress] = resultUnsorted[userAddress] || '0';
+      return result;
+    }, {});
+    return resultSorted;
   }
 }
 export default PartnershipController;
