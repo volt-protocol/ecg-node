@@ -3,7 +3,7 @@
         "LOAN_CALLER": {},
         "TERM_OFFBOARDER": {
             "performCleanup": true,
-            "onlyLogging": true,
+            "onlyLogging": false,
             "defaultMinOvercollateralization": 1.2,
             "tokens": {
                 "WETH": {
