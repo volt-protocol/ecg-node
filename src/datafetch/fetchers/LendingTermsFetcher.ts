@@ -104,7 +104,7 @@ export default class LendingTermsFetcher {
     // check if terms have been cleaned up
     const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
       await GetLendingTermOffboardingAddress(),
-      web3Provider
+      multicallProvider
     );
 
     const offboardStatusResults = await Promise.all(

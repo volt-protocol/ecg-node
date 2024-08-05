@@ -7,7 +7,7 @@ import path from 'path';
 import { ReadJSON, WriteJSON } from '../../utils/Utils';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
-import { FetchAllEvents } from '../../utils/Web3Helper';
+import { FetchAllEvents, GetMulticallProvider } from '../../utils/Web3Helper';
 import { GaugesFileStructure } from '../../model/Gauge';
 import { GetGaugeForMarketId } from '../../utils/ECGHelper';
 
@@ -36,7 +36,7 @@ export default class GaugesFetcher {
     }
 
     // fetch & handle data
-    const guild = GuildToken__factory.connect(await GetGuildTokenAddress(), web3Provider);
+    const guild = GuildToken__factory.connect(await GetGuildTokenAddress(), GetMulticallProvider());
 
     const filters = [
       (await guild.filters.IncrementGaugeWeight().getTopicFilter()).toString(),
