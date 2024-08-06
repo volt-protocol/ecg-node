@@ -302,7 +302,7 @@
 		"permitAllowed": true,
 		"protocolToken": false,
 		"coingeckoId": "electronic-usd",
-		"coincapId": "electronic-usd",
+		"coincapId": "",
 		"flashloanToken": "USDC"
 	},
 	{
