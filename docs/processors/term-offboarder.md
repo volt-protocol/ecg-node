@@ -17,13 +17,27 @@ Example on Unix:
 
 ``` json
 "TERM_OFFBOARDER": {
-    "enabled": false,
+    "performCleanup": true,
+    "onlyLogging": false,
+    "defaultMinOvercollateralization": 1.2,
     "tokens": {
-        "WBTC": {
-            "minOvercollateralization": 1.2
+        "OD": {
+            "doNotOffboardCollateral": true,
+            "defaultMinOvercollateralization": 1.1,
+            "auctionDurationSpecifics": []
         },
-        "sDAI": {
-            "minOvercollateralization": 1.035
+        "PT-USDe-29AUG2024": {
+            "defaultMinOvercollateralization": 1.1,
+            "auctionDurationSpecifics": []
+        },
+        "WETH": {
+            "defaultMinOvercollateralization": 1.2,
+            "auctionDurationSpecifics": [
+                {
+                    "maxMidpointDuration": 1800,
+                    "minOvercollateralization": 1.1
+                }
+            ]
         }
     }
 }
@@ -32,5 +46,24 @@ Example on Unix:
 
 | Parameter  | type  | description  | example   |
 |---|---|---|---|
-| enabled  | boolean  | whether or not to activate this processor  |  true/false |
-| tokens  | object  | the, per token, minimum over-collateralization before proposing an offboarding  | see above |
+| performCleanup  | boolean  | whether or not to perform cleanup (remove offboarded terms)  | true/false |
+| onlyLogging  | boolean  | whether or not to only log the actions instead of performing them  | true/false |
+| defaultMinOvercollateralization  | number  | the default minimum over-collateralization before proposing an offboarding  | 1.2 |
+| tokens  | object  | the, per token, minimum over-collateralization before proposing an offboarding  | see after |
+
+
+per tokens parameters
+
+| Parameter  | type  | description  | example   |
+|---|---|---|---|
+| doNotOffboardCollateral  | boolean  | whether or not to do not offboard terms with this collateral | true/false |
+| defaultMinOvercollateralization  | number  | the default minimum over-collateralization before proposing an offboarding  | 1.2 |
+| auctionDurationSpecifics  | object[]  | specific configuration per auction duration  | see after |
+
+auctionDurationSpecifics
+| Parameter  | type  | description  | example   |
+|---|---|---|---|
+| maxMidpointDuration  | number  | the maximum duration of the midpoint auction | 1800 |
+| minOvercollateralization  | number  | the minimum over-collateralization before proposing an offboarding  | 1.2 |
+
+This configuration allows to reduce the minOvercollateralization for shorter auction durations

@@ -12,7 +12,7 @@ Most of the processors are in a loop, running and waiting again and again. Some 
 
 ## Code
 
-Each processor is a single typescript file in the `./src/processors` directory.
+Each processor is a self startable typescript file in the `./src/processors` directory.
 
 ## Processors
 
@@ -22,6 +22,31 @@ Here is a list of available processors, click on each to get detailed documentat
 - [Historical Data Fetcher](./historical-data-fetcher.md)
 - [Loan Caller](./loan-caller.md)
 - [Term Offboarder](./term-offboarder.md)
-- [Term Onboarding Watcher](./term-onboarding-watcher.md)
 - [TestnetMarketMaker](./testnet-market-maker.md)
 - [UserSlasher](./user-slasher.md)
+
+## Start a processor
+
+### Debug mode 
+
+`npm run debug:auction-bidder` (see package.json to see for other processors)
+
+### In production
+
+You will need to add env variables to start the processors you want. It'll be started by the ECGNode.js file automatically
+
+Here are the different variables you need to set:
+
+- HISTORICAL_DATA_FETCHER_ENABLED
+- USER_SLASHER_ENABLED
+- USER_SLASHER_ENABLED
+- TERM_OFFBOARDER_ENABLED
+- LOAN_CALLER_ENABLED
+- AUCTION_BIDDER_ENABLED
+- TERM_ONBOARDING_WATCHER_ENABLED
+
+#### Example
+
+To start the node + term offboarder, you can start with (from the .build directory):
+
+`APP_NAME=ECG_NODE_BASIC_TEST NETWORK=SEPOLIA RPC_URL=https://sepolia.infura.io/v3/xxx RPC_URL_LISTENER=https://sepolia.infura.io/v3/xxx MARKET_ID=42 TERM_OFFBOARDER_ENABLED=true ETH_PRIVATE_KEY=0x0123456... node ECGNode.js`

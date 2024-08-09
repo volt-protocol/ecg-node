@@ -16,8 +16,55 @@ Processors detailed documentation is available [here](./processors/processors.md
 
 ## Configuration 
 
-You can look at the needed configuration file before deploying [here](./config-file.md)
+### Node Config
+You can look at the needed configuration file before deploying [here](./node-config-file.md)
+
+### Protocol Config
+
+The, per market, protocol configuration is stored in json file in the repository (here: `./params/protocol-config.{NETWORK}.json`) and is automatically fetched from github (and maintained by the ECG-Node team).
+
+
+#### Override this configuration
+
+You can override the github config file by setting the following env variable when starting the ECGNode:
+
+`CONFIG_FILE`
+
+Example
+
+`export CONFIG_FILE=/path/to/protocol-config.json`
+
+### Tokens config
+The, per network, tokens configuration is stored in json file in the repository (here: `./params/tokens.{NETWORK}.json`) and is automatically fetched from github (and maintained by the ECG-Node team).
+
+
+#### Override this configuration
+
+You can override the github config file by setting the following env variable when starting the ECGNode:
+
+`TOKENS_FILE`
+
+Example
+
+`export TOKENS_FILE=/path/to/my.tokens.json`
+
+
 
 ## Running & Hosting the ECG-Node
 
 You can see an example hosting tutorial using an unix server and pm2 [here](./hosting/host-with-pm2.md)
+
+## Token pricing
+
+The node performs various operation based on the token pricing, to work with the most accurate data: the PriceService fetches the prices from various sources, including:
+
+- DefiLlama
+- UniswapV3
+- CoinGecko
+- CoinCap
+- OpenOcean
+- DexGuru
+- 1INCH
+- Odos
+- Pendle API (for pendle PT tokens)
+- Camelot (for OD price)

@@ -9,55 +9,7 @@ Using PM2 facilitates hosting and running
 2. Deploy the `./build` directory where you want. In this example, we will deploy it to `/app/ecg-node/`
 3. Copy `package.json` into `/app/ecg-node/`
 4. Install dependencies with `npm install`
-5. Copy the `ecg-node-config.json` file into `/app/ecg-node/` and update it like that, which will only start the [TERM_ONBOARDING_WATCHER](../processors/term-onboarding-watcher.md) processor
-
-``` json
-{
-    "processors": {
-        "LOAN_CALLER": {
-            "enabled": false
-        },
-        "TERM_OFFBOARDER": {
-            "enabled": false,
-            "tokens": {
-                "WBTC": {
-                    "minOvercollateralization": 1.2
-                },
-                "sDAI": {
-                    "minOvercollateralization": 1.035
-                }
-            }
-        },
-        "TERM_ONBOARDING_WATCHER": {
-            "enabled": true
-        },
-        "USER_SLASHER": {
-            "enabled": false,
-            "minSizeToSlash": 20000
-        },
-        "AUCTION_BIDDER": {
-            "enabled": false,
-            "enableForgive": true,
-            "minProfitUsdc": 20
-        },
-        "TESTNET_MARKET_MAKER": {
-            "enabled": false,
-            "threshold": 0.005,
-            "uniswapPairs": [
-                {
-                    "path": ["USDC", "sDAI"],
-                    "poolAddress": "0x52633CA942d320e750dc1335790fA4aCc66d0DD0",
-                    "targetRatio": 1.05
-                }
-            ]
-        },
-        "HISTORICAL_DATA_FETCHER": {
-            "enabled": false
-        }
-    }
-}
-```
-6. Create a pm2 config file named `ecg-node.pm2.config.js` in the `/app/ecg-node` folder
+5. Create a pm2 config file named `ecg-node.pm2.config.js` in the `/app/ecg-node` folder
 
 ``` javascript
 module.exports = {
@@ -66,29 +18,65 @@ module.exports = {
       name: "ecg-node-sepolia",
       script: "/app/ecg-node/ECGNode.js",
       cwd: "/app/ecg-node",
-      log_file: "/app/ecg-node/logs/ecg-node.log",
+      log_file: "/app/ecg-node/logs/ecg-node-sepolia.log",
       watch: false,
       time: true,
       env: {
+        "APP_NAME": "ECG_NODE",
+        "NETWORK": "SEPOLIA",
         "RPC_URL":"{{SEPOLIA_RPC_URL}}",
+        "RPC_URL_LISTENER":"{{SEPOLIA_RPC_URL}}",
         "EXPLORER_URI":"https://sepolia.etherscan.io",
-        "WATCHER_TG_BOT_ID":"{{TG_BOT_ID}}",
-        "WATCHER_TG_CHAT_ID":"{{TG_CHAT_ID}}",
-        "WATCHER_DISCORD_WEBHOOK_URL":"{{DISCORD_WEBHOOK_URL}}",
-        "APP_ENV":"SEPOLIA",
-        "ETH_PRIVATE_KEY": "{{YOUR PRIVATE KEY}}"
+        "MARKET_ID":42,
+        "TERM_OFFBOARDER_ENABLED": "false",
+        "LOAN_CALLER_ENABLED": "false",
+        "AUCTION_BIDDER_ENABLED": "false",
+        "HISTORICAL_DATA_FETCHER_ENABLED": "false",
+        "USER_SLASHER_ENABLED": "false",
+        "TERM_ONBOARDING_WATCHER_ENABLED": "false",
       }
     }
   ]
 }
 ```
 
-7. Start the pm2 process: `pm2 start ecg-node.pm2.config.js`
-8. See that the process is started: `pm2 ls`
-9. Check the logs `pm2 logs ecg-node-sepolia`
+6. Start the pm2 process: `pm2 start ecg-node.pm2.config.js`
+7. See that the process is started: `pm2 ls`
+8. Check the logs `pm2 logs ecg-node-sepolia`
 
 ## Starting other processors
 
-Update the `ecg-node-config.json` file and restart the PM2 process
+Update the `ecg-node.pm2.config.json` file to add more processors (using env variable) and restart
 
-`pm2 restart ecg-node-sepolia`
+Example enabling the term offboarder (don't forget to also add the private key in the .env file)
+``` javascript
+module.exports = {
+    apps : [
+    {
+      name: "ecg-node-sepolia",
+      script: "/app/ecg-node/ECGNode.js",
+      cwd: "/app/ecg-node",
+      log_file: "/app/ecg-node/logs/ecg-node-sepolia.log",
+      watch: false,
+      time: true,
+      env: {
+        "APP_NAME": "ECG_NODE",
+        "NETWORK": "SEPOLIA",
+        "RPC_URL":"{{SEPOLIA_RPC_URL}}",
+        "RPC_URL_LISTENER":"{{SEPOLIA_RPC_URL}}",
+        "EXPLORER_URI":"https://sepolia.etherscan.io",
+        "MARKET_ID":42,
+        "ETH_PRIVATE_KEY": "{{YOUR_PRIVATE_KEY}}",
+        "TERM_OFFBOARDER_ENABLED": "true",
+        "LOAN_CALLER_ENABLED": "false",
+        "AUCTION_BIDDER_ENABLED": "false",
+        "HISTORICAL_DATA_FETCHER_ENABLED": "false",
+        "USER_SLASHER_ENABLED": "false",
+        "TERM_ONBOARDING_WATCHER_ENABLED": "false",
+      }
+    }
+  ]
+}
+```
+Restart the process (with the pm2.config.js file to reload env variables)
+`pm2 start ecg-node.pm2.config.js --only ecg-node-sepolia`

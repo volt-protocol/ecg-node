@@ -8,8 +8,12 @@ This does not have to be started by a user who just wants to keep the protocol h
 
 ## Requirements
 
-The RPC_URL in the env variables must be an archival node
+You need to set the following RPC url variable:
+
+`export RPC_URL_ARCHIVE=xxxx`
+
+The RPC_URL_ARCHIVE must be an archival node.
 
 ## Parameters
 
-None (except the enabled true/false)
+None
