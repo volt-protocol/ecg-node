@@ -1,4 +1,4 @@
-import { ReadJSON, WriteJSON, roundTo } from '../utils/Utils';
+import { ReadJSON, WriteJSON, roundTo, sleep } from '../utils/Utils';
 import { GetFullConfigFile, getTokenByAddress, getTokenBySymbol } from '../config/Config';
 import { GLOBAL_DATA_DIR } from '../utils/Constants';
 import { existsSync, readdirSync } from 'fs';
@@ -324,65 +324,77 @@ async function CheckSlippage(lastRunData: LastRunData) {
 
   for (const collateralData of Object.values(totalCollateral)) {
     let slippagePct = 0;
-    if (collateralData.tokenInfo.pendleConfiguration) {
-      const amountFull = new BigNumber(collateralData.totalAmount)
-        .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
-        .toFixed(0);
+    let redo = true;
+    let cptRedo = 0;
+    while (redo) {
+      redo = false;
+      if (collateralData.tokenInfo.pendleConfiguration) {
+        const amountFull = new BigNumber(collateralData.totalAmount)
+          .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
+          .toFixed(0);
 
-      const expiryDate = new Date(collateralData.tokenInfo.pendleConfiguration.expiry);
-      const urlGet =
-        expiryDate.getTime() < Date.now()
-          ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
-            '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-            `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.ytAddress}` +
-            `&amountPyIn=${amountFull}` +
-            `&tokenOutAddr=${
-              collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
-                ? USDC.address
-                : WETH.address
-            }` +
-            `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-            '&slippage=0.1'
-          : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
-            'chainId=42161' +
-            '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
-            `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
-            `&amountPtIn=${amountFull}` +
-            `&tokenOutAddr=${
-              collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
-                ? USDC.address
-                : WETH.address
-            }` +
-            `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
-            '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
-            '&slippage=0.1';
+        const expiryDate = new Date(collateralData.tokenInfo.pendleConfiguration.expiry);
+        const urlGet =
+          expiryDate.getTime() < Date.now()
+            ? 'https://api-v2.pendle.finance/sdk/api/v1/redeemPyToToken?chainId=42161' +
+              '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+              `&ytAddr=${collateralData.tokenInfo.pendleConfiguration.ytAddress}` +
+              `&amountPyIn=${amountFull}` +
+              `&tokenOutAddr=${
+                collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
+                  ? USDC.address
+                  : WETH.address
+              }` +
+              `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+              '&slippage=0.1'
+            : 'https://api-v2.pendle.finance/sdk/api/v1/swapExactPtForToken?' +
+              'chainId=42161' +
+              '&receiverAddr=0x69e2D90935E438c26fFE72544dEE4C1306D80A56' +
+              `&marketAddr=${collateralData.tokenInfo.pendleConfiguration.market}` +
+              `&amountPtIn=${amountFull}` +
+              `&tokenOutAddr=${
+                collateralData.tokenInfo.pendleConfiguration.basePricingAsset.symbol.startsWith('USD')
+                  ? USDC.address
+                  : WETH.address
+              }` +
+              `&syTokenOutAddr=${collateralData.tokenInfo.pendleConfiguration.syTokenOut}` +
+              '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted' +
+              '&slippage=0.1';
 
-      try {
-        const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
-        slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
-      } catch (e) {
-        slippagePct = 100;
-      }
-    } else {
-      const amountFull = new BigNumber(collateralData.totalAmount)
-        .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
-        .toFixed(0);
-      const urlGet =
-        'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
-        `tokenIn=${collateralData.tokenInfo.address}` +
-        `&tokenOut=${WETH.address == collateralData.tokenInfo.address ? USDC.address : WETH.address}` +
-        `&amountIn=${amountFull}` +
-        '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
-
-      const dataGet = await HttpGet<any>(urlGet);
-
-      if (Number(dataGet.data.routeSummary.amountOutUsd) >= Number(dataGet.data.routeSummary.amountInUsd)) {
-        slippagePct = 0;
+        try {
+          const dataGet = await HttpGet<PendleSwapResponse>(urlGet);
+          slippagePct = roundTo(Math.abs(dataGet.data.priceImpact) * 100, 2);
+        } catch (e) {
+          slippagePct = 100;
+        }
       } else {
-        slippagePct = roundTo(
-          (1 - Number(dataGet.data.routeSummary.amountOutUsd) / Number(dataGet.data.routeSummary.amountInUsd)) * 100,
-          2
-        );
+        const amountFull = new BigNumber(collateralData.totalAmount)
+          .times(new BigNumber(10).pow(collateralData.tokenInfo.decimals))
+          .toFixed(0);
+        const urlGet =
+          'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
+          `tokenIn=${collateralData.tokenInfo.address}` +
+          `&tokenOut=${WETH.address == collateralData.tokenInfo.address ? USDC.address : WETH.address}` +
+          `&amountIn=${amountFull}` +
+          '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+
+        const dataGet = await HttpGet<any>(urlGet);
+
+        if (Number(dataGet.data.routeSummary.amountOutUsd) >= Number(dataGet.data.routeSummary.amountInUsd)) {
+          slippagePct = 0;
+        } else {
+          slippagePct = roundTo(
+            (1 - Number(dataGet.data.routeSummary.amountOutUsd) / Number(dataGet.data.routeSummary.amountInUsd)) * 100,
+            2
+          );
+        }
+      }
+
+      if (slippagePct >= 50 && cptRedo < 3) {
+        cptRedo++;
+        redo = true;
+        console.log(`Too much slippage (${slippagePct}%), retrying in 2 minutes`);
+        await sleep(2 * 60 * 1000);
       }
     }
 
