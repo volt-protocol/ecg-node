@@ -198,6 +198,44 @@ router.get('/:marketId/proposals', async (req: Request, res: Response) => {
 
 /**
  * @openapi
+ * /api/markets/{marketId}/proposalsParams:
+ *   get:
+ *     tags:
+ *      - market
+ *     description: Get all  params for a marketid (active and closed)
+ *     parameters:
+ *       - in: path
+ *         name: marketId
+ *         schema:
+ *           type: number
+ *         required: true
+ *         description: The market id
+ *     responses:
+ *       200:
+ *         description: Get all proposals params for a marketid (active and closed)
+ *       404:
+ *         description: market id not found
+ */
+router.get('/:marketId/proposalsParams', async (req: Request, res: Response) => {
+  try {
+    const marketId = Number(req.params.marketId);
+    const cacheKey = `/markets/${marketId}/proposalsParams`;
+    const data = await SimpleCacheService.GetAndCache(
+      cacheKey,
+      () => MarketDataController.GetProposalParams(marketId),
+      CACHE_DURATION
+    );
+    if (!data) {
+      res.status(404).json({ error: `Cannot find market ${marketId}` });
+    }
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
+/**
+ * @openapi
  * /api/markets/{marketId}/tokens:
  *   get:
  *     tags:

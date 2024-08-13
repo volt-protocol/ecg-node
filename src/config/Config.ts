@@ -228,3 +228,10 @@ export function GetPendleOracleAddress() {
   }
   return pendleOracle;
 }
+
+export async function GetLendingTermParamManagerAddress() {
+  if (!(await GetProtocolConstants()).lendingTermParamManagerAddress) {
+    throw new Error(`'lendingTermParamManagerAddress' not set in (await GetProtocolConstants()) ${CONFIG_FILE}`);
+  }
+  return (await GetProtocolConstants()).lendingTermParamManagerAddress;
+}

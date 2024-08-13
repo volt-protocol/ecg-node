@@ -4,6 +4,7 @@ export interface SyncData {
   auctionSync: AuctionSyncData[];
   activitySync?: ActivitySyncData;
   proposalSync?: ProposalSyncData;
+  proposalParamsSync?: ProposalParamsSyncData;
 }
 
 export interface TermSyncData {
@@ -25,5 +26,9 @@ export interface AuctionSyncData {
 }
 
 export interface ProposalSyncData {
+  lastBlockFetched: number;
+}
+
+export interface ProposalParamsSyncData {
   lastBlockFetched: number;
 }

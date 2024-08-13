@@ -51,6 +51,15 @@ export async function FetchECGData() {
     fetchStart = performance.now();
     const proposals = await TermsProposalFetcher.fetchProposals(web3Provider, syncData, currentBlock);
     Log(`FetchECGData: fetchProposals data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+    fetchStart = performance.now();
+    const proposalParams = await TermsProposalFetcher.fetchProposalParams(
+      web3Provider,
+      syncData,
+      currentBlock,
+      proposals
+    );
+    Log(`FetchECGData: fetchProposalParams data took: ${(performance.now() - fetchStart).toFixed(1)} ms`);
+
     WriteJSON(path.join(DATA_DIR, 'sync.json'), syncData);
     const durationMs = performance.now() - dtStart;
     Log(`FetchECGData: finished fetching. Fetch duration: ${durationMs.toFixed(1)} ms`);
