@@ -63,7 +63,7 @@ export enum ProposalParamName {
   MAX_DEBT_PER_COLLATERAL_TOKEN = 'maxDebtPerCollateralToken'
 }
 
-export interface ProposalsParamsApiResponse {
+export interface ProposalParamsApiResponse {
   updated: number;
   updateBlock: number;
   updatedHuman: string;

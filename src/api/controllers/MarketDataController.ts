@@ -14,8 +14,8 @@ import { LastActivityFileStructure } from '../../model/LastActivity';
 import { LastActivityApiResponse } from '../model/LastActivityApiResponse';
 import { LoanStatus, LoansFileStructure } from '../../model/Loan';
 import { LoansApiResponse } from '../model/LoansApiResponse';
-import { ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
-import { ProposalApiStatus, ProposalsApiResponse } from '../model/ProposalsApiResponse';
+import { ProposalParamsFileStructure, ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
+import { ProposalApiStatus, ProposalsApiResponse, ProposalParamsApiResponse } from '../model/ProposalsApiResponse';
 import { CreditTransferFile } from '../../model/CreditTransfer';
 import { MarketDataResponse } from '../model/MarketData';
 import { ProtocolDataFileStructure } from '../../model/ProtocolData';
@@ -235,6 +235,46 @@ class MarketDataController {
           values: _.values,
           targets: _.targets,
           proposer: _.proposer
+        };
+      })
+    };
+
+    return response;
+  }
+
+  static async GetProposalParams(marketId: number): Promise<ProposalParamsApiResponse> {
+    const proposalsFilename = path.join(GLOBAL_DATA_DIR, `market_${marketId}`, 'proposal-params.json');
+    if (!fs.existsSync(proposalsFilename)) {
+      throw new Error(`DATA FILE NOT FOUND FOR MARKET ${marketId}`);
+    }
+
+    const proposalsFile: ProposalParamsFileStructure = ReadJSON(proposalsFilename);
+
+    const response: ProposalParamsApiResponse = {
+      updated: proposalsFile.updated,
+      updateBlock: proposalsFile.updateBlock,
+      updatedHuman: proposalsFile.updatedHuman,
+      proposals: proposalsFile.proposalParams.map((_) => {
+        const status: ProposalApiStatus =
+          _.status == ProposalStatus.QUORUM_REACHED
+            ? ProposalApiStatus.PROPOSED
+            : (_.status as unknown as ProposalApiStatus);
+
+        return {
+          calldatas: _.calldatas,
+          createdBlock: _.createdBlock,
+          termAddress: _.termAddress,
+          voteEnd: _.voteEnd,
+          voteStart: _.voteStart,
+          status: status,
+          quorum: _.quorum,
+          proposalId: _.proposalId,
+          description: _.description,
+          values: _.values,
+          targets: _.targets,
+          proposer: _.proposer,
+          paramName: _.paramName,
+          paramValue: _.paramValue
         };
       })
     };
