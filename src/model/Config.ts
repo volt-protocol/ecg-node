@@ -17,6 +17,7 @@ export interface ProtocolConstants {
   daoGovernorGuildAddress: string;
   daoVetoGuildAddress: string;
   lendingTermFactoryAddress: string;
+  lendingTermParamManagerAddress: string;
 }
 
 export interface TokenConfig {

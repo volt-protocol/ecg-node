@@ -3,14 +3,15 @@ import {
   GetDeployBlock,
   GetLendingTermFactoryAddress,
   GetLendingTermOnboardingAddress,
-  GetNodeConfig,
+  GetLendingTermParamManagerAddress,
   getTokenByAddressNoError
 } from '../../config/Config';
 import {
   LendingTermFactory__factory,
   LendingTerm__factory,
   LendingTerm as LendingTermType,
-  LendingTermOnboarding__factory
+  LendingTermOnboarding__factory,
+  LendingTermParamManager__factory
 } from '../../contracts/types';
 import {
   BLOCK_PER_HOUR,
@@ -24,7 +25,14 @@ import { MulticallWrapper } from 'ethers-multicall-provider';
 import { Log } from '../../utils/Logger';
 import { SyncData } from '../../model/SyncData';
 import { FetchAllEvents, GetERC20Infos, GetL1Web3Provider } from '../../utils/Web3Helper';
-import { Proposal, ProposalStatus, ProposalsFileStructure } from '../../model/Proposal';
+import {
+  Proposal,
+  ProposalParamName,
+  ProposalParams,
+  ProposalParamsFileStructure,
+  ProposalStatus,
+  ProposalsFileStructure
+} from '../../model/Proposal';
 import { norm } from '../../utils/TokenUtils';
 import path from 'path';
 import fs from 'fs';
@@ -100,6 +108,79 @@ export default class TermsProposalFetcher {
 
     syncData.proposalSync.lastBlockFetched = currentBlock;
     Log('FetchECGData[Proposals]: ending');
+    return proposalsToSave;
+  }
+
+  static async fetchProposalParams(
+    web3Provider: JsonRpcProvider,
+    syncData: SyncData,
+    currentBlock: number,
+    allTermProposals: Proposal[]
+  ) {
+    Log('FetchECGData[ProposalParams]: starting');
+
+    let allProposals: ProposalParams[] = [];
+    const proposalsFilePath = path.join(DATA_DIR, 'proposal-params.json');
+    if (fs.existsSync(proposalsFilePath)) {
+      const proposalsFile: ProposalParamsFileStructure = ReadJSON(proposalsFilePath);
+      allProposals = proposalsFile.proposalParams;
+    }
+
+    await fetchProposalParamsEvents(web3Provider, syncData, currentBlock, allProposals, allTermProposals);
+    // await fetchNewQueuedProposals(web3Provider, syncData, currentBlock, allProposals);
+    // await fetchNewExecutedProposals(web3Provider, syncData, currentBlock, allProposals);
+    // await fetchNewCanceledProposals(web3Provider, syncData, currentBlock, allProposals);
+
+    // reset all 'PROPOSED' proposals with voteEnd elapsed
+    // BE CAREFULL FOR ARBITRUM VOTE END IS IN L1 BLOCK NUMBER NOT ARBITRUM BLOCK NUMBER
+    const l1provider = GetL1Web3Provider();
+    const l1BlockNumber = await l1provider.getBlockNumber();
+
+    for (const p of allProposals) {
+      if (l1BlockNumber > p.voteEnd && p.status == ProposalStatus.PROPOSED) {
+        // check if quorum reached
+        const lendingTermParamManager = LendingTermParamManager__factory.connect(
+          await GetLendingTermParamManagerAddress(),
+          web3Provider
+        );
+        const proposalVotes = await lendingTermParamManager.proposalVotes(p.proposalId);
+        // if amount of vote for >= quorum, set status to QUORUM_REACHED
+        if (proposalVotes.forVotes >= BigInt(p.quorum)) {
+          p.status = ProposalStatus.QUORUM_REACHED;
+        } else {
+          resetProposalParamsToCreated(p);
+        }
+      }
+    }
+
+    // remove all proposal with status CREATED and older than 7 days
+    // EDIT FOR NOW KEEP ALL
+    const proposalsToSave = allProposals;
+    // const proposalsToSave = allProposals.filter(
+    //   (_) =>
+    //     // keep only those with status different than CREATE
+    //     _.status != ProposalStatus.CREATED ||
+    //     // of with status created but created less than 7 days ago
+    //     (_.status == ProposalStatus.CREATED && _.createdBlock > currentBlock - 7 * BLOCK_PER_HOUR * 24)
+    // );
+
+    const fileToUpdate: ProposalParamsFileStructure = {
+      proposalParams: proposalsToSave,
+      updateBlock: currentBlock,
+      updated: Date.now(),
+      updatedHuman: new Date(Date.now()).toISOString()
+    };
+
+    WriteJSON(proposalsFilePath, fileToUpdate);
+
+    if (!syncData.proposalParamsSync) {
+      syncData.proposalParamsSync = {
+        lastBlockFetched: currentBlock
+      };
+    }
+
+    syncData.proposalParamsSync.lastBlockFetched = currentBlock;
+    Log('FetchECGData[ProposalParams]: ending');
   }
 }
 
@@ -187,6 +268,152 @@ async function fetchNewCreatedLendingTerms(
   }
 
   return allCreated;
+}
+
+async function fetchProposalParamsEvents(
+  web3Provider: JsonRpcProvider,
+  syncData: SyncData,
+  currentBlock: number,
+  allProposals: ProposalParams[],
+  allTermProposals: Proposal[]
+) {
+  const lendingTermParamManager = LendingTermParamManager__factory.connect(
+    await GetLendingTermParamManagerAddress(),
+    web3Provider
+  );
+
+  let startBlock = await GetDeployBlock();
+  if (syncData.proposalParamsSync) {
+    startBlock = syncData.proposalParamsSync.lastBlockFetched + 1;
+  }
+  //   const filter = lendingTermOnboarding.filters.ProposalCreated();
+
+  const filter = [
+    (await lendingTermParamManager.filters.ProposalCreated().getTopicFilter()).toString(),
+    (await lendingTermParamManager.filters.ProposalExecuted().getTopicFilter()).toString(),
+    (await lendingTermParamManager.filters.ProposalQueued().getTopicFilter()).toString(),
+    (await lendingTermParamManager.filters.ProposalCanceled().getTopicFilter()).toString()
+  ];
+  const proposalEvents = await FetchAllEvents(
+    lendingTermParamManager,
+    'lendingTermParamManager',
+    [filter],
+    startBlock,
+    currentBlock
+  );
+
+  for (const proposalEvent of proposalEvents) {
+    if (proposalEvent.logName == 'ProposalCreated') {
+      const proposalCreated = proposalEvent;
+      const proposalId = proposalCreated.args.proposalId as bigint;
+      const proposer = proposalCreated.args.proposer as string;
+      const description = proposalCreated.args.description as string;
+      const calldatas = proposalCreated.args.calldatas as string[];
+      const values = (proposalCreated.args.values as bigint[]).map((_) => _.toString(10));
+      const targets = proposalCreated.args.targets as string[];
+      const voteStart = proposalCreated.args.voteStart as bigint;
+      const voteEnd = proposalCreated.args.voteEnd as bigint;
+      const quorum = await lendingTermParamManager.quorum(voteStart);
+
+      /* Update borrow ratio [20513359] set maxDebtPerCollateralToken of term 0xfea0e00f93623d79045ce2bc b8715ab5c64149ab to 710000000000000000*/
+
+      const matches = description.match(/(of term 0x[a-z0-9]+)/g);
+      if (!matches) {
+        throw new Error(`Cannot extract term address from ${description}`);
+      }
+
+      const termAddressFromDescription = matches[0].split('of term ')[1];
+
+      const foundTermForMarket = allTermProposals.find(
+        (_) => _.termAddress.toLowerCase() == termAddressFromDescription.toLowerCase()
+      );
+
+      if (!foundTermForMarket) {
+        // ignore, it may be for other market
+        continue;
+      }
+
+      let paramName = ProposalParamName.HARD_CAP;
+      if (description.startsWith('Update borrow ratio')) {
+        paramName = ProposalParamName.MAX_DEBT_PER_COLLATERAL_TOKEN;
+      } else if (description.startsWith('Update interest rate')) {
+        paramName = ProposalParamName.INTEREST_RATE;
+      }
+
+      const paramValue = description.split(' ').at(-1); // value is always the last value after last space
+      if (!paramValue) {
+        throw new Error(`Cannot extract param value from ${description}`);
+      }
+
+      const prop = {
+        proposalId: proposalId.toString(),
+        proposer: proposer,
+        description: description,
+        calldatas: calldatas,
+        values: values,
+        targets: targets,
+        voteStart: Number(voteStart),
+        voteEnd: Number(voteEnd),
+        status: ProposalStatus.PROPOSED,
+        termAddress: termAddressFromDescription,
+        createdBlock: proposalCreated.blockNumber,
+        paramName: paramName,
+        paramValue: paramValue,
+        quorum: quorum.toString()
+      };
+      allProposals.push(prop);
+
+      // send notification only if it's been proposed less than 12 hours ago
+      if (TERM_ONBOARDING_WATCHER_ENABLED && proposalCreated.blockNumber > currentBlock - 12 * BLOCK_PER_HOUR) {
+        await SendNotificationsList(
+          'Term Params Manager Watcher',
+          'New term param is proposed',
+          [
+            {
+              fieldName: 'Lending term',
+              fieldValue: `${foundTermForMarket.termName} - ${EXPLORER_URI}/address/${prop.termAddress}`
+            },
+            {
+              fieldName: 'Proposal Id',
+              fieldValue: proposalId.toString(10)
+            },
+            {
+              fieldName: 'Proposer',
+              fieldValue: proposer
+            },
+            {
+              fieldName: 'Parameter',
+              fieldValue: prop.paramName.toString()
+            },
+            {
+              fieldName: 'Proposed value',
+              fieldValue: prop.paramValue
+            }
+          ],
+          true
+        );
+      }
+    } else {
+      const proposalId = proposalEvent.args.proposalId as bigint;
+
+      const foundProposal = allProposals.find((_) => _.proposalId == proposalId.toString());
+
+      if (!foundProposal) {
+        // ignore, it may be for other market
+        continue;
+      }
+
+      if (proposalEvent.logName == 'ProposalQueued') {
+        foundProposal.status = ProposalStatus.QUEUED;
+      }
+      if (proposalEvent.logName == 'ProposalExecuted') {
+        foundProposal.status = ProposalStatus.ACTIVE;
+      }
+      if (proposalEvent.logName == 'ProposalCanceled') {
+        resetProposalParamsToCreated(foundProposal);
+      }
+    }
+  }
 }
 
 async function fetchProposalEvents(
@@ -314,6 +541,7 @@ async function fetchProposalEvents(
     }
   }
 }
+
 function resetProposalToCreated(proposal: Proposal) {
   proposal.status = ProposalStatus.CREATED;
   proposal.proposalId = '';
@@ -325,4 +553,19 @@ function resetProposalToCreated(proposal: Proposal) {
   proposal.quorum = '';
   proposal.voteEnd = 0;
   proposal.voteStart = 0;
+}
+
+function resetProposalParamsToCreated(proposal: ProposalParams) {
+  proposal.status = ProposalStatus.CREATED;
+  proposal.proposalId = '';
+  proposal.description = '';
+  proposal.targets = [];
+  proposal.values = [];
+  proposal.calldatas = [];
+  proposal.proposer = '';
+  proposal.quorum = '';
+  proposal.voteEnd = 0;
+  proposal.voteStart = 0;
+  proposal.paramName = ProposalParamName.HARD_CAP;
+  proposal.paramValue = '';
 }

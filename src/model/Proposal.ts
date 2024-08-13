@@ -40,3 +40,33 @@ export interface ProposalsFileStructure {
   updatedHuman: string;
   proposals: Proposal[];
 }
+
+export interface ProposalParamsFileStructure {
+  updated: number;
+  updateBlock: number;
+  updatedHuman: string;
+  proposalParams: ProposalParams[];
+}
+
+export interface ProposalParams {
+  status: ProposalStatus;
+  createdBlock: number;
+  termAddress: string;
+  paramName: ProposalParamName;
+  paramValue: string;
+  proposalId: string;
+  description: string;
+  calldatas: string[];
+  values: string[];
+  targets: string[];
+  proposer: string;
+  voteStart: number;
+  voteEnd: number;
+  quorum: string;
+}
+
+export enum ProposalParamName {
+  INTEREST_RATE = 'interestRate',
+  HARD_CAP = 'hardCap',
+  MAX_DEBT_PER_COLLATERAL_TOKEN = 'maxDebtPerCollateralToken'
+}
