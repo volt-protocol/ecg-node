@@ -245,22 +245,20 @@ class PartnershipController {
       }
     }
 
-    const resultUnsorted = Object.keys(usersData).reduce(function (result: { [user: string]: string }, userAddress) {
-      result[userAddress] = result[userAddress] || '0';
-      result[userAddress] = (
-        BigInt(result[userAddress]) + BigInt(Math.round(usersData[userAddress].currentWeight))
-      ).toString();
-      return result;
-    }, {});
-    const resultSorted = Object.keys(resultUnsorted)
-      .sort(function (a, b) {
-        return BigInt(resultUnsorted[a]) < BigInt(resultUnsorted[b]) ? 1 : -1;
-      })
-      .reduce(function (result: { [user: string]: string }, userAddress) {
-        result[userAddress] = resultUnsorted[userAddress] || '0';
-        return result;
-      }, {});
-    return resultSorted;
+    // clean result and sort
+    const userWeightArray: { userAddress: string; weight: number }[] = [];
+    for (const user of Object.keys(usersData)) {
+      userWeightArray.push({ userAddress: user, weight: usersData[user].currentWeight });
+    }
+
+    userWeightArray.sort((a, b) => b.weight - a.weight);
+
+    const result: { [user: string]: string } = {};
+    for (const user of userWeightArray) {
+      result[user.userAddress] = BigInt(Math.round(user.weight)).toString();
+    }
+
+    return result;
   }
 
   static async GetBorrowerWeightsDataForMarket(
@@ -377,22 +375,20 @@ class PartnershipController {
       }
     }
 
-    const resultUnsorted = Object.keys(usersData).reduce(function (result: { [user: string]: string }, userAddress) {
-      result[userAddress] = result[userAddress] || '0';
-      result[userAddress] = (
-        BigInt(result[userAddress]) + BigInt(Math.round(usersData[userAddress].currentWeight))
-      ).toString();
-      return result;
-    }, {});
-    const resultSorted = Object.keys(resultUnsorted)
-      .sort(function (a, b) {
-        return BigInt(resultUnsorted[a]) < BigInt(resultUnsorted[b]) ? 1 : -1;
-      })
-      .reduce(function (result: { [user: string]: string }, userAddress) {
-        result[userAddress] = resultUnsorted[userAddress] || '0';
-        return result;
-      }, {});
-    return resultSorted;
+    // clean result and sort
+    const userWeightArray: { userAddress: string; weight: number }[] = [];
+    for (const user of Object.keys(usersData)) {
+      userWeightArray.push({ userAddress: user, weight: usersData[user].currentWeight });
+    }
+
+    userWeightArray.sort((a, b) => b.weight - a.weight);
+
+    const result: { [user: string]: string } = {};
+    for (const user of userWeightArray) {
+      result[user.userAddress] = BigInt(Math.round(user.weight)).toString();
+    }
+
+    return result;
   }
 }
 export default PartnershipController;
