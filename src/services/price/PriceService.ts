@@ -1,8 +1,8 @@
 import { median } from 'simple-statistics';
-import { ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
+import { BN_1e18, ECG_NODE_API_URI, GET_PRICES_FROM_API, NETWORK } from '../../utils/Constants';
 import { Log, Warn } from '../../utils/Logger';
 import { GetERC20Infos, GetWeb3Provider } from '../../utils/Web3Helper';
-import { CamelotAlgebraPool__factory, UniswapV3Pool__factory } from '../../contracts/types';
+import { CamelotAlgebraPool__factory, SGYD__factory, UniswapV3Pool__factory } from '../../contracts/types';
 import SimpleCacheService from '../cache/CacheService';
 import { HttpGet } from '../../utils/HttpHelper';
 import { PendleMarketResponse } from '../../model/PendleApi';
@@ -16,6 +16,11 @@ import { DexGuruTokensResponse } from '../../model/DexGuru';
 import { SendNotifications } from '../../utils/Notifications';
 import { GetAllTokensFromConfiguration, getTokenByAddressNoError } from '../../config/Config';
 import { DexEnum, TokenConfig } from '../../model/Config';
+import { norm } from '../../utils/TokenUtils';
+
+const OD_ADDRESS = '0x221A0f68770658C15B525d0F89F5da2baAB5f321';
+const sGYD_ADDRESS = '0xeA50f402653c41cAdbaFD1f788341dB7B7F37816';
+const GYD_ADDRESS = '0xCA5d8F8a8d49439357d3CF46Ca2e720702F132b8';
 
 interface PriceResult {
   source: string;
@@ -97,9 +102,20 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         continue;
       }
 
-      if (token.address == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
+      // specific pricing for OD
+      if (token.address == OD_ADDRESS) {
         allPrices[token.address] = await getODPriceCamelot();
         Log(`LoadConfigTokenPrices: price for ${token.symbol} from camelot: ${allPrices[token.address]}`);
+
+        continue;
+      }
+
+      // specific pricing for sGYD
+      if (token.address == sGYD_ADDRESS) {
+        // extract GYD price
+        const gydPrice = 1; // TODO FETCH REAL GYD PRICE
+        allPrices[token.address] = await getsGYDPrice(gydPrice);
+        Log(`LoadConfigTokenPrices: price for ${token.symbol} from on-chain: ${allPrices[token.address]}`);
 
         continue;
       }
@@ -654,4 +670,15 @@ async function getODPriceCamelot(): Promise<number> {
   const ODPriceUsd = priceOdInEth * wethPrice;
   // Log(`getODPriceCamelot: $${ODPriceUsd}`);
   return ODPriceUsd;
+}
+
+async function getsGYDPrice(gydPrice: number): Promise<number> {
+  if (!gydPrice) {
+    throw new Error(`Cannot compute sGYD price without GYD price. GYD price: ${gydPrice}`);
+  }
+
+  const sGYDContract = SGYD__factory.connect(sGYD_ADDRESS, GetWeb3Provider());
+  const sGYDPrice = await sGYDContract.convertToAssets(BN_1e18);
+  const sGYDPriceUsd = norm(sGYDPrice) * gydPrice;
+  return sGYDPriceUsd;
 }
