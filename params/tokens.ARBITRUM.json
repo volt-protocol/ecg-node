@@ -306,6 +306,24 @@
 		"flashloanToken": "USDC"
 	},
 	{
+		"address": "0xCA5d8F8a8d49439357d3CF46Ca2e720702F132b8",
+		"symbol": "GYD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "gyroscope-gyd",
+		"coincapId": ""
+	},
+	{
+		"address": "0xeA50f402653c41cAdbaFD1f788341dB7B7F37816",
+		"symbol": "sGYD",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"coingeckoId": "",
+		"coincapId": ""
+	},
+	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
 		"symbol": "PT-rsETH-27JUN2024",
 		"decimals": 18,
@@ -334,6 +352,24 @@
 			"ytAddress": "0xF478f7FeaeAB0DFdC91E02cDd6C63c66E30a7335",
 			"syTokenOut": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
 			"expiry": "2024-08-29T00:00:00.000Z",
+			"basePricingAsset": {
+				"chainId": 1,
+				"symbol": "USDe",
+				"address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3"
+			}
+		}
+	},
+	{
+		"address": "0x1FA42e6730DF74fF2742704761Da41111bB7F019",
+		"symbol": "PT-USDe-28NOV2024",
+		"decimals": 18,
+		"permitAllowed": true,
+		"protocolToken": false,
+		"pendleConfiguration": {
+			"market": "0x281fE15fd3E08A282f52D5cf09a4d13c3709E66D",
+			"ytAddress": "0x8D0aC6c608fd4BF52FcC31DcEf30D0aE2aED2e81",
+			"syTokenOut": "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+			"expiry": "2024-11-28T00:00:00.000Z",
 			"basePricingAsset": {
 				"chainId": 1,
 				"symbol": "USDe",
