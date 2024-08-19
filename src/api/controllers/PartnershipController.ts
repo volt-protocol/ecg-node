@@ -19,7 +19,7 @@ import { getTokenByAddress } from '../../config/Config';
 import { HttpGet } from '../../utils/HttpHelper';
 
 interface UserData {
-  amountPtUsde: number;
+  amount: number; // this can be a collateral or a credit token amount
   currentWeight: number;
 }
 
@@ -126,7 +126,11 @@ class PartnershipController {
     return response;
   }
 
-  static async GetBorrowerWeightsData(collateralToken: string, startDate: string, endDate: string): Promise<any> {
+  static async GetBorrowerWeightsData(
+    collateralToken: string,
+    startDate: string,
+    endDate: string
+  ): Promise<{ [user: string]: string }> {
     const { allTerms, allLoans } = getAllTermsFromFile();
 
     const collateralTerms = allTerms.filter((_) => _.collateralAddress.toLowerCase() == collateralToken.toLowerCase());
@@ -160,10 +164,10 @@ class PartnershipController {
       if (loanResult.closeTime == 0n) {
         const normalizedAmount = norm(loanResult.collateralAmount);
         if (!usersData[loan.borrowerAddress]) {
-          usersData[loan.borrowerAddress] = { amountPtUsde: 0, currentWeight: 0 };
+          usersData[loan.borrowerAddress] = { amount: 0, currentWeight: 0 };
         }
 
-        usersData[loan.borrowerAddress].amountPtUsde += normalizedAmount;
+        usersData[loan.borrowerAddress].amount += normalizedAmount;
       }
     }
 
@@ -200,7 +204,7 @@ class PartnershipController {
       if (nbElapsedBlocks > 0) {
         // compute time weighted avg with each user holding (before applying new data from this event)
         for (const user of Object.keys(usersData)) {
-          usersData[user].currentWeight += usersData[user].amountPtUsde * nbElapsedBlocks;
+          usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
         }
 
         //console.log(`At block ${eventBlock}, current weights:`, usersData);
@@ -213,10 +217,10 @@ class PartnershipController {
       if (event.logName == 'LoanOpen') {
         // new loan so we add the amount to the amount of pt usde the user has
         if (!usersData[event.args.borrower]) {
-          usersData[event.args.borrower] = { amountPtUsde: 0, currentWeight: 0 };
+          usersData[event.args.borrower] = { amount: 0, currentWeight: 0 };
         }
 
-        usersData[event.args.borrower].amountPtUsde += norm(event.args.collateralAmount);
+        usersData[event.args.borrower].amount += norm(event.args.collateralAmount);
       } else if (event.logName == 'LoanClose') {
         // loan closed so we remove the amount from the amount of pt usde the user has
         // but the collateral amount is not in the event, so we'll get it from the loans list we have
@@ -225,10 +229,10 @@ class PartnershipController {
           throw new Error(`Loan ${event.args.loanId} not found`);
         }
 
-        if (!usersData[event.args.borrower]) {
+        if (!usersData[loan.borrowerAddress]) {
           throw new Error(`User ${event.args.borrower} not found in user data but we got a loan close event`);
         }
-        usersData[event.args.borrower].amountPtUsde -= norm(loan.collateralAmount);
+        usersData[event.args.borrower].amount -= norm(loan.collateralAmount);
       }
     }
 
@@ -237,27 +241,159 @@ class PartnershipController {
       const nbElapsedBlocks = endBlock - lastComputeBlock;
       // compute time weighted avg with each user holding (before applying new data from this event)
       for (const user of Object.keys(usersData)) {
-        usersData[user].currentWeight += usersData[user].amountPtUsde * nbElapsedBlocks;
+        usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
       }
     }
 
-    const resultUnsorted = Object.keys(usersData).reduce(function (result: any, userAddress) {
-      result[userAddress] = result[userAddress] || '0';
-      result[userAddress] = (BigInt(result[userAddress]) + BigInt(Math.round(usersData[userAddress].currentWeight))).toString();
-      return result;
-    }, {});
-    const resultSorted = Object.keys(resultUnsorted).sort(function(a, b) {
-      return BigInt(resultUnsorted[a]) < BigInt(resultUnsorted[b]) ? 1 : -1;
-    }).reduce(function (result: any, userAddress) {
-      result[userAddress] = resultUnsorted[userAddress] || '0';
-      return result;
-    }, {});
-    return resultSorted;
+    // clean result and sort
+    const userWeightArray: { userAddress: string; weight: number }[] = [];
+    for (const user of Object.keys(usersData)) {
+      userWeightArray.push({ userAddress: user, weight: usersData[user].currentWeight });
+    }
+
+    userWeightArray.sort((a, b) => b.weight - a.weight);
+
+    const result: { [user: string]: string } = {};
+    for (const user of userWeightArray) {
+      result[user.userAddress] = BigInt(Math.round(user.weight)).toString();
+    }
+
+    return result;
+  }
+
+  static async GetBorrowerWeightsDataForMarket(
+    marketId: number,
+    startDate: string,
+    endDate: string
+  ): Promise<{ [user: string]: string }> {
+    const { allTerms, allLoans } = getAllTermsFromFile(marketId);
+
+    const archivalProvider = GetArchiveWeb3Provider();
+    const multicallProvider = MulticallWrapper.wrap(archivalProvider, 480_000);
+
+    const startBlock = await getBlockAtTimestamp('arbitrum', new Date(startDate).getTime() / 1000);
+    const endBlock = await getBlockAtTimestamp('arbitrum', new Date(endDate).getTime() / 1000);
+
+    const usersData: { [userAddress: string]: UserData } = {};
+
+    // get base data at startDate
+    // to do that we fetch the getLoan historically for ALL THE LOANS
+    // if a loan does not exists yet, it will just return the default value (empty getLoanData)
+    const promises = [];
+    for (const loan of allLoans) {
+      const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
+      promises.push(lendingTermContract.getLoan(loan.id, { blockTag: startBlock }));
+    }
+
+    const results = await Promise.all(promises);
+
+    for (let i = 0; i < allLoans.length; i++) {
+      const loan = allLoans[i];
+      const loanResult = results[i];
+      // only sum borrow amount for non closed loans
+      if (loanResult.closeTime == 0n) {
+        const normalizedAmount = norm(loanResult.borrowAmount);
+        if (!usersData[loan.borrowerAddress]) {
+          usersData[loan.borrowerAddress] = { amount: 0, currentWeight: 0 };
+        }
+
+        usersData[loan.borrowerAddress].amount += normalizedAmount;
+      }
+    }
+
+    // here we have all the borrowers with their amount of pt-usde at startDate
+    //console.log(`At block ${startBlock}, current weights:`, usersData);
+
+    // fetch all loan open / loan close events from all terms
+    const termContractInterface = LendingTerm__factory.createInterface();
+
+    const filters = [
+      termContractInterface.encodeFilterTopics('LoanOpen', []).toString(),
+      termContractInterface.encodeFilterTopics('LoanClose', []).toString()
+    ];
+
+    const loanEvents = await FetchAllEventsMulti(
+      termContractInterface,
+      allTerms.map((_) => _.termAddress),
+      [filters],
+      startBlock,
+      endBlock,
+      archivalProvider
+    );
+    // console.log(loanEvents);
+
+    // here, we have all the loan open / loan close events for all the terms
+    // we can now update usersData for each event in the correct order (of received events, already sorted), thanks ethers
+
+    let lastComputeBlock = startBlock;
+    for (const event of loanEvents) {
+      const eventBlock = event.blockNumber;
+      const nbElapsedBlocks = eventBlock - lastComputeBlock;
+
+      // if two events are in the same block, we don't compute weight two time
+      if (nbElapsedBlocks > 0) {
+        // compute time weighted avg with each user holding (before applying new data from this event)
+        for (const user of Object.keys(usersData)) {
+          usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
+        }
+
+        //console.log(`At block ${eventBlock}, current weights:`, usersData);
+
+        lastComputeBlock = eventBlock;
+      }
+
+      // in any case, update users data, even if two events in the same block
+      // and update usersData for this event
+      if (event.logName == 'LoanOpen') {
+        // new loan so we add the amount to the amount of pt usde the user has
+        if (!usersData[event.args.borrower]) {
+          usersData[event.args.borrower] = { amount: 0, currentWeight: 0 };
+        }
+
+        usersData[event.args.borrower].amount += norm(event.args.borrowAmount);
+      } else if (event.logName == 'LoanClose') {
+        // loan closed so we remove the amount from the amount of pt usde the user has
+        // but the collateral amount is not in the event, so we'll get it from the loans list we have
+        const loan = allLoans.find((_) => _.id == event.args.loanId);
+        if (!loan) {
+          throw new Error(`Loan ${event.args.loanId} not found`);
+        }
+
+        if (!usersData[loan.borrowerAddress]) {
+          throw new Error(`User ${event.args.borrower} not found in user data but we got a loan close event`);
+        }
+        usersData[loan.borrowerAddress].amount -= norm(loan.borrowAmount);
+      }
+    }
+
+    // in the end, compute for last block
+    if (lastComputeBlock < endBlock) {
+      const nbElapsedBlocks = endBlock - lastComputeBlock;
+      // compute time weighted avg with each user holding (before applying new data from this event)
+      for (const user of Object.keys(usersData)) {
+        usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
+      }
+    }
+
+    // clean result and sort
+    const userWeightArray: { userAddress: string; weight: number }[] = [];
+    for (const user of Object.keys(usersData)) {
+      userWeightArray.push({ userAddress: user, weight: usersData[user].currentWeight });
+    }
+
+    userWeightArray.sort((a, b) => b.weight - a.weight);
+
+    const result: { [user: string]: string } = {};
+    for (const user of userWeightArray) {
+      result[user.userAddress] = BigInt(Math.round(user.weight)).toString();
+    }
+
+    return result;
   }
 }
 export default PartnershipController;
 
-function getAllTermsFromFile(): { allTerms: LendingTerm[]; allLoans: Loan[] } {
+function getAllTermsFromFile(selectedMarketId?: number): { allTerms: LendingTerm[]; allLoans: Loan[] } {
   const terms: LendingTerm[] = [];
   const loans: Loan[] = [];
   const marketDirs = readdirSync(GLOBAL_DATA_DIR).filter((_) => _.startsWith('market_'));
@@ -265,6 +401,11 @@ function getAllTermsFromFile(): { allTerms: LendingTerm[]; allLoans: Loan[] } {
     const marketId = marketDir.split('_')[1];
     if (Number(marketId) > 1e6) {
       // ignore test market
+      continue;
+    }
+
+    // only fetch from selectedMarketid if set
+    if (selectedMarketId && Number(marketId) !== selectedMarketId) {
       continue;
     }
 

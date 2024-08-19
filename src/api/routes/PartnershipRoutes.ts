@@ -78,10 +78,13 @@ router.get('/collateralHolders', async (req: Request, res: Response) => {
 router.get('/borrowerWeights', async (req: Request, res: Response) => {
   try {
     const collateralToken = req.query.collateralToken as string;
-    if (!collateralToken) {
-      res.status(400).json({ error: 'collateralToken is mandatory' });
+    const marketIdPrm = req.query.marketId as string;
+    if (!collateralToken && !marketIdPrm) {
+      res.status(400).json({ error: 'collateralToken or marketId is mandatory' });
       return;
     }
+
+    const marketId = marketIdPrm ? Number(marketIdPrm) : undefined;
     const startDate = req.query.startDate as string;
     if (!startDate) {
       res.status(400).json({ error: 'startDate is mandatory' });
@@ -93,7 +96,9 @@ router.get('/borrowerWeights', async (req: Request, res: Response) => {
       return;
     }
 
-    const data = await PartnershipController.GetBorrowerWeightsData(collateralToken, startDate, endDate);
+    const data = marketId
+      ? await PartnershipController.GetBorrowerWeightsDataForMarket(marketId, startDate, endDate)
+      : await PartnershipController.GetBorrowerWeightsData(collateralToken, startDate, endDate);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
