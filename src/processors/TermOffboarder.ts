@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { ReadJSON, WaitUntilScheduled, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
-import { DATA_DIR, NETWORK, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, NETWORK, MARKET_ID, getProcessTitleMarketId } from '../utils/Constants';
 import {
   GetLendingTermOffboardingAddress,
   GetNodeConfig,
@@ -32,7 +32,7 @@ async function TermOffboarder() {
     const startDate = Date.now();
     const offboarderConfig = (await GetNodeConfig()).processors.TERM_OFFBOARDER;
 
-    process.title = `ECG_NODE_${MARKET_ID}_TermOffboarder`;
+    process.title = `${getProcessTitleMarketId()}_TermOffboarder`;
     Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const auctionHousesFilename = path.join(DATA_DIR, 'auction-houses.json');

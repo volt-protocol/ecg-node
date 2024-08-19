@@ -7,6 +7,18 @@ dotenv.config();
 export const NETWORK = process.env.NETWORK || 'SEPOLIA';
 
 export const MARKET_ID = process.env.MARKET_ID ? Number(process.env.MARKET_ID) : 1;
+
+export function getProcessTitleMarketId() {
+  if (MARKET_ID < 1e6) {
+    return `ECGN_${MARKET_ID}`;
+  } else if (MARKET_ID == 999999999) {
+    return 'ECGN_T_USDC';
+  } else if (MARKET_ID == 999999998) {
+    return 'ECGN_T_WETH';
+  } else {
+    throw new Error('Invalid market id');
+  }
+}
 export const GLOBAL_DATA_DIR = path.join(process.cwd(), 'data');
 export const DATA_DIR = path.join(GLOBAL_DATA_DIR, `market_${MARKET_ID}`);
 export const CONFIG_FILE =

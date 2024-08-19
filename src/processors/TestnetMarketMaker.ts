@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import { norm } from '../utils/TokenUtils';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, getProcessTitleMarketId, MARKET_ID } from '../utils/Constants';
 import path from 'path';
 import fs from 'fs';
 import { MarketMakerState } from '../model/MarketMakerState';
@@ -29,7 +29,7 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'market-maker-state.jso
 async function TestnetMarketMaker() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = `ECG_NODE_${MARKET_ID}_TestnetMarketMaker`;
+    process.title = `${getProcessTitleMarketId()}_TestnetMarketMaker`;
     Log('starting');
     const config = (await GetNodeConfig()).processors.TESTNET_MARKET_MAKER;
 

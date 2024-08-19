@@ -2,7 +2,7 @@ import { ReadJSON, WaitUntilScheduled, WriteJSON, retry, sleep } from '../utils/
 
 import fs from 'fs';
 import path from 'path';
-import { BLOCK_PER_HOUR, DATA_DIR, MARKET_ID, NETWORK } from '../utils/Constants';
+import { BLOCK_PER_HOUR, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
@@ -57,7 +57,7 @@ const STEP_BLOCK = BLOCK_PER_HOUR;
 async function HistoricalDataFetcher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = `ECG_NODE_${MARKET_ID}_HistoricalDataFetcher`;
+    process.title = `${getProcessTitleMarketId()}_HistoricalDataFetcher`;
     const startDate = Date.now();
     Log('starting');
     const rpcURL = process.env.RPC_URL;

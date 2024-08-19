@@ -5,7 +5,7 @@ import { GuildToken__factory, Multicall3 } from '../contracts/types';
 import { GetGuildTokenAddress, GetNodeConfig } from '../config/Config';
 import { ethers } from 'ethers';
 import { GaugesFileStructure } from '../model/Gauge';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, getProcessTitleMarketId, MARKET_ID } from '../utils/Constants';
 import { UserSlasherState } from '../model/UserSlasherState';
 import { SendNotificationsList } from '../utils/Notifications';
 import { GetWeb3Provider } from '../utils/Web3Helper';
@@ -22,7 +22,7 @@ const STATE_FILENAME = path.join(DATA_DIR, 'processors', 'user-slasher-state.jso
 async function UserSlasher() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = `ECG_NODE_${MARKET_ID}_UserSlasher`;
+    process.title = `${getProcessTitleMarketId()}_UserSlasher`;
     Log('starting');
     const config = (await GetNodeConfig()).processors.USER_SLASHER;
 

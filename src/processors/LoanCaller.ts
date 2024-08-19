@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { GetProtocolData, ReadJSON, buildTxUrl, sleep } from '../utils/Utils';
 import path from 'path';
-import { DATA_DIR, MARKET_ID } from '../utils/Constants';
+import { DATA_DIR, getProcessTitleMarketId, MARKET_ID } from '../utils/Constants';
 import { ethers } from 'ethers';
 import LendingTerm, { LendingTermStatus, LendingTermsFileStructure } from '../model/LendingTerm';
 import { Loan, LoanStatus, LoansFileStructure } from '../model/Loan';
@@ -17,7 +17,7 @@ const MS_PER_YEAR = 31_557_600_000; // 365.25 days per year
 async function LoanCaller() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = `ECG_NODE_${MARKET_ID}_LoanCaller`;
+    process.title = `${getProcessTitleMarketId()}_LoanCaller`;
     Log('starting');
     const termsFilename = path.join(DATA_DIR, 'terms.json');
     const loansFilename = path.join(DATA_DIR, 'loans.json');

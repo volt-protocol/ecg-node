@@ -1,5 +1,5 @@
 import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction';
-import { BN_1e18, DATA_DIR, MARKET_ID, NETWORK, SWAP_MODE } from '../utils/Constants';
+import { BN_1e18, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
@@ -34,7 +34,7 @@ let PEG_TOKEN: TokenConfig;
 async function AuctionBidder() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    process.title = `ECG_NODE_${MARKET_ID}_AuctionBidder`;
+    process.title = `${getProcessTitleMarketId()}_AuctionBidder`;
     Log(`starting with swap mode: ${SWAP_MODE}`);
     const auctionBidderConfig = (await GetNodeConfig()).processors.AUCTION_BIDDER;
     const creditMultiplier = GetProtocolData().creditMultiplier;

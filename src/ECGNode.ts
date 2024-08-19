@@ -3,6 +3,7 @@ import path from 'path';
 import {
   AUCTION_BIDDER_ENABLED,
   DATA_DIR,
+  getProcessTitleMarketId,
   HISTORICAL_DATA_FETCHER_ENABLED,
   LOAN_CALLER_ENABLED,
   MARKET_ID,
@@ -20,7 +21,7 @@ import { StartUniversalEventListener } from './datafetch/EventWatcher';
 dotenv.config();
 
 async function main() {
-  process.title = `ECG_NODE_${MARKET_ID}`;
+  process.title = `${getProcessTitleMarketId()}`;
   Log(`[ECG-NODE] STARTED FOR MARKET_ID: ${MARKET_ID}`);
   if (!fs.existsSync(path.join(DATA_DIR))) {
     fs.mkdirSync(path.join(DATA_DIR), { recursive: true });
