@@ -138,6 +138,10 @@ class PartnershipController {
       collateralTerms.map((t) => t.termAddress).includes(loan.lendingTermAddress)
     );
 
+    const allLoansBeforeStartDate = loansWithCollateral.filter(
+      (_) => new Date(_.originationTime) <= new Date(startDate)
+    );
+
     const archivalProvider = GetArchiveWeb3Provider();
     const multicallProvider = MulticallWrapper.wrap(archivalProvider, 480_000);
 
@@ -150,15 +154,15 @@ class PartnershipController {
     // to do that we fetch the getLoan historically for ALL THE LOANS
     // if a loan does not exists yet, it will just return the default value (empty getLoanData)
     const promises = [];
-    for (const loan of loansWithCollateral) {
+    for (const loan of allLoansBeforeStartDate) {
       const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
       promises.push(lendingTermContract.getLoan(loan.id, { blockTag: startBlock }));
     }
 
     const results = await Promise.all(promises);
 
-    for (let i = 0; i < loansWithCollateral.length; i++) {
-      const loan = loansWithCollateral[i];
+    for (let i = 0; i < allLoansBeforeStartDate.length; i++) {
+      const loan = allLoansBeforeStartDate[i];
       const loanResult = results[i];
       // only sum collateral for non closed loans
       if (loanResult.closeTime == 0n) {
@@ -232,7 +236,7 @@ class PartnershipController {
         if (!usersData[loan.borrowerAddress]) {
           throw new Error(`User ${event.args.borrower} not found in user data but we got a loan close event`);
         }
-        usersData[event.args.borrower].amount -= norm(loan.collateralAmount);
+        usersData[loan.borrowerAddress].amount -= norm(loan.collateralAmount);
       }
     }
 
@@ -271,6 +275,8 @@ class PartnershipController {
     const archivalProvider = GetArchiveWeb3Provider();
     const multicallProvider = MulticallWrapper.wrap(archivalProvider, 480_000);
 
+    const allLoansBeforeStartDate = allLoans.filter((_) => new Date(_.originationTime) <= new Date(startDate));
+
     const startBlock = await getBlockAtTimestamp('arbitrum', new Date(startDate).getTime() / 1000);
     const endBlock = await getBlockAtTimestamp('arbitrum', new Date(endDate).getTime() / 1000);
 
@@ -280,15 +286,15 @@ class PartnershipController {
     // to do that we fetch the getLoan historically for ALL THE LOANS
     // if a loan does not exists yet, it will just return the default value (empty getLoanData)
     const promises = [];
-    for (const loan of allLoans) {
+    for (const loan of allLoansBeforeStartDate) {
       const lendingTermContract = LendingTerm__factory.connect(loan.lendingTermAddress, multicallProvider);
       promises.push(lendingTermContract.getLoan(loan.id, { blockTag: startBlock }));
     }
 
     const results = await Promise.all(promises);
 
-    for (let i = 0; i < allLoans.length; i++) {
-      const loan = allLoans[i];
+    for (let i = 0; i < allLoansBeforeStartDate.length; i++) {
+      const loan = allLoansBeforeStartDate[i];
       const loanResult = results[i];
       // only sum borrow amount for non closed loans
       if (loanResult.closeTime == 0n) {
