@@ -105,4 +105,32 @@ router.get('/borrowerWeights', async (req: Request, res: Response) => {
   }
 });
 
+// route not shown on api docs
+router.get('/lenderWeights', async (req: Request, res: Response) => {
+  try {
+    const marketIdPrm = req.query.marketId as string;
+    if (!marketIdPrm) {
+      res.status(400).json({ error: 'marketId is mandatory' });
+      return;
+    }
+
+    const marketId = Number(marketIdPrm);
+    const startDate = req.query.startDate as string;
+    if (!startDate) {
+      res.status(400).json({ error: 'startDate is mandatory' });
+      return;
+    }
+    const endDate = req.query.endDate as string;
+    if (!endDate) {
+      res.status(400).json({ error: 'endDate is mandatory' });
+      return;
+    }
+
+    const data = await PartnershipController.GetLenderWeightDataForMarket(marketId, startDate, endDate);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', msg: (error as Error).message });
+  }
+});
+
 export default router;

@@ -5,7 +5,7 @@ import {
   LendingTermLens__factory,
   LendingTerm__factory
 } from '../../contracts/types';
-import { GetArchiveWeb3Provider, FetchAllEventsMulti } from '../../utils/Web3Helper';
+import { GetArchiveWeb3Provider, FetchAllEventsMulti, GetWeb3Provider, FetchAllEvents } from '../../utils/Web3Helper';
 import { EtherfiResponse } from '../model/PartnershipResponse';
 import LendingTerm, { LendingTermsFileStructure } from '../../model/LendingTerm';
 import { readdirSync } from 'fs';
@@ -15,12 +15,17 @@ import { ReadJSON } from '../../utils/Utils';
 import { Loan, LoansFileStructure } from '../../model/Loan';
 import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
-import { getTokenByAddress } from '../../config/Config';
+import { GetFullConfigFile, getTokenByAddress } from '../../config/Config';
 import { HttpGet } from '../../utils/HttpHelper';
+import { ethers } from 'ethers';
 
 interface UserData {
   amount: number; // this can be a collateral or a credit token amount
   currentWeight: number;
+}
+interface UserDataBn {
+  amount: bigint; // this can be a collateral or a credit token amount
+  currentWeight: bigint;
 }
 
 class PartnershipController {
@@ -392,6 +397,134 @@ class PartnershipController {
     const result: { [user: string]: string } = {};
     for (const user of userWeightArray) {
       result[user.userAddress] = BigInt(Math.round(user.weight)).toString();
+    }
+
+    return result;
+  }
+
+  static async GetLenderWeightDataForMarket(
+    marketId: number,
+    startDate: string,
+    endDate: string
+  ): Promise<{ [user: string]: string }> {
+    const marketSgm: { [marketId: number]: string } = {
+      1: '0xB94AaAe7472a694Dd959C8497b2f09730391dc52',
+      3: '0x55aB4C8a5f11f8E62d7822d5AEd778784DF12aFD',
+      4: '0x6995aA07B177918423d2127B885b67E7A3ceC265',
+      5: '0x71215ac6faF015AEa177675543A8635beb08D183',
+      6: '0xaa5bb0ffBFABeC29A0Df298b4B6a1A8e24CFE17E',
+      7: '0x7c171a82F73E9C030cF9133606D883883c826AcB',
+      8: '0x72C0a3D34aABd20dB73a38C494f6e6bE503F4A5b',
+      9: '0x0d81Cf2515c02A7CdBd110c41E8DCe2bb1983962'
+    };
+
+    const marketConfig = (await GetFullConfigFile())[marketId];
+
+    const startBlock = await getBlockAtTimestamp('arbitrum', new Date(startDate).getTime() / 1000);
+    const endBlock = await getBlockAtTimestamp('arbitrum', new Date(endDate).getTime() / 1000);
+
+    const usersData: { [userAddress: string]: UserDataBn } = {};
+
+    // get base data at startDate
+    // to do that we fetch transfer events from deployBlock to startBlock (excluded)
+    const creditToken = ERC20__factory.connect(marketConfig.creditTokenAddress, GetWeb3Provider());
+    const transfersBeforeStartDate = await FetchAllEvents(
+      creditToken,
+      'creditToken',
+      'Transfer',
+      marketConfig.deployBlock,
+      startBlock - 1
+    );
+
+    // now we can build the base data
+    for (const event of transfersBeforeStartDate) {
+      const creditAmount = event.args.value as bigint;
+      if (creditAmount == 0n) {
+        continue;
+      }
+      const from = event.args.from;
+      const to = event.args.to;
+      // ignore market sgm and zero address
+      if (to != marketSgm[marketId] && to != ethers.ZeroAddress && to != marketConfig.psmAddress) {
+        if (!usersData[to]) {
+          usersData[to] = { amount: 0n, currentWeight: 0n };
+        }
+        usersData[to].amount += creditAmount;
+      }
+
+      if (from != marketSgm[marketId] && from != ethers.ZeroAddress) {
+        if (!usersData[from]) {
+          throw new Error('User not found in usersData');
+        }
+        usersData[from].amount -= creditAmount;
+      }
+    }
+
+    // here we have all the credit holder at start date, we can now fetch events from startBlock to endBlock
+    const transfers = await FetchAllEvents(creditToken, 'creditToken', 'Transfer', startBlock, endBlock);
+
+    let lastComputeBlock = startBlock;
+    for (const event of transfers) {
+      const eventBlock = event.blockNumber;
+      const nbElapsedBlocks = BigInt(eventBlock - lastComputeBlock);
+      const creditAmount = event.args.value as bigint;
+      if (creditAmount == 0n) {
+        continue;
+      }
+      const from = event.args.from;
+      const to = event.args.to;
+
+      // if two events are in the same block, we don't compute weight two time
+      if (nbElapsedBlocks > 0) {
+        // compute time weighted avg with each user holding (before applying new data from this event)
+        for (const user of Object.keys(usersData)) {
+          usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
+        }
+
+        //console.log(`At block ${eventBlock}, current weights:`, usersData);
+
+        lastComputeBlock = eventBlock;
+      }
+
+      // update users data
+      if (to != marketSgm[marketId] && to != ethers.ZeroAddress && to != marketConfig.psmAddress) {
+        if (!usersData[to]) {
+          usersData[to] = { amount: 0n, currentWeight: 0n };
+        }
+        usersData[to].amount += creditAmount;
+      }
+
+      if (from != marketSgm[marketId] && from != ethers.ZeroAddress) {
+        if (!usersData[from]) {
+          throw new Error('User not found in usersData');
+        }
+        usersData[from].amount -= creditAmount;
+      }
+    }
+
+    // in the end, compute for last block
+    if (lastComputeBlock < endBlock) {
+      const nbElapsedBlocks = BigInt(endBlock - lastComputeBlock);
+      // compute time weighted avg with each user holding (before applying new data from this event)
+      for (const user of Object.keys(usersData)) {
+        usersData[user].currentWeight += usersData[user].amount * nbElapsedBlocks;
+      }
+    }
+
+    // clean result and sort
+    const userWeightArray: { userAddress: string; weight: bigint }[] = [];
+    for (const user of Object.keys(usersData)) {
+      userWeightArray.push({ userAddress: user, weight: usersData[user].currentWeight });
+    }
+
+    userWeightArray.sort((a, b) => (a.weight > b.weight ? -1 : 1));
+
+    const result: { [user: string]: string } = {};
+    for (const user of userWeightArray) {
+      if (user.weight == 0n) {
+        continue;
+      }
+      result[user.userAddress] = user.weight.toString(10);
     }
 
     return result;
