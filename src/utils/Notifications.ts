@@ -6,8 +6,11 @@ import os from 'os';
 
 function getFormattedSender(sender: string) {
   const marketId = process.env.MARKET_ID;
+  const marketName = process.env.MARKET_NAME;
   let formattedSender = sender;
-  if (marketId) {
+  if (marketName) {
+    formattedSender = `${os.hostname()} | ${NETWORK} | MARKET ${marketName} | ${sender}`;
+  } else if (marketId) {
     formattedSender = `${os.hostname()} | ${NETWORK} | MARKET ${MARKET_ID} | ${sender}`;
   } else {
     formattedSender = `${os.hostname()} | ${NETWORK} | ${sender}`;
