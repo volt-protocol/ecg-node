@@ -3,6 +3,7 @@ import { norm } from '../utils/TokenUtils';
 import { ReadJSON, WriteJSON } from '../utils/Utils';
 
 const PREGUILD_ADDRESS = '0xe38d06840c9E527b8D40309CCcF4B05af0F888A5';
+const TOKEN_DECIMALS = 18; // TODO MAKE IT DYNAMIC ? OR PASS AS ARGUMENT ?
 async function buildAirdropTx(amountAirdrop: string, airdropTokenAddress: string, weightFile: string) {
   const userWeights = ReadJSON(weightFile) as { [user: string]: string };
   const amountAirdropBn = BigInt(amountAirdrop);
@@ -34,6 +35,9 @@ function generateJsonTxBuilder(
   userWeights: { [user: string]: string },
   totalWeight: bigint
 ) {
+  // if the airdrop token is the preguild token, we use the redeem function, otherwise we use the transfer function
+  const contractFct = airdropTokenAddress == PREGUILD_ADDRESS ? 'redeem' : 'transfer';
+
   const txBuilderJson: TxBuilderModel = {
     version: '1.0',
     chainId: '42161',
@@ -58,13 +62,10 @@ function generateJsonTxBuilder(
 
     // amount to airdrop to user is equals to the ratio of the user weight over the total weight times amount to be airdropped
     const amountToAirdropToUser = (amountAirdropBn * userWeightBn) / totalWeight;
-    if (amountToAirdropToUser < 100n * 10n ** 18n) {
+    if (amountToAirdropToUser < 100n * 10n ** BigInt(TOKEN_DECIMALS)) {
       console.log('amountToAirdropToUser < 100 tokens', userAddress, norm(amountToAirdropToUser));
       continue;
     }
-
-    // if the airdrop token is the preguild token, we use the redeem function, otherwise we use the transfer function
-    const contractFct = airdropTokenAddress == PREGUILD_ADDRESS ? 'redeem' : 'transfer';
 
     txBuilderJson.transactions.push({
       to: airdropTokenAddress,
@@ -93,10 +94,10 @@ function generateJsonTxBuilder(
     });
   }
 
-  // console.log('txBuilderJson', txBuilderJson);
-  txBuilderJson.transactions.sort(function (a, b) {
-    return Number(a.contractInputsValues.amount) < Number(b.contractInputsValues.amount) ? 1 : -1;
-  });
+  // sort the transactions by amount in descending order
+  txBuilderJson.transactions.sort(
+    (a, b) => Number(b.contractInputsValues.amount) - Number(a.contractInputsValues.amount)
+  );
   return txBuilderJson;
 }
 
