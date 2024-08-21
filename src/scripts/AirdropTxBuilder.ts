@@ -1,3 +1,4 @@
+import { TxBuilderModel } from '../model/TxBuilderModel';
 import { norm } from '../utils/TokenUtils';
 import { ReadJSON, WriteJSON } from '../utils/Utils';
 
@@ -7,6 +8,22 @@ async function buildAirdropTx(amountAirdrop: string, airdropTokenAddress: string
   const amountAirdropBn = BigInt(amountAirdrop);
   const totalWeight = Object.values(userWeights).reduce((acc, curr) => acc + BigInt(curr), 0n);
   const txBuilderJson = generateJsonTxBuilder(amountAirdropBn, airdropTokenAddress, userWeights, totalWeight);
+
+  const sumOfAmounts = txBuilderJson.transactions.reduce(
+    (acc, curr) => acc + BigInt(curr.contractInputsValues.amount),
+    0n
+  );
+
+  // ensure sum of amounts is less than or equal to amountAirdrop
+  if (sumOfAmounts > amountAirdropBn) {
+    throw new Error('Cannot airdrop more than the total amount');
+  }
+
+  // ensure sum of amounts is min 90% of the total amount
+  if (sumOfAmounts < (amountAirdropBn * 90n) / 100n) {
+    throw new Error('Cannot airdrop less than 90% of the total amount');
+  }
+
   console.log(JSON.stringify(txBuilderJson, null, 2));
   WriteJSON('txBuilder.json', txBuilderJson);
 }
@@ -17,7 +34,7 @@ function generateJsonTxBuilder(
   userWeights: { [user: string]: string },
   totalWeight: bigint
 ) {
-  const txBuilderJson: any = {
+  const txBuilderJson: TxBuilderModel = {
     version: '1.0',
     chainId: '42161',
     createdAt: Date.now(),
@@ -77,7 +94,7 @@ function generateJsonTxBuilder(
   }
 
   // console.log('txBuilderJson', txBuilderJson);
-  txBuilderJson.transactions.sort(function (a: any, b: any) {
+  txBuilderJson.transactions.sort(function (a, b) {
     return Number(a.contractInputsValues.amount) < Number(b.contractInputsValues.amount) ? 1 : -1;
   });
   return txBuilderJson;
