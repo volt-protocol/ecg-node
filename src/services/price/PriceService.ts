@@ -192,6 +192,8 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
     }
 
     // here we can fetch prices after other prices are fetched
+    // this is done when some token require other token price to be fetched first
+    // example: sGYD require GYD price to be fetched first
     await fetchAdditionalPrices(allPrices);
   }
 
