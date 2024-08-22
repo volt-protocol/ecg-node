@@ -2,7 +2,7 @@ import { ReadJSON, WaitUntilScheduled, WriteJSON, retry, sleep } from '../utils/
 
 import fs from 'fs';
 import path from 'path';
-import { BLOCK_PER_HOUR, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK } from '../utils/Constants';
+import { BLOCK_PER_HOUR, BN_1e18, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK } from '../utils/Constants';
 import { ethers } from 'ethers';
 import {
   GetCreditTokenAddress,
@@ -25,7 +25,8 @@ import {
   LendingTerm,
   LendingTerm__factory,
   PendleOracle__factory,
-  ProfitManager__factory
+  ProfitManager__factory,
+  SGYD__factory
 } from '../contracts/types';
 import { norm } from '../utils/TokenUtils';
 import * as dotenv from 'dotenv';
@@ -47,6 +48,10 @@ import { DefiLlamaPriceResponse } from '../model/DefiLlama';
 import { PendleConfig } from '../model/Config';
 dotenv.config();
 let lastCallDefillama = 0;
+
+const OD_ADDRESS = '0x221A0f68770658C15B525d0F89F5da2baAB5f321';
+const sGYD_ADDRESS = '0xeA50f402653c41cAdbaFD1f788341dB7B7F37816';
+const GYD_ADDRESS = '0xCA5d8F8a8d49439357d3CF46Ca2e720702F132b8';
 
 const runEverySec = 30 * 60; // every 30 minutes
 const STEP_BLOCK = BLOCK_PER_HOUR;
@@ -906,8 +911,17 @@ async function GetTokenPriceMultiAtTimestamp(
       }
     }
 
-    if (tokenAddress == '0x221A0f68770658C15B525d0F89F5da2baAB5f321') {
+    if (tokenAddress == OD_ADDRESS) {
       prices[tokenAddress] = await getODPriceCamelot(atBlock, timestamp, web3Provider);
+      continue;
+    }
+
+    if (tokenAddress == sGYD_ADDRESS) {
+      // fetch historical price of GYD
+      const gydPrice = (await GetTokenPriceMultiAtTimestamp([GYD_ADDRESS], timestamp, atBlock, web3Provider))[
+        GYD_ADDRESS
+      ];
+      prices[tokenAddress] = await getsGYDPrice(gydPrice, atBlock, web3Provider);
       continue;
     }
 
@@ -1032,7 +1046,7 @@ async function GetPendlePriceAtBlock(
 }
 
 /**
- * Get the PT price vs the asset, example for
+ * Get the PT price vs the asset
  * @param pendleMarketAddress
  * @param atBlock
  * @returns
@@ -1085,4 +1099,24 @@ async function getODPriceCamelot(
   return ODPriceUsd;
 }
 
+/// sGYD
+async function getsGYDPrice(gydPrice: number, atBlock: number, web3Provider: ethers.JsonRpcProvider): Promise<number> {
+  if (!gydPrice) {
+    throw new Error(`Cannot compute sGYD price without GYD price. GYD price: ${gydPrice}`);
+  }
+
+  const sGYDContract = SGYD__factory.connect(sGYD_ADDRESS, web3Provider);
+  const sGYDPrice = await sGYDContract.convertToAssets(BN_1e18, { blockTag: atBlock });
+  const sGYDPriceUsd = norm(sGYDPrice) * gydPrice;
+  return sGYDPriceUsd;
+}
+
 HistoricalDataFetcher();
+
+// async function test() {
+//   const block = 242537490;
+//   const archiveProvider = GetArchiveWeb3Provider();
+//   const blockTime = (await archiveProvider.getBlock(block))?.timestamp;
+//   GetTokenPriceMultiAtTimestamp([sGYD_ADDRESS], blockTime!, block, archiveProvider);
+// }
+// test();
