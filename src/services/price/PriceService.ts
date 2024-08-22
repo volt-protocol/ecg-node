@@ -112,10 +112,7 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
 
       // specific pricing for sGYD
       if (token.address == sGYD_ADDRESS) {
-        // extract GYD price
-        const gydPrice = 1; // TODO FETCH REAL GYD PRICE
-        allPrices[token.address] = await getsGYDPrice(gydPrice);
-        Log(`LoadConfigTokenPrices: price for ${token.symbol} from on-chain: ${allPrices[token.address]}`);
+        allPrices[token.address] = 0; // will be fetched later, when gyd price is known
 
         continue;
       }
@@ -193,11 +190,21 @@ async function LoadConfigTokenPrices(): Promise<{ [tokenAddress: string]: number
         );
       }
     }
+
+    // here we can fetch prices after other prices are fetched
+    await fetchAdditionalPrices(allPrices);
   }
 
   Log(`LoadConfigTokenPrices: ends with ${Object.keys(allPrices).length} prices`);
 
   return allPrices;
+}
+
+async function fetchAdditionalPrices(allPrices: { [tokenAddress: string]: number }) {
+  // sGYD price
+  const gydPrice = allPrices[GYD_ADDRESS];
+  allPrices[sGYD_ADDRESS] = await getsGYDPrice(gydPrice);
+  Log(`LoadConfigTokenPrices: price for sGYD from on-chain: ${allPrices[sGYD_ADDRESS]}`);
 }
 
 // this function must ge the eth price with stability but also not be using one of the other way of fetching price
@@ -620,7 +627,6 @@ async function GetOdosPriceMulti(tokens: TokenConfig[]): Promise<PriceResult> {
   const prices: { [tokenAddress: string]: number } = {};
 
   try {
-    const tokenAddresses = tokens.map((_) => _.mainnetAddress || _.address);
     const chainid = NETWORK == 'ARBITRUM' ? 42161 : 1;
     const url = `https://api.odos.xyz/pricing/token/${chainid}`;
 
