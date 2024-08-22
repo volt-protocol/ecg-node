@@ -1044,8 +1044,13 @@ async function GetPendleOraclePrice(
 ) {
   // if blocknumber is specified, get an archive node
   const oracleContract = PendleOracle__factory.connect(GetPendleOracleAddress(), web3Provider);
-  const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 10, { blockTag: atBlock });
-  return norm(priceToAsset);
+  try {
+    const priceToAsset = await oracleContract.getPtToAssetRate(pendleMarketAddress, 1, { blockTag: atBlock });
+    return norm(priceToAsset);
+  } catch (e) {
+    Warn(`GetPendleOraclePrice: error getting price for ${pendleMarketAddress} at block ${atBlock}: ${e}`);
+    throw e;
+  }
 }
 
 async function getODPriceCamelot(
