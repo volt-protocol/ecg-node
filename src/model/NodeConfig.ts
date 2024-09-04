@@ -40,7 +40,8 @@ export interface AuctionBidderConfig extends ProcessorConfig {
 export enum BidderSwapMode {
   UNISWAPV2 = 'UNISWAPV2',
   ONE_INCH = '1INCH',
-  OPEN_OCEAN = 'OPEN_OCEAN'
+  OPEN_OCEAN = 'OPEN_OCEAN',
+  KYBER = 'KYBER'
 }
 
 export interface TestnetMarketMakerConfig extends ProcessorConfig {

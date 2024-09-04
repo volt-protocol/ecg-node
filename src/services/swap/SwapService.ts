@@ -5,11 +5,13 @@ import { TokenConfig } from '../../model/Config';
 import { norm } from '../../utils/TokenUtils';
 import { Log } from '../../utils/Logger';
 import { sleep } from '../../utils/Utils';
-import { HttpGet } from '../../utils/HttpHelper';
+import { HttpGet, HttpPost } from '../../utils/HttpHelper';
 import { PendleSwapResponse } from '../../model/PendleApi';
 import { OneInchSwapResponse } from '../../model/OneInchApi';
 import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../../model/OpenOceanApi';
 import { GetAvgGasPrice } from '../../utils/Web3Helper';
+import { KyberSwapGetResponse } from '../../model/KyberSwapGetResponse';
+import { KyberSwapPostResponse } from '../../model/KyberSwapPostResponse';
 
 let lastCallPendle = 0;
 let lastCall1Inch = 0;
@@ -198,6 +200,51 @@ export default class SwapService {
       toTokenReceivedWei: BigInt(openOceanResponse.data.outAmount),
       swapData: openOceanResponse.data.data,
       routerAddress: openOceanResponse.data.to,
+      swapLabel: swapLabel
+    };
+  }
+
+  static async GetSwapKyber(
+    fromToken: TokenConfig,
+    toToken: TokenConfig,
+    collateralReceivedWei: bigint,
+    web3Provider: ethers.JsonRpcProvider,
+    receiverAddr: string
+  ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
+    const urlGet =
+      'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
+      `tokenIn=${fromToken.address}` +
+      `&tokenOut=${toToken.address}` +
+      `&amountIn=${collateralReceivedWei.toString(10)}&` +
+      '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+
+    const kyberResp = await HttpGet<KyberSwapGetResponse>(urlGet);
+
+    const urlPost = 'https://aggregator-api.kyberswap.com/arbitrum/api/v1/route/build';
+    const dataPost = await HttpPost<KyberSwapPostResponse>(
+      urlPost,
+      {
+        routeSummary: kyberResp.data.routeSummary,
+        slippageTolerance: 50, // 0.005 -> 50 (0.5%)
+        sender: receiverAddr,
+        recipient: receiverAddr
+      },
+      {
+        headers: {
+          'x-client-id': 'EthereumCreditGuild'
+        }
+      }
+    );
+
+    const swapLabel = `Swapping ${norm(collateralReceivedWei, fromToken.decimals)} ${fromToken.symbol} => ${norm(
+      dataPost.data.amountOut,
+      toToken.decimals
+    )} ${toToken.symbol} using Kyber`;
+
+    return {
+      toTokenReceivedWei: BigInt(dataPost.data.amountOut),
+      swapData: dataPost.data.data,
+      routerAddress: dataPost.data.routerAddress,
       swapLabel: swapLabel
     };
   }
