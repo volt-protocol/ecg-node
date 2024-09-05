@@ -213,6 +213,9 @@ async function checkBidProfitability(
       case BidderSwapMode.UNISWAPV2:
         getSwapFunction = SwapService.GetSwapUniv2;
         break;
+      case BidderSwapMode.KYBER:
+        getSwapFunction = SwapService.GetSwapKyber;
+        break;
     }
   }
 
@@ -533,11 +536,11 @@ AuctionBidder();
 // async function test() {
 //   const collateralToken = await getTokenBySymbol('WETH');
 //   const flashloanToken = await getTokenBySymbol('USDC');
-//   PEG_TOKEN = await getTokenBySymbol('stUSD');
+//   PEG_TOKEN = flashloanToken;
 //   GATEWAY_ADDRESS = await GetGatewayAddress();
 //   const res = await checkBidProfitability(
 //     collateralToken.address,
-//     { collateralReceived: 35n * 10n ** 17n, creditAsked: 10000n * 10n ** 18n },
+//     { collateralReceived: 5n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
 //     GetWeb3Provider(),
 //     10n ** 18n,
 //     flashloanToken
