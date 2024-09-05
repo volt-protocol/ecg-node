@@ -35,6 +35,12 @@ export interface TokenConfig {
   coincapId?: string;
   openoceanId?: number;
   flashloanToken?: string;
+  ERC4626?: ERC4626Config;
+}
+
+export interface ERC4626Config {
+  performRedeem: boolean;
+  underlyingToken: string;
 }
 
 export interface DexConfig {

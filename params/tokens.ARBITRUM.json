@@ -321,7 +321,11 @@
 		"permitAllowed": true,
 		"protocolToken": false,
 		"coingeckoId": "",
-		"coincapId": ""
+		"coincapId": "",
+		"ERC4626": {
+			"performRedeem": true,
+			"underlyingTokenAddress": "0xCA5d8F8a8d49439357d3CF46Ca2e720702F132b8"
+		}
 	},
 	{
 		"address": "0xAFD22F824D51Fb7EeD4778d303d4388AC644b026",
