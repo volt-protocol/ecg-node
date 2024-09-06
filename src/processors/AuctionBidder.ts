@@ -2,8 +2,18 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { BN_1e18, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import { AuctionHouse__factory, ERC4626__factory, GatewayV1NoACL__factory } from '../contracts/types';
 import {
+  AuctionHouse__factory,
+  BalancerVault__factory,
+  ERC20__factory,
+  ERC4626__factory,
+  GatewayV1NoACL__factory,
+  GatewayV2__factory,
+  LendingTermFactory__factory,
+  SimplePSM__factory
+} from '../contracts/types';
+import {
+  GetCreditTokenAddress,
   GetGatewayAddress,
   GetNodeConfig,
   GetPSMAddress,
@@ -25,6 +35,8 @@ import { TokenConfig } from '../model/Config';
 import PriceService from '../services/price/PriceService';
 import SwapService from '../services/swap/SwapService';
 import { OdosQuoteAssemble, OdosQuoteResponse } from '../model/OdosApi';
+import { FLASHLOAN_PROVIDERS, FlashloanProvider, FlashloanProviderEnum } from '../model/FlashloanProviders';
+import { AavePool__factory } from '../contracts/types/factories/AavePool__factory';
 
 const RUN_EVERY_SEC = 15;
 
@@ -73,6 +85,17 @@ async function AuctionBidder() {
       }
 
       const flashloanToken = PEG_TOKEN.flashloanToken ? await getTokenBySymbol(PEG_TOKEN.flashloanToken) : PEG_TOKEN;
+      let selectedFlashloanProvider = FLASHLOAN_PROVIDERS.BALANCER;
+      switch (flashloanToken.flashloanProvider) {
+        case FlashloanProviderEnum.BALANCER:
+        default:
+          selectedFlashloanProvider = FLASHLOAN_PROVIDERS.BALANCER;
+          break;
+        case FlashloanProviderEnum.AAVE:
+          selectedFlashloanProvider = FLASHLOAN_PROVIDERS.AAVE;
+          break;
+      }
+
       // 2 step swap
       const {
         estimatedProfitUsd,
@@ -86,11 +109,12 @@ async function AuctionBidder() {
         bidDetail,
         web3Provider,
         creditMultiplier,
-        flashloanToken
+        flashloanToken,
+        selectedFlashloanProvider
       );
       if (estimatedProfitUsd >= auctionBidderConfig.minProfitUsd) {
         Log(`AuctionBidder[${auction.loanId}]: will bid on auction for estimated profit: ${estimatedProfitUsd}`);
-        await processBid(
+        await processBidGWV2(
           auction,
           term,
           web3Provider,
@@ -101,7 +125,10 @@ async function AuctionBidder() {
           swapData,
           routerAddressToFlashloanToken,
           swapDataToFlashloanToken,
-          estimatedProfitUsd
+          estimatedProfitUsd,
+          selectedFlashloanProvider,
+          bidDetail,
+          creditMultiplier
         );
         continue;
       }
@@ -142,7 +169,8 @@ async function checkBidProfitability(
   bidDetail: { collateralReceived: bigint; creditAsked: bigint },
   web3Provider: ethers.JsonRpcProvider,
   creditMultiplier: bigint,
-  flashloanToken: TokenConfig
+  flashloanToken: TokenConfig,
+  selectedFlashloanProvider: FlashloanProvider
 ): Promise<{
   estimatedProfitUsd: number;
   flashloanAmount: bigint;
@@ -159,7 +187,8 @@ async function checkBidProfitability(
     );
   }
 
-  const creditAskedInPegToken = (bidDetail.creditAsked * creditMultiplier) / BN_1e18;
+  const creditAskedInPegToken =
+    (((bidDetail.creditAsked * creditMultiplier) / BN_1e18) * 10n ** BigInt(flashloanToken.decimals)) / BN_1e18;
   let flashloanAmountInFlashloanToken = creditAskedInPegToken;
   const flashloanToPegTokenSwapResults = {
     swapData: '0x',
@@ -246,7 +275,8 @@ async function checkBidProfitability(
     flashloanToken,
     amountToSwap,
     web3Provider,
-    GATEWAY_ADDRESS
+    GATEWAY_ADDRESS,
+    selectedFlashloanProvider
   );
 
   const amountFlashloanTokenReceivedUsd =
@@ -256,27 +286,29 @@ async function checkBidProfitability(
     norm((bidDetail.creditAsked * creditMultiplier) / 10n ** 18n) *
     (await PriceService.GetTokenPrice(PEG_TOKEN.address));
 
-  const profitUsd = amountFlashloanTokenReceivedUsd - creditCostUsd;
+  const flashloanfee = norm(flashloanAmountInFlashloanToken, flashloanToken.decimals) * selectedFlashloanProvider.fee;
+  const feeUsd = flashloanfee * (await PriceService.GetTokenPrice(flashloanToken.address));
+
+  const profitUsd = amountFlashloanTokenReceivedUsd - creditCostUsd - feeUsd;
 
   let msg = `Auction details (${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
     collateralToken.symbol
-  } for ${norm(creditAskedInPegToken)} ${PEG_TOKEN.symbol})\n`;
+  } for ${norm(creditAskedInPegToken, PEG_TOKEN.decimals)} ${PEG_TOKEN.symbol})\n`;
   if (flashloanToken.address == PEG_TOKEN.address) {
     msg +=
-      `Bid in 1 step via ${flashloanToken.symbol} flashloan\n` +
+      `Bid in 1 step via ${flashloanToken.symbol} flashloan using ${selectedFlashloanProvider.type} as flashloan provider\n` +
       `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
         collateralToken.symbol
       }\n` +
       redeemMsg +
       `\t - ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimburse flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
-      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
-        amountFlashloanTokenReceivedUsd - creditCostUsd
-      }` +
+      (feeUsd > 0 ? `\t - Flashloan fee: $${flashloanfee} ${flashloanToken.symbol} ($${feeUsd})\n` : '') +
+      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${profitUsd}` +
       (profitUsd < 0 ? '\nNOT BIDDING' : '');
   } else {
     msg +=
-      `Bid in 2 steps via ${flashloanToken.symbol} flashloan\n` +
+      `Bid in 2 steps via ${flashloanToken.symbol} flashloan using ${selectedFlashloanProvider.type} as flashloan provider\n` +
       `\t - Flashloan ${norm(flashloanAmountInFlashloanToken, flashloanToken.decimals)} ${flashloanToken.symbol}\n` +
       `\t - ${flashloanToPegTokenSwapResults.swapLabel}\n` +
       `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
@@ -285,9 +317,8 @@ async function checkBidProfitability(
       redeemMsg +
       `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
-      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
-        amountFlashloanTokenReceivedUsd - creditCostUsd
-      }` +
+      (feeUsd > 0 ? `\t - Flashloan fee: $${flashloanfee} ${flashloanToken.symbol} ($${feeUsd})\n` : '') +
+      `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${profitUsd}` +
       (profitUsd < 0 ? '\nNOT BIDDING' : '');
   }
 
@@ -325,7 +356,8 @@ async function processBid(
   swapData: string,
   routerAddressToFlashloanToken: string,
   swapDataToFlashloanToken: string,
-  estimatedProfitUsd: number
+  estimatedProfitUsd: number,
+  flashloanProvider: FlashloanProvider
 ) {
   if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
     throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
@@ -364,6 +396,283 @@ async function processBid(
       `Estimated $${estimatedProfitUsd} profit`
     );
   }
+}
+
+async function processBidGWV2(
+  auction: Auction,
+  term: LendingTerm,
+  web3Provider: ethers.JsonRpcProvider,
+  minProfitUsd: number,
+  flashloanToken: TokenConfig,
+  flashloanAmount: bigint,
+  routerAddress: string,
+  swapData: string,
+  routerAddressToFlashloanToken: string,
+  swapDataToFlashloanToken: string,
+  estimatedProfitUsd: number,
+  flashloanProvider: FlashloanProvider,
+  bidDetail: { collateralReceived: bigint; creditAsked: bigint; auctionEnded: boolean },
+  creditMultiplier: bigint
+) {
+  if (!process.env.BIDDER_ETH_PRIVATE_KEY) {
+    throw new Error('Cannot find BIDDER_ETH_PRIVATE_KEY in env');
+  }
+
+  const signer = new ethers.Wallet(process.env.BIDDER_ETH_PRIVATE_KEY, web3Provider);
+  const gatewayContract = GatewayV2__factory.connect(GATEWAY_ADDRESS, signer);
+  const minProfitFlashloanedTokenWei = new BigNumber(
+    minProfitUsd / (await PriceService.GetTokenPrice(flashloanToken.address))
+  )
+    .times(new BigNumber(10).pow(flashloanToken.decimals))
+    .toFixed(0);
+
+  const initiateFlashloanCall = getInitiateFlashloanCall(flashloanProvider, flashloanToken, flashloanAmount);
+
+  const { flashloanCallData, allTokensUsed } = await getFlashloanCalls(
+    auction,
+    term,
+    web3Provider,
+    flashloanToken,
+    flashloanAmount,
+    routerAddress,
+    swapData,
+    routerAddressToFlashloanToken,
+    swapDataToFlashloanToken,
+    estimatedProfitUsd,
+    flashloanProvider,
+    bidDetail,
+    creditMultiplier
+    minProfitFlashloanedTokenWei
+  );
+
+  const txReceipt = await gatewayContract.actionWithFlashLoan(
+    flashloanProvider.flashloanContractAddress,
+    initiateFlashloanCall,
+    '0x', // no need for pre flashloan calls
+    flashloanCallData,
+    getPostFlashloanCalls(allTokensUsed),
+    { gasLimit: 3_000_000 }
+  );
+  await txReceipt.wait();
+
+  if (term.termAddress.toLowerCase() != '0x427425372b643fc082328b70A0466302179260f5'.toLowerCase()) {
+    await SendNotifications(
+      'Auction Bidder',
+      `Auction ${auction.loanId} fulfilled`,
+      `Estimated $${estimatedProfitUsd} profit`
+    );
+  }
+}
+
+function getInitiateFlashloanCall(
+  flashloanProvider: FlashloanProvider,
+  flashloanToken: TokenConfig,
+  flashloanAmount: bigint
+): string {
+  if (flashloanProvider.type == FlashloanProviderEnum.AAVE) {
+    const aaveInterface = AavePool__factory.createInterface();
+    // function flashLoanSimple( address receiverAddress, address asset, uint256 amount, bytes calldata params, uint16 referralCode)
+    //Allows users to access liquidity of one reserve or one transaction as long as the amount taken plus fee is returned.
+    /*
+    Name            Type        Description
+    --------------  ----------  ------------------------------------------------------------
+    receiverAddress address     Address of the contract that will receive the flash borrowed 
+                                funds. Must implement the IFlashLoanReceiver interface.
+    
+    asset           address     Address of the underlying asset that will be flash borrowed.
+    
+    amount          uint256     Amount of asset being requested for flash borrow
+    
+    params          bytes       Arbitrary bytes-encoded params that will be passed to 
+                                executeOperation() method of the receiver contract.
+    
+    referralCode    uint16      Referral Code used for 3rd party integration referral. 
+                                The unique referral id can be requested via governance proposal
+    */
+    return aaveInterface.encodeFunctionData('flashLoanSimple', [
+      GATEWAY_ADDRESS,
+      flashloanToken.address,
+      flashloanAmount,
+      '0x',
+      0
+    ]);
+  } else if (flashloanProvider.type == FlashloanProviderEnum.BALANCER) {
+    const balancerInterface = BalancerVault__factory.createInterface();
+    return balancerInterface.encodeFunctionData('flashLoan', [
+      GATEWAY_ADDRESS,
+      [flashloanToken.address],
+      [flashloanAmount],
+      '0x'
+    ]);
+  } else {
+    throw new Error(`Unsupported flashloan provider: ${flashloanProvider.type}`);
+  }
+}
+
+async function getFlashloanCalls(
+  auction: Auction,
+  term: LendingTerm,
+  web3Provider: JsonRpcProvider,
+  flashloanToken: TokenConfig,
+  flashloanAmount: bigint,
+  routerAddress: string,
+  swapData: string,
+  routerAddressToFlashloanToken: string,
+  swapDataToFlashloanToken: string,
+  estimatedProfitUsd: number,
+  flashloanProvider: FlashloanProvider,
+  bidDetail: { collateralReceived: bigint; creditAsked: bigint; auctionEnded: boolean },
+  creditMultiplier: bigint,
+  minProfitFlashloanedTokenWei: bigint
+): Promise<{ flashloanCallData: string; allTokensUsed: string[] }> {
+  const gwInterface = GatewayV2__factory.createInterface();
+  const ercInterface = ERC20__factory.createInterface();
+  const erc4626Interface = ERC4626__factory.createInterface();
+  const auctionHouseInterface = AuctionHouse__factory.createInterface();
+  const psmInterface = SimplePSM__factory.createInterface();
+  const psmAddress = await GetPSMAddress();
+  const creditAddress = await GetCreditTokenAddress();
+  const collateralToken = await getTokenByAddress(term.collateralAddress);
+
+  const allTokensUsed: string[] = [];
+
+  allTokensUsed.push(flashloanToken.address);
+  allTokensUsed.push(collateralToken.address);
+  allTokensUsed.push(creditAddress);
+  const subCalls: string[] = [];
+
+  // if the flashloaned token is not the PEG TOKEN
+  // we need to first swap flashloanToken=>PEG_TOKEN
+  if (flashloanToken.address != PEG_TOKEN.address) {
+    // approve flashloan token to the swap router
+    allTokensUsed.push(PEG_TOKEN.address);
+    subCalls.push(
+      gwInterface.encodeFunctionData('callExternal', [
+        flashloanToken.address,
+        ercInterface.encodeFunctionData('approve', [routerAddress, flashloanAmount])
+      ])
+    );
+
+    // perform the swap
+    subCalls.push(gwInterface.encodeFunctionData('callExternal', [routerAddress, swapData]));
+  }
+
+  // here we should have some PEG TOKEN on the gateway, either from the flashloan
+  // or by having swapped the flashloaned tokens to the PEG TOKEN
+  // we need to mint some CREDIT TOKEN to be able to bid
+
+  // first we approve the PEGTOKEN to be minted on the PSM
+  // compute how much should be minted
+  const mintAmountPegToken = (bidDetail.creditAsked * creditMultiplier) / 10n ** (36n - BigInt(PEG_TOKEN.decimals));
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      PEG_TOKEN.address,
+      ercInterface.encodeFunctionData('approve', [psmAddress, mintAmountPegToken])
+    ])
+  );
+
+  // then we mint the CREDIT TOKEN
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      psmAddress,
+      psmInterface.encodeFunctionData('mint', [GATEWAY_ADDRESS, mintAmountPegToken])
+    ])
+  );
+
+  // here we have credit tokens on the gateway, we can bid and receive the collateral
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      creditAddress,
+      ercInterface.encodeFunctionData('approve', [term.termAddress, bidDetail.creditAsked])
+    ])
+  );
+
+  // and bid on the auction
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      auction.auctionHouseAddress,
+      auctionHouseInterface.encodeFunctionData('bid', [auction.loanId])
+    ])
+  );
+
+  // here we now have the collateral sent to the gateway
+  // we can swap back to the flashloan token
+
+  // unless the collateral is an ERC4626 that should be redeemed
+  let collateralTokenAddress = collateralToken.address;
+  if (collateralToken.ERC4626 && collateralToken.ERC4626.performRedeem) {
+    collateralTokenAddress = collateralToken.ERC4626.underlyingTokenAddress;
+    // redeem collateral for underlying
+    subCalls.push(
+      gwInterface.encodeFunctionData('callExternal', [
+        collateralToken.address,
+        erc4626Interface.encodeFunctionData('redeem', [bidDetail.collateralReceived, GATEWAY_ADDRESS, GATEWAY_ADDRESS])
+      ])
+    );
+
+    allTokensUsed.push(collateralToken.ERC4626.underlyingTokenAddress);
+  }
+
+  // swap back
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      collateralTokenAddress, // here collateralToken is either the real collateral or the underlying of the ERC4626
+      ercInterface.encodeFunctionData('approve', [routerAddressToFlashloanToken, ethers.MaxUint256]) // we don't know the amount when the token if from an ERC4626 so uint max
+    ])
+  );
+
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [routerAddressToFlashloanToken, swapDataToFlashloanToken])
+  );
+
+  subCalls.push(
+    gwInterface.encodeFunctionData('callExternal', [
+      collateralTokenAddress, // here collateralToken is either the real collateral or the underlying of the ERC4626
+      ercInterface.encodeFunctionData('approve', [routerAddressToFlashloanToken, 0])
+    ])
+  );
+
+  // here we have the flashloan token back on the gateway
+  // we need to reimburse the flashloan, which is different if the flashloan provider is Aave or Balancer
+  if (flashloanProvider.type == FlashloanProviderEnum.AAVE) {
+    // for aave, we just have to approve the flashloan token to be transferred from
+    const approveAmount = flashloanAmount + (flashloanAmount * BigInt(flashloanProvider.fee * 10000)) / 10000n + 1n;
+    subCalls.push(
+      gwInterface.encodeFunctionData('callExternal', [
+        flashloanToken.address,
+        ercInterface.encodeFunctionData('approve', [flashloanProvider.flashloanContractAddress, approveAmount])
+      ])
+    );
+  } else if (flashloanProvider.type == FlashloanProviderEnum.BALANCER) {
+    // for balancer, we need to repay the flashloan by transfering the token back
+    subCalls.push(
+      gwInterface.encodeFunctionData('callExternal', [
+        flashloanToken.address,
+        ercInterface.encodeFunctionData('transfer', [flashloanProvider.flashloanContractAddress, flashloanAmount])
+      ])
+    );
+  } else {
+    throw new Error(`Unsupported flashloan provider: ${flashloanProvider.type}`);
+  }
+
+  // check if min amount of flashloan token still on the gateway after repaying flashloan
+  subCalls.push(
+    gwInterface.encodeFunctionData('checkBalanceAtLeast', [flashloanToken.address, minProfitFlashloanedTokenWei])
+  );
+
+  const flashloanCallData = gwInterface.encodeFunctionData('multicall', [subCalls]);
+
+  return { flashloanCallData, allTokensUsed };
+}
+
+function getPostFlashloanCalls(tokenAddressesToSweep: string[]): string {
+  // at the end, need to sweep everything
+
+  // so we'll encode a multicall to call sweep on all the tokens needed
+  const gwInterface = GatewayV2__factory.createInterface();
+  return gwInterface.encodeFunctionData('multicall', [
+    tokenAddressesToSweep.map((_) => gwInterface.encodeFunctionData('sweep', [_]))
+  ]);
 }
 
 async function processForgive(auction: Auction, web3Provider: ethers.JsonRpcProvider) {
@@ -567,7 +876,8 @@ async function test() {
     { collateralReceived: 5000n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
     GetWeb3Provider(),
     10n ** 18n,
-    flashloanToken
+    flashloanToken,
+    FLASHLOAN_PROVIDERS.AAVE
   );
 }
 

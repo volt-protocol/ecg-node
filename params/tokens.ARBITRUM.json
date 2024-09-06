@@ -313,7 +313,8 @@
 		"protocolToken": false,
 		"coingeckoId": "gyroscope-gyd",
 		"coincapId": "",
-		"forceAggregator": "ODOS"
+		"forceAggregator": "ODOS",
+		"flashloanProvider": "AAVE"
 	},
 	{
 		"address": "0xeA50f402653c41cAdbaFD1f788341dB7B7F37816",
@@ -324,6 +325,7 @@
 		"coingeckoId": "",
 		"coincapId": "",
 		"forceAggregator": "ODOS",
+		"flashloanProvider": "AAVE",
 		"ERC4626": {
 			"performRedeem": true,
 			"underlyingTokenAddress": "0xCA5d8F8a8d49439357d3CF46Ca2e720702F132b8"

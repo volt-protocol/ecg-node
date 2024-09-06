@@ -14,6 +14,7 @@ import { KyberSwapGetResponse } from '../../model/KyberSwapGetResponse';
 import { KyberSwapPostResponse } from '../../model/KyberSwapPostResponse';
 import { NETWORK } from '../../utils/Constants';
 import { OdosQuoteAssemble, OdosQuoteResponse } from '../../model/OdosApi';
+import { FlashloanProvider, FlashloanProviderEnum } from '../../model/FlashloanProviders';
 
 let lastCallPendle = 0;
 let lastCall1Inch = 0;
@@ -24,7 +25,8 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
     const univ2RouterAddress = await GetUniswapV2RouterAddress();
     const uniswapRouterContract = UniswapV2Router__factory.connect(univ2RouterAddress, web3Provider);
@@ -62,7 +64,8 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
     const chainId = (await web3Provider.getNetwork()).chainId;
     const pendleConf = fromToken.pendleConfiguration;
@@ -87,7 +90,7 @@ export default class SwapService {
           `&amountPtIn=${collateralReceivedWei.toString()}` +
           `&tokenOutAddr=${toToken.address}` +
           `&syTokenOutAddr=${pendleConf.syTokenOut}` +
-          `&excludedSources=${getPendleExcludedProtocols(chainId)}` +
+          `&excludedSources=${getPendleExcludedProtocols(chainId, flashloanProvider)}` +
           '&slippage=0.05';
 
     Log(`pendle url: ${pendleHostedSdkUrl}`);
@@ -118,7 +121,8 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
     const ONE_INCH_API_KEY = process.env.ONE_INCH_API_KEY;
     if (!ONE_INCH_API_KEY) {
@@ -135,7 +139,7 @@ export default class SwapService {
       `&from=${receiverAddr}` +
       `&slippage=${maxSlippage}` +
       '&disableEstimate=true' + // disable onchain estimate otherwise it check if we have enough balance to do the swap, which is false
-      `&excludedProtocols=${get1inchExcludedProtocols(chainCode)}`;
+      `&excludedProtocols=${get1inchExcludedProtocols(chainCode, flashloanProvider)}`;
 
     Log(`getSwap1Inch: ${oneInchApiUrl}`);
     const msToWait = 1000 - (Date.now() - lastCall1Inch);
@@ -168,7 +172,8 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
     // when calling openocena, the amount must be normalzed
     const collateralAmountNorm = norm(collateralReceivedWei, fromToken.decimals).toFixed(8);
@@ -187,7 +192,7 @@ export default class SwapService {
       `&slippage=${maxSlippage}` +
       `&gasPrice=${gasPrice}` +
       `&account=${receiverAddr}` +
-      `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId)}`;
+      `&disabledDexIds=${getOpenOceanExcludedProtocols(chainId, flashloanProvider)}`;
 
     // Log(`getSwapOpenOcean: ${openOceanURL}`);
 
@@ -211,8 +216,10 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
+    const chainId = (await web3Provider.getNetwork()).chainId;
     const odosQuoteURL = 'https://api.odos.xyz/sor/quote/v2';
     const body = {
       chainId: NETWORK == 'ARBITRUM' ? 42161 : 1,
@@ -231,6 +238,7 @@ export default class SwapService {
       ],
       referralCode: 0,
       slippageLimitPercent: 0.3,
+      sourceBlacklist: getOdosExcludedProtocols(chainId, flashloanProvider),
       userAddr: receiverAddr
     };
 
@@ -260,13 +268,17 @@ export default class SwapService {
     toToken: TokenConfig,
     collateralReceivedWei: bigint,
     web3Provider: ethers.JsonRpcProvider,
-    receiverAddr: string
+    receiverAddr: string,
+    flashloanProvider: FlashloanProvider
   ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
+    const chainId = (await web3Provider.getNetwork()).chainId;
+
     const urlGet =
       'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
       `tokenIn=${fromToken.address}` +
       `&tokenOut=${toToken.address}` +
-      `&amountIn=${collateralReceivedWei.toString(10)}`;
+      `&amountIn=${collateralReceivedWei.toString(10)}` +
+      `&excludedProtocols=${getKyberExcludedProtocols(chainId, flashloanProvider)}`;
 
     const kyberResp = await HttpGet<KyberSwapGetResponse>(urlGet);
 
@@ -300,35 +312,120 @@ export default class SwapService {
   }
 }
 
-function getPendleExcludedProtocols(chainCode: bigint) {
+function getPendleExcludedProtocols(chainCode: bigint, flashloanProvider: FlashloanProvider) {
   switch (chainCode) {
     case 1n:
-      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     case 42161n:
-      return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     default:
       throw new Error(`Unknown chaincode: ${chainCode}`);
   }
 }
 
-function get1inchExcludedProtocols(chainCode: bigint) {
+function get1inchExcludedProtocols(chainCode: bigint, flashloanProvider: FlashloanProvider) {
   switch (chainCode) {
     case 1n:
-      return 'BALANCER,BALANCER_V2,BALANCER_V2_WRAPPER';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'BALANCER,BALANCER_V2,BALANCER_V2_WRAPPER';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     case 42161n:
-      return 'ARBITRUM_BALANCER_V2';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'ARBITRUM_BALANCER_V2';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     default:
       throw new Error(`Unknown chaincode: ${chainCode}`);
   }
 }
 
-function getOpenOceanExcludedProtocols(chainCode: bigint) {
+function getOpenOceanExcludedProtocols(chainCode: bigint, flashloanProvider: FlashloanProvider) {
   // need to take the index from this page: https://open-api.openocean.finance/v3/eth/dexList
   switch (chainCode) {
     case 1n:
-      return '7,41';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return '7,41';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     case 42161n:
-      return '2';
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return '2';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
+    default:
+      throw new Error(`Unknown chaincode: ${chainCode}`);
+  }
+}
+
+function getKyberExcludedProtocols(chainCode: bigint, flashloanProvider: FlashloanProvider) {
+  // need to take the index from this page: https://open-api.openocean.finance/v3/eth/dexList
+  switch (chainCode) {
+    case 1n:
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
+    case 42161n:
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return 'balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+        case FlashloanProviderEnum.AAVE:
+          return '';
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
+    default:
+      throw new Error(`Unknown chaincode: ${chainCode}`);
+  }
+}
+
+function getOdosExcludedProtocols(chainCode: bigint, flashloanProvider: FlashloanProvider) {
+  // need to take the index from this page: https://open-api.openocean.finance/v3/eth/dexList
+  switch (chainCode) {
+    case 42161n:
+      switch (flashloanProvider.type) {
+        case FlashloanProviderEnum.BALANCER:
+          return ['Balancer V2 Stable', 'Balancer V2 Weighted'];
+        case FlashloanProviderEnum.AAVE:
+          return [];
+        default:
+          throw new Error(`Unknown flashloan provider: ${flashloanProvider.type}`);
+      }
     default:
       throw new Error(`Unknown chaincode: ${chainCode}`);
   }

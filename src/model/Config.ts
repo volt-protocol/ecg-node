@@ -1,3 +1,4 @@
+import { FlashloanProviderEnum } from './FlashloanProviders';
 import { BidderSwapMode } from './NodeConfig';
 
 export interface ConfigFile {
@@ -38,6 +39,7 @@ export interface TokenConfig {
   openoceanId?: number;
   flashloanToken?: string;
   forceAggregator?: BidderSwapMode;
+  flashloanProvider?: FlashloanProviderEnum;
   ERC4626?: ERC4626Config;
 }
 
