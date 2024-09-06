@@ -441,8 +441,8 @@ async function processBidGWV2(
     estimatedProfitUsd,
     flashloanProvider,
     bidDetail,
-    creditMultiplier
-    minProfitFlashloanedTokenWei
+    creditMultiplier,
+    BigInt(minProfitFlashloanedTokenWei)
   );
 
   const txReceipt = await gatewayContract.actionWithFlashLoan(
