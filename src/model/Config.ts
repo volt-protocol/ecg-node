@@ -1,3 +1,5 @@
+import { BidderSwapMode } from './NodeConfig';
+
 export interface ConfigFile {
   [marketId: number]: ProtocolConstants;
 }
@@ -35,12 +37,13 @@ export interface TokenConfig {
   coincapId?: string;
   openoceanId?: number;
   flashloanToken?: string;
+  forceAggregator?: BidderSwapMode;
   ERC4626?: ERC4626Config;
 }
 
 export interface ERC4626Config {
   performRedeem: boolean;
-  underlyingToken: string;
+  underlyingTokenAddress: string;
 }
 
 export interface DexConfig {

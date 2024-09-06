@@ -12,6 +12,8 @@ import { GetOpenOceanChainCodeByChainId, OpenOceanSwapQuoteResponse } from '../.
 import { GetAvgGasPrice } from '../../utils/Web3Helper';
 import { KyberSwapGetResponse } from '../../model/KyberSwapGetResponse';
 import { KyberSwapPostResponse } from '../../model/KyberSwapPostResponse';
+import { NETWORK } from '../../utils/Constants';
+import { OdosQuoteAssemble, OdosQuoteResponse } from '../../model/OdosApi';
 
 let lastCallPendle = 0;
 let lastCall1Inch = 0;
@@ -204,6 +206,55 @@ export default class SwapService {
     };
   }
 
+  static async GetSwapOdos(
+    fromToken: TokenConfig,
+    toToken: TokenConfig,
+    collateralReceivedWei: bigint,
+    web3Provider: ethers.JsonRpcProvider,
+    receiverAddr: string
+  ): Promise<{ toTokenReceivedWei: bigint; swapData: string; routerAddress: string; swapLabel: string }> {
+    const odosQuoteURL = 'https://api.odos.xyz/sor/quote/v2';
+    const body = {
+      chainId: NETWORK == 'ARBITRUM' ? 42161 : 1,
+      compact: true,
+      inputTokens: [
+        {
+          amount: collateralReceivedWei.toString(10),
+          tokenAddress: fromToken.address
+        }
+      ],
+      outputTokens: [
+        {
+          proportion: 1,
+          tokenAddress: toToken.address
+        }
+      ],
+      referralCode: 0,
+      slippageLimitPercent: 0.3,
+      userAddr: receiverAddr
+    };
+
+    const odosQuoteResponse = await HttpPost<OdosQuoteResponse>(odosQuoteURL, body);
+    const odosAssembleUrl = 'https://api.odos.xyz/sor/assemble';
+    const odosAssembleResponse = await HttpPost<OdosQuoteAssemble>(odosAssembleUrl, {
+      pathId: odosQuoteResponse.pathId,
+      simulate: false,
+      userAddr: receiverAddr
+    });
+
+    const swapLabel = `Swapping ${norm(collateralReceivedWei, fromToken.decimals)} ${fromToken.symbol} => ${norm(
+      odosQuoteResponse.outAmounts[0],
+      toToken.decimals
+    )} ${toToken.symbol} using ODOS`;
+
+    return {
+      toTokenReceivedWei: BigInt(odosQuoteResponse.outAmounts[0]),
+      swapData: odosAssembleResponse.transaction.data,
+      routerAddress: odosAssembleResponse.transaction.to,
+      swapLabel: swapLabel
+    };
+  }
+
   static async GetSwapKyber(
     fromToken: TokenConfig,
     toToken: TokenConfig,
@@ -215,8 +266,7 @@ export default class SwapService {
       'https://aggregator-api.kyberswap.com/arbitrum/api/v1/routes?' +
       `tokenIn=${fromToken.address}` +
       `&tokenOut=${toToken.address}` +
-      `&amountIn=${collateralReceivedWei.toString(10)}&` +
-      '&excludedSources=balancer-v1,balancer-v2-composable-stable,balancer-v2-stable,balancer-v2-weighted';
+      `&amountIn=${collateralReceivedWei.toString(10)}`;
 
     const kyberResp = await HttpGet<KyberSwapGetResponse>(urlGet);
 

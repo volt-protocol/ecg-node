@@ -41,6 +41,7 @@ export enum BidderSwapMode {
   UNISWAPV2 = 'UNISWAPV2',
   ONE_INCH = '1INCH',
   OPEN_OCEAN = 'OPEN_OCEAN',
+  ODOS = 'ODOS',
   KYBER = 'KYBER'
 }
 

@@ -2,7 +2,7 @@ import { Auction, AuctionStatus, AuctionsFileStructure } from '../model/Auction'
 import { BN_1e18, DATA_DIR, getProcessTitleMarketId, MARKET_ID, NETWORK, SWAP_MODE } from '../utils/Constants';
 import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
-import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
+import { AuctionHouse__factory, ERC4626__factory, GatewayV1NoACL__factory } from '../contracts/types';
 import {
   GetGatewayAddress,
   GetNodeConfig,
@@ -196,12 +196,13 @@ async function checkBidProfitability(
     }
   }
 
+  const swapModeToUse = collateralToken.forceAggregator ? collateralToken.forceAggregator : SWAP_MODE;
   let getSwapFunction;
   // specific case for pendle, use pendle amm
   if (collateralToken.pendleConfiguration) {
     getSwapFunction = SwapService.GetSwapPendle;
   } else {
-    switch (SWAP_MODE) {
+    switch (swapModeToUse) {
       default:
         throw new Error(`${SWAP_MODE} not implemented`);
       case BidderSwapMode.ONE_INCH:
@@ -216,13 +217,34 @@ async function checkBidProfitability(
       case BidderSwapMode.KYBER:
         getSwapFunction = SwapService.GetSwapKyber;
         break;
+      case BidderSwapMode.ODOS:
+        getSwapFunction = SwapService.GetSwapOdos;
+        break;
     }
   }
 
+  // if collateral is an ERC26 that should be redeemed,
+  // we need to compute how much we can redeem and then check the profitability for that amount
+  let tokenToSwap = collateralToken;
+  let amountToSwap = bidDetail.collateralReceived;
+  let redeemMsg = '';
+  if (collateralToken.ERC4626 && collateralToken.ERC4626.performRedeem) {
+    const underlyingToken = await getTokenByAddress(collateralToken.ERC4626.underlyingTokenAddress);
+    tokenToSwap = underlyingToken;
+    const erc26Contract = ERC4626__factory.connect(collateralToken.address, web3Provider);
+    const redeemableAmountInUnderlyingToken = await erc26Contract.convertToAssets(bidDetail.collateralReceived);
+    redeemMsg =
+      '\t - ERC4626 redeem amount: ' +
+      `${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${collateralToken.symbol} => ` +
+      `${norm(redeemableAmountInUnderlyingToken, underlyingToken.decimals)} ${underlyingToken.symbol}\n`;
+
+    amountToSwap = redeemableAmountInUnderlyingToken;
+  }
+
   const collateralToFlashloanTokenSwapResults = await getSwapFunction(
-    collateralToken,
+    tokenToSwap,
     flashloanToken,
-    bidDetail.collateralReceived,
+    amountToSwap,
     web3Provider,
     GATEWAY_ADDRESS
   );
@@ -245,6 +267,7 @@ async function checkBidProfitability(
       `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
         collateralToken.symbol
       }\n` +
+      redeemMsg +
       `\t - ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimburse flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
       `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
@@ -259,6 +282,7 @@ async function checkBidProfitability(
       `\t - Bid to receive ${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
         collateralToken.symbol
       }\n` +
+      redeemMsg +
       `\t - Second swap: ${collateralToFlashloanTokenSwapResults.swapLabel}\n` +
       `\t - Reimbursing flashloan and earning $${profitUsd} + remaining ${PEG_TOKEN.symbol}\n` +
       `\t - Cost: $${creditCostUsd}, gains: $${amountFlashloanTokenReceivedUsd}. PnL: $${
@@ -531,20 +555,20 @@ async function getOdosSwapDataForPegTokenAmount(
   };
 }
 
-AuctionBidder();
+// AuctionBidder();
 
-// async function test() {
-//   const collateralToken = await getTokenBySymbol('WETH');
-//   const flashloanToken = await getTokenBySymbol('USDC');
-//   PEG_TOKEN = flashloanToken;
-//   GATEWAY_ADDRESS = await GetGatewayAddress();
-//   const res = await checkBidProfitability(
-//     collateralToken.address,
-//     { collateralReceived: 5n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
-//     GetWeb3Provider(),
-//     10n ** 18n,
-//     flashloanToken
-//   );
-// }
+async function test() {
+  const collateralToken = await getTokenBySymbol('sGYD');
+  const flashloanToken = await getTokenBySymbol('USDC');
+  PEG_TOKEN = flashloanToken;
+  GATEWAY_ADDRESS = await GetGatewayAddress();
+  const res = await checkBidProfitability(
+    collateralToken.address,
+    { collateralReceived: 5000n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
+    GetWeb3Provider(),
+    10n ** 18n,
+    flashloanToken
+  );
+}
 
-// test();
+test();
