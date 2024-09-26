@@ -4,6 +4,7 @@ import { GetProtocolData, ReadJSON, sleep } from '../utils/Utils';
 import path from 'path';
 import { AuctionHouse__factory, GatewayV1NoACL__factory } from '../contracts/types';
 import {
+  GetCreditTokenAddress,
   GetGatewayAddress,
   GetNodeConfig,
   GetPSMAddress,
@@ -281,6 +282,20 @@ async function checkBidProfitability(
     };
   }
 
+  Log(
+    `flashloanAmountInFlashloanToken (${flashloanToken.symbol}): ${flashloanAmountInFlashloanToken} / (${norm(
+      flashloanAmountInFlashloanToken,
+      flashloanToken.decimals
+    )} ${flashloanToken.symbol} normalized)`
+  );
+
+  const creditToken = await getTokenByAddress(await GetCreditTokenAddress());
+  Log(
+    `creditAsked (${creditToken.symbol}): ${bidDetail.creditAsked} (${norm(
+      bidDetail.creditAsked,
+      creditToken.decimals
+    )} ${creditToken.symbol} normalized)`
+  );
   return {
     estimatedProfitUsd: profitUsd,
     flashloanAmount: flashloanAmountInFlashloanToken,
