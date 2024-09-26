@@ -26,7 +26,7 @@
         },
         "AUCTION_BIDDER": {
             "enableForgive": true,
-            "minProfitUsd": 0.1
+            "minProfitUsd": 0.01
         },
         "HISTORICAL_DATA_FETCHER": {},
         "TESTNET_MARKET_MAKER": {
