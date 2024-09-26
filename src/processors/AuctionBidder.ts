@@ -159,7 +159,8 @@ async function checkBidProfitability(
     );
   }
 
-  const creditAskedInPegToken = (bidDetail.creditAsked * creditMultiplier) / BN_1e18;
+  const creditAskedInPegToken =
+    (((bidDetail.creditAsked * creditMultiplier) / BN_1e18) * 10n ** BigInt(flashloanToken.decimals)) / BN_1e18;
   let flashloanAmountInFlashloanToken = creditAskedInPegToken;
   const flashloanToPegTokenSwapResults = {
     swapData: '0x',
@@ -238,7 +239,7 @@ async function checkBidProfitability(
 
   let msg = `Auction details (${norm(bidDetail.collateralReceived, collateralToken.decimals)} ${
     collateralToken.symbol
-  } for ${norm(creditAskedInPegToken)} ${PEG_TOKEN.symbol})\n`;
+  } for ${norm(creditAskedInPegToken, PEG_TOKEN.decimals)} ${PEG_TOKEN.symbol})\n`;
   if (flashloanToken.address == PEG_TOKEN.address) {
     msg +=
       `Bid in 1 step via ${flashloanToken.symbol} flashloan\n` +
@@ -534,13 +535,13 @@ async function getOdosSwapDataForPegTokenAmount(
 AuctionBidder();
 
 // async function test() {
-//   const collateralToken = await getTokenBySymbol('WETH');
+//   const collateralToken = await getTokenBySymbol('PT-USDe-29AUG2024');
 //   const flashloanToken = await getTokenBySymbol('USDC');
 //   PEG_TOKEN = flashloanToken;
 //   GATEWAY_ADDRESS = await GetGatewayAddress();
 //   const res = await checkBidProfitability(
 //     collateralToken.address,
-//     { collateralReceived: 5n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
+//     { collateralReceived: 11000n * 10n ** 18n, creditAsked: 10000n * 10n ** 18n },
 //     GetWeb3Provider(),
 //     10n ** 18n,
 //     flashloanToken
