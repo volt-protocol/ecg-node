@@ -161,7 +161,7 @@ async function checkBidProfitability(
   }
 
   const creditAskedInPegToken =
-    (((bidDetail.creditAsked * creditMultiplier) / BN_1e18) * 10n ** BigInt(flashloanToken.decimals)) / BN_1e18;
+    (((bidDetail.creditAsked * creditMultiplier) / BN_1e18) * 10n ** BigInt(flashloanToken.decimals)) / BN_1e18 + 1n;
   let flashloanAmountInFlashloanToken = creditAskedInPegToken;
   const flashloanToPegTokenSwapResults = {
     swapData: '0x',
