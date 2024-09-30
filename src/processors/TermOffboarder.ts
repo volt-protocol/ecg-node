@@ -21,6 +21,7 @@ import { Log, Warn } from '../utils/Logger';
 import PriceService from '../services/price/PriceService';
 import { AuctionHouseData, AuctionHousesFileStructure } from '../model/AuctionHouse';
 import { TokenConfig } from '../model/Config';
+import { Loan, LoansFileStructure, LoanStatus } from '../model/Loan';
 
 const RUN_EVERY_SEC = 60 * 5;
 
@@ -81,6 +82,10 @@ async function tryCleanup(termFileData: LendingTermsFileStructure, offboarderCon
     throw new Error('Cannot find ETH_PRIVATE_KEY in env');
   }
 
+  const loansFilename = path.join(DATA_DIR, 'loans.json');
+  const loansFile: LoansFileStructure = ReadJSON(loansFilename);
+  const allLoans = loansFile.loans;
+
   const signer = new ethers.Wallet(process.env.ETH_PRIVATE_KEY, GetWeb3Provider());
 
   const lendingTermOffboardingContract = LendingTermOffboarding__factory.connect(
@@ -89,6 +94,15 @@ async function tryCleanup(termFileData: LendingTermsFileStructure, offboarderCon
   );
 
   for (const term of termFileData.terms.filter((_) => _.status == LendingTermStatus.DEPRECATED)) {
+    if (allLoans) {
+      const loansForTerm = allLoans.filter(
+        (_) => _.lendingTermAddress == term.termAddress && _.status != LoanStatus.CLOSED
+      );
+      if (loansForTerm.length > 0) {
+        Log(`Term ${term.termAddress} has ${loansForTerm.length} loans not closed, will not cleanup`);
+        continue;
+      }
+    }
     Log(`Trying to cleanup term ${term.termAddress}`);
 
     const canOffboard = await lendingTermOffboardingContract.canOffboard(term.termAddress);
